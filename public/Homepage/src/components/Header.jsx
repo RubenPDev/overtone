@@ -1,5 +1,5 @@
 import React from 'react';
-import { linkHandler } from '../router.js';
+import { linkHandler, withBase } from '../router.js';
 
 function Sun() {
   return (
@@ -21,7 +21,7 @@ function Moon() {
 export default function Header({ isDark, onToggleTheme, navigate }) {
   return (
     <header className="masthead">
-      <a className="brand" href="/" onClick={navigate ? linkHandler(navigate, '/') : undefined}>
+      <a className="brand" href={withBase('/')} onClick={navigate ? linkHandler(navigate, '/') : undefined}>
         <span className="brand__mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <circle cx="12" cy="12" r="9.2" strokeWidth="1.1" />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { linkHandler } from '../router.js';
+import { linkHandler, withBase } from '../router.js';
 import { GAMES } from '../data/games.js';
 
 export default function Footer({ navigate }) {
@@ -14,7 +14,7 @@ export default function Footer({ navigate }) {
             {GAMES.map((g) => (
               <li key={g.id}>
                 {g.status === 'live' ? (
-                  <a href={g.href} onClick={navigate ? linkHandler(navigate, g.href) : undefined}>{g.name}</a>
+                  <a href={withBase(g.href)} onClick={navigate ? linkHandler(navigate, g.href) : undefined}>{g.name}</a>
                 ) : (
                   <span className="footer__muted">{g.name} — soon</span>
                 )}

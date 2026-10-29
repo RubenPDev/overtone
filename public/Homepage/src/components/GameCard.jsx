@@ -1,7 +1,7 @@
 import React from 'react';
 import Glyph from './Glyph.jsx';
 import { useGameStats } from '../lib/useGameStats.js';
-import { linkHandler } from '../router.js';
+import { linkHandler, withBase } from '../router.js';
 
 function Streak({ n }) {
   if (!n) return null;
@@ -14,7 +14,7 @@ export default function GameCard({ game, featured = false, navigate }) {
 
   const Wrapper = live ? 'a' : 'div';
   const props = live
-    ? { href: game.href, onClick: linkHandler(navigate, game.href) }
+    ? { href: withBase(game.href), onClick: linkHandler(navigate, game.href) }
     : { 'aria-disabled': 'true' };
 
   return (
