@@ -1,0 +1,379 @@
+/* ============================================================
+   Overtone — site styles
+   Theme is driven by [data-theme] on <html> when the visitor has
+   chosen one, and falls back to prefers-color-scheme when they
+   haven't. Both paths set the same variables.
+   ============================================================ */
+
+:root {
+  --paper: #f7f5ef;
+  --card: #2e2d2d;
+  --card-hover: #fffdf6;
+  --ink: #747473;
+  --ink-2: #9b9d9ed3;
+  --ink-3: #8d8a80;
+  --rule: rgba(27, 26, 23, 0.10);
+  --rule-2: rgba(27, 26, 23, 0.18);
+
+  --display: 'Fraunces', Georgia, serif;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --gutter: clamp(20px, 5vw, 48px);
+  --radius: 14px;
+  --maxw: 1080px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #0e0e0d;
+    --card: #171716;
+    --card-hover: #1d1d1b;
+    --ink: #f2f0e9;
+    --ink-2: #a5a29a;
+    --ink-3: #74716a;
+    --rule: rgba(242, 240, 233, 0.10);
+    --rule-2: rgba(242, 240, 233, 0.20);
+  }
+}
+
+:root[data-theme='dark'] {
+  --paper: #0e0e0d;
+  --card: #171716;
+  --card-hover: #1d1d1b;
+  --ink: #f2f0e9;
+  --ink-2: #a5a29a;
+  --ink-3: #74716a;
+  --rule: rgba(242, 240, 233, 0.10);
+  --rule-2: rgba(242, 240, 233, 0.20);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background 320ms ease, color 320ms ease;
+}
+
+h1, h2, h3, h4 { margin: 0; font-weight: 400; }
+p { margin: 0; }
+ul { margin: 0; padding: 0; list-style: none; }
+
+a { color: inherit; text-decoration: none; }
+main a:not(.card):not(.card__cta) { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--rule-2); }
+main a:not(.card):hover { text-decoration-color: currentColor; }
+
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+
+.shell {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ---------- masthead ---------- */
+
+.masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand { display: inline-flex; align-items: center; gap: 10px; }
+.brand__mark svg { width: 24px; height: 24px; display: block; }
+.brand__word {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.masthead__nav { display: flex; align-items: center; gap: clamp(14px, 3vw, 26px); }
+.masthead__nav a { font-size: 14px; color: var(--ink-2); transition: color 160ms; }
+.masthead__nav a:hover { color: var(--ink); }
+
+.themetoggle {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  padding: 0;
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 180ms, border-color 180ms, transform 220ms cubic-bezier(.34,1.56,.64,1);
+}
+.themetoggle:hover { color: var(--ink); border-color: var(--rule-2); }
+.themetoggle:active { transform: scale(0.92) rotate(-18deg); }
+.themetoggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+
+/* ---------- hero ---------- */
+
+.hero { padding: clamp(56px, 12vw, 104px) 0 clamp(40px, 8vw, 72px); max-width: 680px; }
+
+.hero__date {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  margin-bottom: 22px;
+}
+
+.hero__title {
+  font-family: var(--display);
+  font-size: clamp(40px, 8.5vw, 76px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  margin-bottom: 24px;
+}
+
+.hero__lede {
+  font-size: clamp(16px, 2.2vw, 19px);
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 46ch;
+}
+
+/* ---------- games ---------- */
+
+.games { padding-bottom: clamp(56px, 10vw, 96px); }
+
+.games__head { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
+.games__rule { flex: 1; height: 1px; background: var(--rule); }
+
+.games__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  gap: 18px;
+  padding: 22px;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  transition: background 200ms, border-color 200ms, transform 200ms;
+}
+
+a.card:hover {
+  background: var(--card-hover);
+  border-color: rgb(var(--accent) / 0.45);
+  transform: translateY(-2px);
+}
+
+.card--featured { padding: 28px; gap: 24px; align-items: flex-start; }
+.card--soon { opacity: 0.62; }
+
+.card__mark {
+  flex: none;
+  width: 56px; height: 56px;
+  display: grid; place-items: center;
+  color: rgb(var(--accent));
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  transition: border-color 200ms;
+}
+.card--featured .card__mark { width: 76px; height: 76px; }
+a.card:hover .card__mark { border-color: rgb(var(--accent) / 0.4); }
+.card__glyph { width: 100%; height: 100%; }
+
+.card__body { flex: 1; min-width: 0; }
+
+.card__heading { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+
+.card__name {
+  font-family: var(--display);
+  font-size: clamp(20px, 3vw, 26px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.card--featured .card__name { font-size: clamp(26px, 4.2vw, 34px); }
+
+.card__badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 100px;
+  color: rgb(var(--accent));
+  background: rgb(var(--accent) / 0.12);
+}
+.card__badge--done { color: var(--ink-3); background: var(--rule); }
+.card__badge--soon { color: var(--ink-3); background: transparent; border: 1px solid var(--rule); }
+
+.card__tagline { color: var(--ink-2); font-size: 15px; }
+.card__desc { margin-top: 12px; color: var(--ink-2); font-size: 15px; max-width: 54ch; }
+
+.card__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+
+.card__cta {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 14px;
+  color: rgb(var(--accent));
+}
+.card__cta svg { width: 15px; height: 15px; transition: transform 200ms; }
+a.card:hover .card__cta svg { transform: translateX(3px); }
+.card__cta--muted { color: var(--ink-3); }
+
+.card__streak { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+
+/* ---------- about ---------- */
+
+.about { padding: clamp(48px, 9vw, 88px) 0; border-top: 1px solid var(--rule); }
+
+.about__head { margin-bottom: 32px; }
+.about__head h2 {
+  font-family: var(--display);
+  font-size: clamp(26px, 4.5vw, 38px);
+  letter-spacing: -0.03em;
+  margin-top: 10px;
+}
+
+.about__cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: clamp(24px, 5vw, 56px);
+}
+.about__col p { color: var(--ink-2); font-size: 15.5px; }
+.about__col p + p { margin-top: 14px; }
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px;
+  margin: 44px 0 0;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.facts > div { background: var(--card); padding: 18px 20px; }
+.facts dt {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+.facts dd { margin: 0; font-size: 14.5px; color: var(--ink-2); line-height: 1.5; }
+
+/* ---------- footer ---------- */
+
+.footer { padding: clamp(40px, 7vw, 64px) 0 56px; border-top: 1px solid var(--rule); }
+
+.footer__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 32px;
+  margin-bottom: 44px;
+}
+
+.footer__col h4 {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 14px;
+}
+.footer__col li + li { margin-top: 9px; }
+.footer__col a, .footer__muted { font-size: 14px; color: var(--ink-2); transition: color 160ms; }
+.footer__col a:hover { color: var(--ink); }
+.footer__muted { color: var(--ink-3); }
+
+.footer__base {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+}
+.footer__base p { font-size: 13px; color: var(--ink-3); }
+.footer__note { font-style: italic; }
+
+/* ---------- motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   View Transitions
+   Supported browsers morph the card's ring into the game's pad,
+   because both carry view-transition-name: mark-cadence. Anything
+   else falls back to the staggered rise in cadence.css, which is
+   why that animation exists independently of this block.
+   ============================================================ */
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(root) {
+    animation-duration: 420ms;
+    animation-timing-function: cubic-bezier(.22, .8, .3, 1);
+  }
+
+  ::view-transition-old(root) {
+    animation: vt-out 240ms cubic-bezier(.4, 0, 1, 1) both;
+  }
+
+  ::view-transition-new(root) {
+    animation: vt-in 380ms cubic-bezier(.22, .8, .3, 1) 60ms both;
+  }
+
+  /* The morphing ring outranks the cross-fading page beneath it. */
+  ::view-transition-group(mark-cadence) {
+    z-index: 10;
+    animation-duration: 520ms;
+    animation-timing-function: cubic-bezier(.22, .8, .3, 1);
+  }
+  ::view-transition-old(mark-cadence),
+  ::view-transition-new(mark-cadence) {
+    /* Hold both at full opacity so the shape reads as one object moving,
+       rather than two circles dissolving through each other. */
+    animation: none;
+    mix-blend-mode: normal;
+    height: 100%;
+    overflow: clip;
+  }
+}
+
+@keyframes vt-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes vt-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Root needs a name for the group rules above to apply to the page itself. */
+:root { view-transition-name: root; }

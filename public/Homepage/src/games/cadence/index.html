@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+
+
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Cadence — the daily rhythm puzzle</title>
+<style>
+:root {
+  --display: 'Fraunces', Georgia, serif;
+
+  --bg: #161615;
+  --surface: #171716;
+  --surface-2: #1f1f1d;
+  --line: rgba(255,255,255,0.09);
+  --line-strong: rgba(255,255,255,0.16);
+  --text: #f0efe9;
+  --text-dim: #9a9890;
+  --text-faint: #6b6a64;
+  --ok: #1D9E75;
+  --warn: #EF9F27;
+  --bad: #E24B4A;
+  --radius: 10px;
+  --gutter: 20px;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #faf9f5;
+    --surface: #ffffff;
+    --surface-2: #f2f1ec;
+    --line: rgba(0,0,0,0.10);
+    --line-strong: rgba(0,0,0,0.20);
+    --text: #1f1e1b;
+    --text-dim: #5f5e59;
+    --text-faint: #8a8880;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+.gameTitle{
+  font-family: var(--display);
+  font-size: clamp(10px, 8.5vw, 30px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  margin-bottom: 24px;}
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: env(safe-area-inset-top) var(--gutter) env(safe-area-inset-bottom);
+}
+
+#app {
+  width: 100%;
+  height:100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 0 32px;
+}
+
+/* ---------- header ---------- */
+
+.masthead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.wordmark { font-size: 17px; font-weight: 500; letter-spacing: 0.02em; }
+.daystamp { font-size: 12px; color: var(--text-faint); font-family: var(--mono); }
+
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 26px; }
+.tab {
+  font: inherit; font-size: 13px;
+  padding: 11px 6px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: color 180ms, border-color 180ms, background 180ms;
+}
+.tab[aria-selected="true"] { color: var(--text); border-color: var(--line-strong); background: var(--surface); }
+
+/* ---------- progress strip ---------- */
+
+.stripwrap { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.stripwrap span { font-size: 12px; color: var(--text-faint); font-family: var(--mono); }
+
+#strip { display: flex; gap: 3px; height: 30px; align-items: flex-end; margin-bottom: 30px; }
+.cell {
+  flex: 1; height: 9px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  transition: background 220ms ease, height 180ms ease;
+}
+
+/* ---------- the pad ---------- */
+
+.padwrap { display: flex; justify-content: center; margin-bottom: 26px; }
+#pad {
+  position: relative;
+  width: 276px; height: 276px;
+  max-width: 78vw; max-height: 78vw;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: none;
+  transition: border-color 500ms ease;
+}
+#scope { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+#padlabel {
+  position: absolute; left: 0; right: 0; top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  font-size: 12px; letter-spacing: 0.06em;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+/* ---------- readouts ---------- */
+
+.readouts { display: flex; justify-content: space-between; margin-bottom: 18px; }
+.readouts span { font-size: 11px; color: var(--text-faint); font-family: var(--mono); letter-spacing: 0.02em; }
+
+#hint { font-size: 13px; line-height: 1.65; color: var(--text-dim); min-height: 66px; margin-bottom: 26px; }
+#hint b { font-weight: 500; }
+
+/* ---------- actions ---------- */
+
+.actions { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
+.btn {
+  font: inherit; font-size: 13px;
+  padding: 12px 10px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: color 180ms, border-color 180ms;
+}
+.btn:hover { color: var(--text); border-color: var(--line-strong); }
+.btn:active { transform: scale(0.985); }
+.btn.icon { width: 46px; padding: 12px 0; display: grid; place-items: center; }
+.btn.icon svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+
+/* ---------- settings drawer ---------- */
+
+#settings {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 320ms ease, opacity 220ms ease, margin 320ms ease;
+  margin-top: 0;
+}
+#settings.open { max-height: 320px; opacity: 1; margin-top: 16px; }
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 18px 18px 20px;
+}
+.panel h2 { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 16px; }
+.row { display: flex; align-items: center; gap: 14px; margin-bottom: 15px; }
+.row:last-child { margin-bottom: 0; }
+.row label { font-size: 13px; color: var(--text-dim); min-width: 58px; }
+.row output { font-size: 11px; color: var(--text-faint); font-family: var(--mono); min-width: 38px; text-align: right; }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  flex: 1; height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--line-strong); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 2px; background: var(--line-strong); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; margin-top: -6px;
+  border-radius: 50%; background: var(--text); border: none;
+}
+input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--text); border: none; }
+</style>
+</head>
+<body>
+
+<main id="app">
+
+  <div class="masthead">
+    <div class="gameTitle">Cadence</div>
+    <span class="daystamp" id="daystamp">—</span>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" id="tab0" role="tab" aria-selected="true">Day 1 · tutorial</button>
+    <button class="tab" id="tab1" role="tab" aria-selected="false">Day 2</button>
+  </div>
+
+  <div class="stripwrap">
+    <span id="label">Tutorial</span>
+    <span id="counter">0 / 8</span>
+  </div>
+  <div id="strip"></div>
+
+  <div class="padwrap">
+    <div id="pad">
+      <canvas id="scope"></canvas>
+      <span id="padlabel">tap anywhere</span>
+    </div>
+  </div>
+
+  <div class="readouts">
+    <span id="lat">gap —</span>
+    <span id="best">fastest —</span>
+  </div>
+
+  <p id="hint">Every tap plays the next note. The pitches are given to you — the rhythm is the puzzle. Tap at any speed; only the pattern is graded.</p>
+
+  <div class="actions">
+    <button class="btn" id="reset">Reset</button>
+    <button class="btn" id="reveal">Hear answer</button>
+    <button class="btn icon" id="gear" aria-label="Settings" aria-expanded="false">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+
+  <div id="settings">
+    <div class="panel">
+      <h2>Visualizer</h2>
+      <div class="row">
+        <label for="lobes">Lobes</label>
+        <input type="range" id="lobes" min="1" max="12" step="1" value="3">
+        <output id="lobesOut">3</output>
+      </div>
+      <div class="row">
+        <label for="spike">Spike</label>
+        <input type="range" id="spike" min="10" max="30" step="1" value="19">
+        <output id="spikeOut">1.9</output>
+      </div>
+      <div class="row">
+        <label for="uneven">Uneven</label>
+        <input type="range" id="uneven" min="0" max="60" step="1" value="30">
+        <output id="unevenOut">0.30</output>
+      </div>
+      <div class="row">
+        <label for="steady">Steady</label>
+        <input type="range" id="steady" min="5" max="60" step="1" value="18">
+        <output id="steadyOut">0.18</output>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+(function () {
+'use strict';
+
+/* ------------------------------------------------------------------
+   MELODY DATA
+   Add a day by appending an object. All tunes must be public domain.
+   notes : frequencies in Hz, in order
+   gaps  : inter-onset intervals in beats (length = notes.length - 1)
+   Difficulty comes from two things: how many notes, and the ratio
+   between the longest and shortest gap. Bigger ratio = easier.
+------------------------------------------------------------------ */
+
+var C4 = 261.63, D4 = 293.66, Eb4 = 311.13, E4 = 329.63, F4 = 349.23, G4 = 392.00;
+
+var MELODIES = [
+  {
+    name: 'Tutorial',
+    title: 'Symphony No. 5 — Beethoven',
+    notes: [G4, G4, G4, Eb4, F4, F4, F4, D4],
+    gaps:  [0.5, 0.5, 0.5, 3, 0.5, 0.5, 0.5],
+    playback: 0.42,
+    solved: 'Beethoven\u2019s fifth \u2014 three shorts and a long, twice. Two pitches only, yet you knew it instantly.',
+    intro: 'Only two pitches here, so the rhythm carries the whole tune. Tap at any speed you like.'
+  },
+  {
+    name: 'Day 2',
+    title: 'When the Saints Go Marching In — trad.',
+    notes: [C4, E4, F4, G4, C4, E4, F4, G4, C4, E4, F4, G4, E4, C4],
+    gaps:  [1, 1, 1, 4, 1, 1, 1, 4, 1, 1, 1, 2, 2],
+    playback: 0.32,
+    solved: '\u201CWhen the saints go marching in\u201D \u2014 same shape as the tutorial, stretched over fourteen notes.',
+    intro: 'Longer, and the pitches climb. Same idea: find the pattern, ignore the speed.'
+  }
+];
+
+/* pitch -> colour. Low notes cool, high notes warm. */
+var HUES = {};
+HUES[C4]  = [29, 158, 117];
+HUES[D4]  = [93, 202, 171];
+HUES[Eb4] = [55, 138, 221];
+HUES[E4]  = [127, 119, 221];
+HUES[F4]  = [212, 83, 126];
+HUES[G4]  = [216, 90, 48];
+var NEUTRAL = [136, 135, 128];
+
+/* ------------------------------------------------------------------
+   GRADING
+   Tempo-independent. We find the scale factor that best maps the
+   player's gaps onto the target gaps (least squares), then check each
+   gap's ratio. Playing the whole thing twice as slow scores identical.
+------------------------------------------------------------------ */
+
+var TOL_LOW = 0.72, TOL_HIGH = 1.38;
+
+function gradeGaps(played, target) {
+  var num = 0, den = 0, k;
+  for (k = 0; k < played.length; k++) { num += played[k] * target[k]; den += target[k] * target[k]; }
+  var scale = num / den;
+  var marks = [], correct = 0;
+  for (k = 0; k < played.length; k++) {
+    var ratio = played[k] / scale / target[k];
+    var good = ratio > TOL_LOW && ratio < TOL_HIGH;
+    if (good) correct++;
+    marks.push(good ? 0 : (ratio < 1 ? -1 : 1));
+  }
+  return { scale: scale, marks: marks, correct: correct, total: played.length };
+}
+
+/* ------------------------------------------------------------------
+   AUDIO
+   Each pitch is synthesised once into an AudioBuffer at startup.
+   A tap then only has to fire a buffer source, which is as close to
+   instant as a browser gets. Partials at 2.74x / 5.37x / 7.93x are
+   deliberately inharmonic so the waveform never exactly repeats.
+------------------------------------------------------------------ */
+
+var ac = null, analyser = null, scopeData = null, buffers = {};
+
+function synth(freq) {
+  var sr = ac.sampleRate, n = Math.floor(sr * 0.6);
+  var b = ac.createBuffer(1, n, sr), d = b.getChannelData(0), TAU = Math.PI * 2;
+  for (var k = 0; k < n; k++) {
+    var t = k / sr;
+    var e1 = Math.exp(-t * 5.2), e2 = Math.exp(-t * 11), e3 = Math.exp(-t * 17);
+    if (t < 0.004) { var a = t / 0.004; e1 *= a; e2 *= a; e3 *= a; }
+    d[k] = 0.27 * (
+      e1 * Math.sin(TAU * freq * t) +
+      e1 * 0.20 * Math.sin(TAU * 3 * freq * t) +
+      e1 * 0.07 * Math.sin(TAU * 5 * freq * t) +
+      e2 * 0.17 * Math.sin(TAU * 2.74 * freq * t + 1.1) +
+      e3 * 0.10 * Math.sin(TAU * 5.37 * freq * t + 2.3) +
+      e3 * 0.06 * Math.sin(TAU * 7.93 * freq * t + 0.4)
+    );
+  }
+  return b;
+}
+
+function initAudio() {
+  if (ac) return;
+  ac = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+  analyser = ac.createAnalyser();
+  analyser.fftSize = 2048;
+  analyser.smoothingTimeConstant = 0;
+  scopeData = new Float32Array(analyser.fftSize);
+  analyser.connect(ac.destination);
+
+  for (var m = 0; m < MELODIES.length; m++) {
+    var notes = MELODIES[m].notes;
+    for (var k = 0; k < notes.length; k++) {
+      if (!buffers[notes[k]]) buffers[notes[k]] = synth(notes[k]);
+    }
+  }
+  // Prime the graph with a silent hit so the first real note isn't paying setup cost.
+  var s = ac.createBufferSource(), g = ac.createGain();
+  s.buffer = buffers[MELODIES[0].notes[0]];
+  g.gain.value = 0;
+  s.connect(g); g.connect(ac.destination); s.start();
+}
+
+function playNote(freq, when) {
+  lastFreq = freq;
+  var s = ac.createBufferSource();
+  s.buffer = buffers[freq];
+  s.connect(analyser);
+  s.start(when || 0);
+}
+
+/* ------------------------------------------------------------------
+   STATE
+------------------------------------------------------------------ */
+
+var level = 0, taps = [], idx = 0, finished = false;
+var lastTapTime = 0, fastestGap = Infinity, lastFreq = 330;
+var flash = 0, ripple = null;
+
+/* visualiser settings */
+var LOBES = 3, SPIKE = 1.9, UNEVEN = 0.30, STEADY = 0.18;
+
+/* ------------------------------------------------------------------
+   DOM
+------------------------------------------------------------------ */
+
+var pad = document.getElementById('pad');
+var canvas = document.getElementById('scope');
+var ctx = canvas.getContext('2d');
+var strip = document.getElementById('strip');
+var padlabel = document.getElementById('padlabel');
+var counter = document.getElementById('counter');
+var labelEl = document.getElementById('label');
+var hintEl = document.getElementById('hint');
+var latEl = document.getElementById('lat');
+var bestEl = document.getElementById('best');
+var daystamp = document.getElementById('daystamp');
+var tabs = [document.getElementById('tab0'), document.getElementById('tab1')];
+
+daystamp.textContent = new Date().toISOString().slice(0, 10);
+
+/* kill text selection everywhere, including the stubborn cases */
+document.addEventListener('selectstart', function (e) { e.preventDefault(); });
+document.addEventListener('dragstart', function (e) { e.preventDefault(); });
+pad.addEventListener('dblclick', function (e) { e.preventDefault(); });
+pad.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+/* ------------------------------------------------------------------
+   SETTINGS DRAWER
+------------------------------------------------------------------ */
+
+var gear = document.getElementById('gear');
+var settings = document.getElementById('settings');
+gear.addEventListener('click', function () {
+  var open = settings.classList.toggle('open');
+  gear.setAttribute('aria-expanded', open ? 'true' : 'false');
+});
+
+function bindSlider(id, outId, apply, format) {
+  var el = document.getElementById(id), out = document.getElementById(outId);
+  el.addEventListener('input', function () {
+    var v = parseInt(el.value, 10);
+    apply(v);
+    out.textContent = format(v);
+  });
+}
+bindSlider('lobes',  'lobesOut',  function (v) { LOBES = v; },        function (v) { return String(v); });
+bindSlider('spike',  'spikeOut',  function (v) { SPIKE = v / 10; },   function (v) { return (v / 10).toFixed(1); });
+bindSlider('uneven', 'unevenOut', function (v) { UNEVEN = v / 100; }, function (v) { return (v / 100).toFixed(2); });
+bindSlider('steady', 'steadyOut', function (v) { STEADY = v / 100; }, function (v) { return (v / 100).toFixed(2); });
+
+/* ------------------------------------------------------------------
+   RENDER LOOP
+------------------------------------------------------------------ */
+
+var W = 0, H = 0, POINTS = 288;
+var displayed = new Float32Array(POINTS + 1);
+var colour = NEUTRAL.slice(), colourTarget = NEUTRAL.slice();
+
+function sizeCanvas() {
+  var r = pad.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  W = Math.max(1, Math.floor(r.width));
+  H = Math.max(1, Math.floor(r.height));
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', function () { W = 0; });
+
+function lineColour() {
+  return Math.round(colour[0]) + ',' + Math.round(colour[1]) + ',' + Math.round(colour[2]);
+}
+
+/* Raise each sample to a power so round sine humps become spikes. */
+function sharpen(v) {
+  var n = v / 0.42;
+  if (n > 1) n = 1; else if (n < -1) n = -1;
+  return (n < 0 ? -1 : 1) * Math.pow(Math.abs(n), SPIKE);
+}
+
+function drawGraticule(cx, cy, R) {
+  var faint = getComputedStyle(document.documentElement).getPropertyValue('--line-strong').trim() || '#555';
+  ctx.strokeStyle = faint;
+  ctx.lineWidth = 0.5;
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 0.65;
+  ctx.beginPath();
+  for (var k = 0; k < 12; k++) {
+    var a = k / 12 * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+    ctx.moveTo(cx + c * (R - 3), cy + s * (R - 3));
+    ctx.lineTo(cx + c * (R + 3), cy + s * (R + 3));
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+var targets = new Float32Array(POINTS + 1);
+
+function draw() {
+  requestAnimationFrame(draw);
+  if (!W) sizeCanvas();
+  ctx.clearRect(0, 0, W, H);
+
+  var cx = W / 2, cy = H / 2, R = W * 0.30, amp = W * 0.17, rms = 0, k;
+
+  for (k = 0; k < 3; k++) colour[k] += (colourTarget[k] - colour[k]) * 0.12;
+  var rgb = lineColour();
+
+  drawGraticule(cx, cy, R);
+
+  if (ripple) {
+    var age = (performance.now() - ripple.t) / 460;
+    if (age >= 1) ripple = null;
+    else {
+      ctx.strokeStyle = 'rgba(' + rgb + ',' + ((1 - age) * 0.30).toFixed(3) + ')';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.arc(ripple.x, ripple.y, 6 + age * 80, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  if (flash > 0) flash -= 0.06;
+
+  if (analyser) {
+    analyser.getFloatTimeDomainData(scopeData);
+    var n = scopeData.length, sr = ac.sampleRate;
+    // Window = a whole number of cycles, so the ring closes without a seam.
+    var span = Math.round((sr / lastFreq) * LOBES);
+    if (span < 24) span = 24;
+    if (span > n - 80) span = n - 80;
+
+    for (k = 0; k < span; k += 4) rms += scopeData[k] * scopeData[k];
+    rms = Math.sqrt(rms / (span / 4));
+
+    // Trigger on a rising zero crossing so the trace doesn't slide sideways.
+    var start = 0, limit = n - span - 1;
+    for (k = 1; k < limit; k++) {
+      if (scopeData[k - 1] < 0 && scopeData[k] >= 0) { start = k; break; }
+    }
+    for (k = 0; k <= POINTS; k++) {
+      targets[k] = sharpen(scopeData[start + Math.floor((k % POINTS) / POINTS * span)]);
+    }
+  } else {
+    for (k = 0; k <= POINTS; k++) targets[k] = 0;
+  }
+
+  // Ease toward the target instead of snapping: this is what kills the jitter.
+  for (k = 0; k <= POINTS; k++) displayed[k] += (targets[k] - displayed[k]) * STEADY;
+
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.miterLimit = 1;
+  ctx.beginPath();
+  for (k = 0; k <= POINTS; k++) {
+    var a = -Math.PI / 2 + Math.PI * 2 * (k % POINTS) / POINTS;
+    // Uneven scales the DEVIATION only, so the baseline stays a true circle.
+    var scale = 1 + UNEVEN * (
+      Math.sin(a * 2 + 0.9) * 0.62 +
+      Math.sin(a * 3 - 1.7) * 0.46 +
+      Math.sin(a * 5 + 2.4) * 0.30
+    );
+    var r = R + displayed[k] * amp * scale;
+    if (r < 8) r = 8;
+    if (r > W / 2 - 4) r = W / 2 - 4;
+    var x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+    if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = 'rgba(' + rgb + ',' + (0.26 + Math.min(0.50, rms * 6) + flash * 0.10).toFixed(3) + ')';
+  ctx.lineWidth = 1 + Math.min(1.3, rms * 5) + flash * 0.4;
+  ctx.stroke();
+}
+
+/* ------------------------------------------------------------------
+   GAME FLOW
+------------------------------------------------------------------ */
+
+function buildStrip() {
+  strip.innerHTML = '';
+  var n = MELODIES[level].notes.length;
+  for (var k = 0; k < n; k++) {
+    var d = document.createElement('div');
+    d.className = 'cell';
+    strip.appendChild(d);
+  }
+}
+
+function reset() {
+  var m = MELODIES[level];
+  taps = [];
+  idx = 0;
+  finished = false;
+  lastTapTime = 0;
+  fastestGap = Infinity;
+  colourTarget = NEUTRAL.slice();
+  pad.style.borderColor = '';
+  buildStrip();
+  counter.textContent = '0 / ' + m.notes.length;
+  labelEl.textContent = m.name;
+  padlabel.textContent = 'tap anywhere';
+  hintEl.textContent = m.intro;
+  latEl.textContent = 'gap —';
+  bestEl.textContent = 'fastest —';
+}
+
+function finish() {
+  var m = MELODIES[level];
+  var played = [];
+  for (var k = 1; k < taps.length; k++) played.push(taps[k] - taps[k - 1]);
+  var res = gradeGaps(played, m.gaps);
+  var cells = strip.children;
+
+  for (k = 0; k < res.marks.length; k++) {
+    cells[k].style.height = (9 + Math.min(m.gaps[k], 4) * 5) + 'px';
+    cells[k].style.background = res.marks[k] === 0 ? 'var(--ok)' : (res.marks[k] === -1 ? 'var(--warn)' : 'var(--bad)');
+  }
+  
+
+  if (res.correct === res.total) {
+    hintEl.innerHTML = '<b style="color:var(--ok)">Solved.</b> ' + m.solved +
+      ' You played it at about ' + Math.round(60 / res.scale) + ' bpm \u2014 the tempo was never graded.';
+  } else {
+    hintEl.innerHTML = '<b style="color:var(--bad)">' + res.correct + ' of ' + res.total + ' gaps right.</b> ' +
+      'Amber means you held too short, red too long. Try \u201Chear answer\u201D, then go again.';
+  }
+  padlabel.textContent = 'tap to try again';
+  finished = true;
+}
+
+function onPress(e) {
+  var now = performance.now();
+  if (e && e.preventDefault) e.preventDefault();
+
+  if (e && e.clientX !== undefined) {
+    var r = pad.getBoundingClientRect();
+    ripple = { x: e.clientX - r.left, y: e.clientY - r.top, t: now };
+  } else {
+    ripple = { x: W / 2, y: H / 2, t: now };
+  }
+
+  if (finished) { reset(); return; }
+
+  initAudio();
+  if (ac.state === 'suspended') ac.resume();
+
+  var m = MELODIES[level];
+  if (idx >= m.notes.length) return;
+
+  var freq = m.notes[idx];
+  playNote(freq);
+  flash = 1;
+
+  var hue = HUES[freq] || NEUTRAL;
+  colourTarget = hue;
+  pad.style.borderColor = 'rgba(' + hue[0] + ',' + hue[1] + ',' + hue[2] + ',0.55)';
+
+  taps.push(now / 1000);
+
+  var cell = strip.children[idx];
+  cell.style.height = '25px';
+  cell.style.background = 'rgba(' + hue[0] + ',' + hue[1] + ',' + hue[2] + ',0.85)';
+
+  if (lastTapTime) {
+    var gap = Math.round(now - lastTapTime);
+    latEl.textContent = 'gap ' + gap + ' ms';
+    if (gap < fastestGap) { fastestGap = gap; bestEl.textContent = 'fastest ' + gap + ' ms'; }
+  }
+  lastTapTime = now;
+
+  idx++;
+  counter.textContent = idx + ' / ' + m.notes.length;
+  if (idx === 1) padlabel.textContent = 'keep going';
+  if (idx === m.notes.length) setTimeout(finish, 10);
+}
+
+/* pointerdown fires on finger-DOWN. click fires on finger-up, with a
+   browser tap delay on top — which is why this feels instant and that
+   didn't. touch-action:none on #pad kills the double-tap-zoom wait. */
+if (window.PointerEvent) {
+  pad.addEventListener('pointerdown', onPress);
+} else {
+  pad.addEventListener('touchstart', function (e) { e.preventDefault(); onPress(null); }, { passive: false });
+  pad.addEventListener('mousedown', onPress);
+}
+
+document.getElementById('reset').addEventListener('click', reset);
+
+document.getElementById('reveal').addEventListener('click', function () {
+  initAudio();
+  if (ac.state === 'suspended') ac.resume();
+  var m = MELODIES[level], t = ac.currentTime + 0.08, offset = 0;
+  for (var k = 0; k < m.notes.length; k++) {
+    var freq = m.notes[k];
+    (function (f, delayMs) {
+      setTimeout(function () {
+        var h = HUES[f];
+        if (h) {
+          colourTarget = h;
+          pad.style.borderColor = 'rgba(' + h[0] + ',' + h[1] + ',' + h[2] + ',0.55)';
+        }
+      }, delayMs);
+    })(freq, offset * 1000);
+    var s = ac.createBufferSource();
+    s.buffer = buffers[freq];
+    s.connect(analyser);
+    s.start(t);
+    lastFreq = freq;
+    if (k < m.gaps.length) { t += m.gaps[k] * m.playback; offset += m.gaps[k] * m.playback; }
+  }
+  hintEl.textContent = 'That is the target rhythm. Listen to the gaps, not the notes.';
+});
+
+function selectLevel(n) {
+  level = n;
+  for (var k = 0; k < tabs.length; k++) tabs[k].setAttribute('aria-selected', k === n ? 'true' : 'false');
+  reset();
+}
+tabs[0].addEventListener('click', function () { selectLevel(0); });
+tabs[1].addEventListener('click', function () { selectLevel(1); });
+
+sizeCanvas();
+reset();
+draw();
+
+})();
+</script>
+</body>
+</html>
