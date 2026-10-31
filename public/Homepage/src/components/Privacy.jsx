@@ -7,7 +7,7 @@ export default function Privacy() {
       <h1 className="page__title">Very little, on purpose.</h1>
       <p className="page__lede">
         Overtone has no accounts, ads or cookies. Your progress stays in your browser, and the
-        only game data we receive is an anonymous count for each puzzle.
+        only game data we receive is anonymous counts of plays and players.
       </p>
 
       <div className="page__section">
@@ -21,13 +21,18 @@ export default function Privacy() {
       </div>
 
       <div className="page__section">
-        <h2>The anonymous count</h2>
+        <h2>The anonymous counts</h2>
         <p>
           The first time you finish a puzzle, your browser reports the game, the puzzle number
           and that it was played. The first time you solve it, it also reports whether you did so
-          with or without help. Each report just adds one to a running total. We don’t store your
-          IP address, an identifier or the time, so the totals can’t be traced to you. The totals
-          themselves are public.
+          with or without help. The first time you finish any puzzle, we also add one to the
+          number of players from your country, which Cloudflare works out from your connection.
+        </p>
+        <p>
+          Each report just adds one to a running total. We don’t store your IP address, an
+          identifier or the time, and the country count isn’t linked to the puzzle counts, so the
+          totals can’t be traced to you. The totals themselves are public, which means a country
+          with very few players will show a small number.
         </p>
       </div>
 

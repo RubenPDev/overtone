@@ -2,15 +2,18 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createCadenceEngine } from './engine.js';
 import { hueFor, puzzleForNumber, todayNumber } from './melodies.js';
 import {
-  helpSeen, hintUsed, markHelpSeen, markHintUsed, readResults, recordPlay, readVisualPrefs, writeVisualPrefs,
+  helpSeen, hintUsed, isSolved, markHelpSeen, markHintUsed, readResults, readTries, recordPlay, recordTry,
+  readVisualPrefs, writeVisualPrefs,
 } from '../../lib/progress.js';
 import { reportResult } from '../../lib/stats.js';
 import ArchiveDrawer from './ArchiveDrawer.jsx';
 import CadenceHelp from './CadenceHelp.jsx';
+import CadenceResult, { ResultIcon } from './CadenceResult.jsx';
 import './cadence.css';
 
 const NS = 'cadence';
 const DEFAULT_VISUAL = { lobes: 3, spike: 1.9, uneven: 0.30, steady: 0.18 };
+const RESULT_DELAY_MS = 900; // lets the last note ring and the graded strip land
 
 const SLIDERS = [
   { key: 'lobes', label: 'Lobes', min: 1, max: 12, step: 1, fmt: (v) => String(v) },
@@ -56,6 +59,8 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
   const closeHelp = useCallback(() => setShowHelp(false), []);
 
   useEffect(() => { if (showHelp) markHelpSeen(NS); }, [showHelp]);
+  const [showResult, setShowResult] = useState(() => isSolved(readResults(NS)[number]));
+  const closeResult = useCallback(() => setShowResult(false), []);
   const [visual, setVisual] = useState(() => readVisualPrefs(NS, DEFAULT_VISUAL));
 
   /* Engine owns the canvas and the audio; it is created once for the lifetime
@@ -80,20 +85,20 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
      puzzle is recorded as assisted rather than solved. Once you've solved it
      cleanly there's nothing left to lose, so it plays straight away. */
   const [heard, setHeard] = useState(() => hintUsed(NS, number));
-  const [attempts, setAttempts] = useState(0);
+  const [attempts, setAttempts] = useState(() => readTries(NS, number)?.count ?? 0);
   const [armed, setArmed] = useState(false);
   const [outcome, setOutcome] = useState(null);
   const heardRef = useRef(heard);
-  const attemptsRef = useRef(0);
 
   useEffect(() => {
     const h = hintUsed(NS, number);
     setHeard(h);
     heardRef.current = h;
-    setAttempts(0);
-    attemptsRef.current = 0;
+    setAttempts(readTries(NS, number)?.count ?? 0);
     setArmed(false);
     setOutcome(null);
+    // Coming back to a solved puzzle shows how it went, not a blank board.
+    setShowResult(isSolved(readResults(NS)[number]));
   }, [number]);
 
   // Switching puzzles re-runs this effect before the engine's reset lands, so
@@ -104,14 +109,27 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
     if (!state.result) { setOutcome(null); return; }
     if (state.result === seenResultRef.current) return;
     seenResultRef.current = state.result;
-    attemptsRef.current += 1;
-    setAttempts(attemptsRef.current);
     const solved = state.result.correct === state.result.total;
     const kind = !solved ? 'missed' : heardRef.current ? 'assisted' : 'solved';
-    setOutcome({ kind, firstTry: kind === 'solved' && attemptsRef.current === 1 });
+    const firstSolve = recordTry(NS, number, state.result.marks, solved);
+    const count = readTries(NS, number)?.count ?? 0;
+    setAttempts(Math.max(count, 1));
+    setOutcome({ kind, firstTry: kind === 'solved' && firstSolve && count === 1 });
     recordPlay(NS, { puzzleNumber: number, outcome: kind, isToday });
     reportResult(NS, number, kind);
   }, [state.result, number, isToday]);
+
+  // Tapping to go again during the delay clears the outcome, and with it this timer.
+  useEffect(() => {
+    if (!isSolved(outcome?.kind)) return undefined;
+    const t = setTimeout(() => setShowResult(true), RESULT_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [outcome]);
+
+  const onReplay = useCallback(() => {
+    setShowResult(false);
+    engineRef.current?.reset();
+  }, []);
 
   useEffect(() => {
     if (!armed) return undefined;
@@ -161,6 +179,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
         current={number}
         onPick={pickPuzzle}
       />
+      {showResult && <CadenceResult ns={NS} puzzle={puzzle} onClose={closeResult} onReplay={onReplay} />}
       {showHelp && <CadenceHelp visual={visual} onClose={closeHelp} openedByTap={showHelp === 'tap'} />}
 
       <div className="cadence__stage">
@@ -173,6 +192,11 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
           </button>
 
           <div className="cad__barend">
+            {isSolved(readResults(NS)[number]) && (
+              <button type="button" className="cad__iconbtn" onClick={() => setShowResult(true)} aria-label="Your result">
+                <ResultIcon name="star" />
+              </button>
+            )}
             <button type="button" className="cad__iconbtn" onClick={() => setShowHelp('tap')} aria-label="How to play">
               <span>?</span>
             </button>
@@ -239,7 +263,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
                   {outcome?.kind === 'assisted' ? 'Solved, with help.'
                     : outcome?.firstTry ? 'Solved, first try.' : 'Solved by ear.'}
                 </b>{' '}
-                {melody.title} — {melody.composer}. {melody.solved}{' '}
+                {melody.title} — {melody.composer.replace(/\.$/, '')}. {melody.solved}{' '}
                 You played it at about {result.bpm} bpm; the tempo was never graded.
               </>
             ) : (

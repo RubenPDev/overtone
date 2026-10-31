@@ -5,3 +5,8 @@ CREATE TABLE IF NOT EXISTS counts (
   n      INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (game, puzzle, event)
 );
+
+CREATE TABLE IF NOT EXISTS players (
+  country TEXT    PRIMARY KEY,
+  n       INTEGER NOT NULL DEFAULT 0
+);

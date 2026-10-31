@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createCadenceEngine } from './engine.js';
 import { hueFor, NOTE as N } from './melodies.js';
+import { useDialog } from '../../lib/useDialog.js';
 
 /* Deliberately not in the catalogue, so learning the game never spoils a
    puzzle. It has its own engine and never touches progress or stats. */
@@ -28,7 +29,7 @@ export default function CadenceHelp({ visual, onClose, openedByTap }) {
   const padRef = useRef(null);
   const canvasRef = useRef(null);
   const engineRef = useRef(null);
-  const panelRef = useRef(null);
+  const panelRef = useDialog(onClose);
   const [state, setState] = useState({ index: 0, finished: false, result: null });
 
   useEffect(() => {
@@ -45,18 +46,6 @@ export default function CadenceHelp({ visual, onClose, openedByTap }) {
     return () => { engine.destroy(); engineRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    const opener = document.activeElement;
-    // The panel, not a button: focusing one lower down would scroll past the title on a phone.
-    panelRef.current?.focus();
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      opener?.focus?.();
-    };
-  }, [onClose]);
 
   const onHear = () => {
     engineRef.current?.reset();

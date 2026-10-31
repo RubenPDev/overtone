@@ -38,6 +38,48 @@ export function markHelpSeen(ns) {
   safeSet(`${ns}:helpSeen`, '1');
 }
 
+export function isSolved(outcome) {
+  return outcome === 'solved' || outcome === 'assisted';
+}
+
+const TRY_ROWS_KEPT = 6;
+
+function readAllTries(ns) {
+  try { return JSON.parse(safeGet(`${ns}:tries`) || '{}'); } catch { return {}; }
+}
+
+/** { count, rows, done } for a puzzle, or null if no try has been recorded. */
+export function readTries(ns, puzzleNumber) {
+  return readAllTries(ns)[puzzleNumber] ?? null;
+}
+
+/**
+ * Remembers a finished attempt, up to and including the first solve; replays
+ * after that don't change the result. A puzzle solved before tries were being
+ * counted stays uncounted, since we can't know its real number. Call this
+ * before recordPlay, and it returns true if this attempt was the first solve.
+ */
+export function recordTry(ns, puzzleNumber, marks, solved) {
+  const all = readAllTries(ns);
+  const entry = all[puzzleNumber] ?? { count: 0, rows: [], done: false };
+  if (entry.done || isSolved(readResults(ns)[puzzleNumber])) return false;
+
+  entry.count += 1;
+  entry.rows = [...entry.rows, marks].slice(-TRY_ROWS_KEPT);
+  entry.done = solved;
+  all[puzzleNumber] = entry;
+  safeSet(`${ns}:tries`, JSON.stringify(all));
+  return solved;
+}
+
+/** The stored streak, unless a whole day has been missed since. */
+export function readStreak(ns) {
+  const last = safeGet(`${ns}:lastPlayed`);
+  const yesterday = todayStamp(new Date(Date.now() - 86400000));
+  if (last !== todayStamp() && last !== yesterday) return 0;
+  return parseInt(safeGet(`${ns}:streak`) || '0', 10) || 0;
+}
+
 /**
  * Records a finished puzzle. Only today's puzzle moves the streak — replaying
  * the archive shouldn't inflate it. Pass `outcome` to record an assisted solve;

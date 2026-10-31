@@ -19,7 +19,7 @@ export default function About() {
             lives in your own browser, which means clearing your data loses it — a trade we
             made deliberately. The only game data that leaves your device is an anonymous tally
             for each puzzle: that it was played, and whether it was solved with or without
-            help. Nothing in it identifies you.
+            help. We also count players once per country. Nothing in either identifies you.
           </p>
         </div>
 
