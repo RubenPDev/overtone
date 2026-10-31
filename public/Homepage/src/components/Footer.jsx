@@ -26,17 +26,16 @@ export default function Footer({ navigate }) {
         <div className="footer__col">
           <h4>Site</h4>
           <ul>
-            <li><a href="#about">About</a></li>
-            <li><a href="/how-to-play/">How to play</a></li>
-            <li><a href="/archive/">Archive</a></li>
+            <li><a href={withBase('/#about')}>About</a></li>
+            <li><a href={withBase('/archive')} onClick={navigate ? linkHandler(navigate, '/archive') : undefined}>Archive</a></li>
           </ul>
         </div>
 
         <div className="footer__col">
           <h4>Elsewhere</h4>
           <ul>
-            <li><a href="mailto:hello@overtone.games">Email</a></li>
-            <li><a href="/privacy/">Privacy</a></li>
+            <li><a href="mailto:tehrg4m3r@gmail.com">Email</a></li>
+            <li><a href={withBase('/privacy')} onClick={navigate ? linkHandler(navigate, '/privacy') : undefined}>Privacy</a></li>
             <li><a href="/credits/">Credits</a></li>
           </ul>
         </div>

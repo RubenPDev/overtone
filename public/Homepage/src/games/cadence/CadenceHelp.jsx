@@ -1,0 +1,122 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { createCadenceEngine } from './engine.js';
+import { hueFor, NOTE as N } from './melodies.js';
+
+/* Deliberately not in the catalogue, so learning the game never spoils a
+   puzzle. It has its own engine and never touches progress or stats. */
+const LESSON = {
+  title: 'Hot Cross Buns',
+  composer: 'trad.',
+  notes: [N.E4, N.D4, N.C4, N.E4, N.D4, N.C4],
+  gaps: [1, 1, 2, 1, 1],
+  playback: 0.42,
+};
+const WORDS = ['Hot', 'cross', 'buns', 'hot', 'cross', 'buns'];
+
+export default function CadenceHelp({ visual, onClose }) {
+  const padRef = useRef(null);
+  const canvasRef = useRef(null);
+  const engineRef = useRef(null);
+  const panelRef = useRef(null);
+  const [state, setState] = useState({ index: 0, finished: false, result: null });
+
+  useEffect(() => {
+    const engine = createCadenceEngine({
+      pad: padRef.current,
+      canvas: canvasRef.current,
+      onChange: setState,
+    });
+    engineRef.current = engine;
+    engine.setVisual(visual);
+    engine.loadMelody(LESSON);
+    // Still inside the tap that opened this, so iOS may let audio start now.
+    engine.unlock();
+    return () => { engine.destroy(); engineRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const opener = document.activeElement;
+    // The panel, not a button: focusing one lower down would scroll past the title on a phone.
+    panelRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      opener?.focus?.();
+    };
+  }, [onClose]);
+
+  const onHear = () => {
+    engineRef.current?.reset();
+    engineRef.current?.reveal();
+  };
+
+  const { index, finished, result } = state;
+  const solved = result && result.correct === result.total;
+
+  return (
+    <div className="cad-help" onClick={onClose}>
+      <div
+        className="cad-help__panel"
+        ref={panelRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cad-help-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="cad-help__title" id="cad-help-title">How to play</h2>
+        <p className="cad-help__text">
+          Every puzzle is a tune you probably know. Each tap plays its next note for you, so
+          the notes are never wrong. The only thing you choose is <em>when</em>.
+        </p>
+        <p className="cad-help__text">
+          Try it: tap out “Hot cross buns” twice, with a pause after the first “buns”.
+        </p>
+
+        <p className="cad-help__words" aria-hidden="true">
+          {WORDS.map((word, k) => {
+            const [r, g, b] = hueFor(LESSON.notes[k]);
+            return (
+              <span key={k} style={k < index ? { color: `rgb(${r},${g},${b})` } : undefined}>
+                {word}
+              </span>
+            );
+          })}
+        </p>
+
+        <div className="cad__padwrap">
+          <div className="cad__pad" ref={padRef}>
+            <canvas ref={canvasRef} className="cad__scope" />
+            <span className={`cad__padlabel${index > 0 && !finished ? ' is-quiet' : ''}`}>
+              {finished ? 'tap to try again' : index === 0 ? 'tap here' : 'keep going'}
+            </span>
+          </div>
+        </div>
+
+        <p className="cad-help__result" aria-live="polite">
+          {!result && 'Go at any speed. Only the pattern counts.'}
+          {solved && <b className="is-ok">That’s it. You’re ready for a real one.</b>}
+          {result && !solved && (
+            <>
+              <b className="is-bad">{result.correct} of {result.total} gaps right.</b>{' '}
+              On the rim, amber means you held too short and red too long. Tap to go again.
+            </>
+          )}
+        </p>
+
+        <ul className="cad-help__list">
+          <li>There’s one new tune a day, with a small clue under the pad.</li>
+          <li>Try as many times as you like. A wrong try costs nothing.</li>
+          <li>Stuck? After one try you can hear the answer, but solving it after that counts as assisted.</li>
+        </ul>
+
+        <div className="cad-help__actions">
+          <button type="button" className="cad__btn" onClick={onHear}>Hear it</button>
+          <button type="button" className="cad__btn cad__btn--primary" onClick={onClose}>Got it</button>
+        </div>
+      </div>
+    </div>
+  );
+}

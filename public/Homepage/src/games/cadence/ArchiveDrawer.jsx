@@ -1,23 +1,7 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { archiveList, characterOf, difficultyOf, todayNumber } from './melodies.js';
-import { readResults } from '../../lib/progress.js';
-
-const STATE_LABEL = {
-  solved: 'Solved by ear',
-  assisted: 'Solved after hearing it',
-  missed: 'Played',
-};
-
-function fmtDate(d) {
-  // Puzzle dates are UTC midnights; local time would show the day before in the Americas.
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
-}
+import React, { useEffect, useRef } from 'react';
+import ArchiveList from './ArchiveList.jsx';
 
 export default function ArchiveDrawer({ open, onClose, current, onPick }) {
-  const puzzles = useMemo(() => archiveList(), [open]);
-  const results = useMemo(() => readResults('cadence'), [open]);
-  const today = todayNumber();
-  const listRef = useRef(null);
   const activeRef = useRef(null);
 
   useEffect(() => {
@@ -50,40 +34,7 @@ export default function ArchiveDrawer({ open, onClose, current, onPick }) {
           </button>
         </div>
 
-        <ol className="arch__list" ref={listRef}>
-          {puzzles.map((p) => {
-            const state = results[p.number];
-            const isCurrent = p.number === current;
-            const isToday = p.number === today;
-            return (
-              <li key={p.number}>
-                <button
-                  type="button"
-                  ref={isCurrent ? activeRef : null}
-                  className={`arch__item${isCurrent ? ' is-current' : ''}`}
-                  onClick={() => onPick(p.number)}
-                  aria-current={isCurrent ? 'true' : undefined}
-                  aria-label={`Puzzle ${p.number}, ${fmtDate(p.date)}${state ? `, ${STATE_LABEL[state].toLowerCase()}` : ''}`}
-                >
-                  <span
-                    className={`arch__dot arch__dot--${state || 'none'}`}
-                    title={state ? STATE_LABEL[state] : undefined}
-                    aria-hidden="true"
-                  />
-                  <span className="arch__no">#{p.number}</span>
-                  <span className="arch__meta">
-                    <span className="arch__date">{fmtDate(p.date)}{isToday ? ' · today' : ''}</span>
-                    <span className="arch__tune">
-                      {state
-                        ? p.melody.title
-                        : `${difficultyOf(p.melody)} · ${characterOf(p.melody)}`}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
+        <ArchiveList current={current} onPick={onPick} activeRef={activeRef} refresh={open} />
 
         <p className="arch__foot">
           This is where you can revisit past puzzles — scroll to see more.

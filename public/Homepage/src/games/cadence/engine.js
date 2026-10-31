@@ -506,6 +506,7 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
     },
     reset,
     reveal,
+    unlock: onGesture,
     setVisual(next) { visual = { ...visual, ...next }; },
     getState: snapshot,
     destroy() {

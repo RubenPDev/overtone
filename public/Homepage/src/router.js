@@ -22,7 +22,7 @@ function reducedMotion() {
 
 /**
  * A ~40 line router. We don't use react-router because the whole site is
- * three routes, and because the View Transitions handoff below needs the
+ * a handful of routes, and because the View Transitions handoff below needs the
  * DOM swap to happen synchronously inside startViewTransition — which is
  * fiddlier to arrange through a library than to just do here.
  */
@@ -60,6 +60,8 @@ export function useRoute() {
 export function parseRoute(path) {
   const clean = path.replace(/\/+$/, '') || '/';
   if (clean === '/') return { view: 'home' };
+  if (clean === '/privacy') return { view: 'privacy' };
+  if (clean === '/archive') return { view: 'archive' };
 
   const m = clean.match(/^\/cadence(?:\/(\d+))?$/);
   if (m) return { view: 'cadence', puzzle: m[1] ? parseInt(m[1], 10) : null };

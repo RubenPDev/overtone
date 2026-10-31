@@ -4,11 +4,13 @@
    header's dark-mode toggle governs the game too.
    ============================================================ */
 
-.cadence {
+.cadence, .archive__game {
   --ok: #1D9E75;
   --warn: #EF9F27;
   --bad: #E24B4A;
+}
 
+.cadence {
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
@@ -69,6 +71,7 @@
   cursor: pointer;
   transition: color 180ms, border-color 180ms;
 }
+.cad__barend { display: flex; align-items: center; gap: 8px; }
 .cad__iconbtn:hover { color: var(--ink); border-color: var(--rule-2); }
 .cad__iconbtn svg { width: 14px; height: 14px; }
 .cad__iconbtn span { font-family: var(--mono); font-size: 12px; }
@@ -223,6 +226,74 @@
 .cad__row input[type=range]::-moz-range-thumb {
   width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: none;
 }
+
+/* ============================================================
+   How to play
+   ============================================================ */
+
+.cad-help {
+  position: fixed; inset: 0;
+  z-index: 50;
+  display: flex;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cad-help__panel {
+  width: 100%;
+  max-width: 440px;
+  margin: auto;
+  padding: 24px 22px 20px;
+  background: var(--paper);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius);
+  outline: none;
+}
+.cad-help__title {
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  margin-bottom: 12px;
+}
+.cad-help__text { font-size: 14px; line-height: 1.6; color: var(--ink-2); margin-bottom: 10px; }
+.cad-help__text em { color: var(--ink); }
+
+.cad-help__words {
+  display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 8px;
+  margin: 16px 0 22px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.cad-help__words span { transition: color 160ms; }
+.cad-help__words span:nth-child(3) { margin-right: 18px; }
+
+.cad-help .cad__padwrap { margin: 0 0 24px; }
+.cad-help .cad__pad {
+  --pad-size: clamp(170px, 46vw, 200px);
+  width: var(--pad-size);
+  height: var(--pad-size);
+}
+
+.cad-help__result { min-height: 66px; font-size: 13px; line-height: 1.6; color: var(--ink-2); text-align: center; }
+.cad-help__result b { font-weight: 500; }
+.cad-help__result .is-ok { color: var(--ok); }
+.cad-help__result .is-bad { color: var(--bad); }
+
+.cad-help__list {
+  margin: 6px 0 18px;
+  padding: 14px 0 0 18px;
+  border-top: 1px solid var(--rule);
+  list-style: disc;
+  font-size: 13px; line-height: 1.55;
+  color: var(--ink-2);
+}
+.cad-help__list li + li { margin-top: 5px; }
+
+.cad-help__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cad__btn--primary { color: var(--ink); border-color: var(--rule-2); }
 
 /* ============================================================
    Archive drawer

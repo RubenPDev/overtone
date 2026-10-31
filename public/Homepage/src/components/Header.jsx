@@ -33,8 +33,8 @@ export default function Header({ isDark, onToggleTheme, navigate }) {
       </a>
 
       <nav className="masthead__nav">
-        <a href="#games">Games</a>
-        <a href="#about">About</a>
+        <a href={withBase('/#games')}>Games</a>
+        <a href={withBase('/#about')}>About</a>
         <button
           type="button"
           className="themetoggle"

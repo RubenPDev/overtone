@@ -209,6 +209,11 @@ export function todayNumber(now = new Date()) {
   return Math.floor((utcMidnight - LAUNCH_UTC) / 86400000) + 1;
 }
 
+/** Today's puzzle lives at the plain URL. */
+export function puzzlePath(n) {
+  return n === todayNumber() ? '/cadence' : `/cadence/${n}`;
+}
+
 export function dateForNumber(n) {
   return new Date(LAUNCH_UTC + (n - 1) * 86400000);
 }

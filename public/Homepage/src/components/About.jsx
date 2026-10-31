@@ -17,7 +17,7 @@ export default function About() {
           <p>
             There is no account, no app to install, and nothing to subscribe to. Your streak
             lives in your own browser, which means clearing your data loses it — a trade we
-            made deliberately. The only thing that leaves your device is an anonymous tally
+            made deliberately. The only game data that leaves your device is an anonymous tally
             for each puzzle: that it was played, and whether it was solved with or without
             help. Nothing in it identifies you.
           </p>
@@ -31,7 +31,7 @@ export default function About() {
           </p>
           <p>
             Built by one person, slowly. If something sounds wrong or breaks on your phone,{' '}
-            <a href="mailto:hello@overtone.games">write in</a> — it genuinely helps.
+            <a href="mailto:tehrg4m3r@gmail.com">write in</a> — it genuinely helps.
           </p>
         </div>
       </div>
