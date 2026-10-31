@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   N, PITCH, CENTRE, RC, SWAPS,
   applyPerm, swapPerm, turnPerm, distances, distanceOf, isBuilt,
@@ -42,6 +42,10 @@ function pipPositions() {
   return out;
 }
 const PIPS = pipPositions();
+
+/* What the floor and blocks cover on screen at scale 1, once tilted. */
+const BOARD_W = 470;
+const BOARD_H = 275;
 
 function hex(c) {
   return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
@@ -151,6 +155,20 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
   const [showResult, setShowResult] = useState(() => isSolved(readResults(NS)[number]));
   const closeResult = useCallback(() => setShowResult(false), []);
   const busy = useRef(false);
+  const stageRef = useRef(null);
+
+  // CSS can't turn a box's size into a plain scale factor, so measure it here.
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    const fit = () => {
+      const scale = Math.min(stage.clientWidth / BOARD_W, stage.clientHeight / BOARD_H);
+      stage.style.setProperty('--fc-scale', scale.toFixed(3));
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, []);
 
   const colours = puzzle ? puzzle.colours : null;
   const par = puzzle ? puzzle.par : 0;
@@ -312,7 +330,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
           </span>
         </div>
 
-        <div className="fc-stage">
+        <div className="fc-stage" ref={stageRef}>
           <div className="fc-board">
             {PIPS.map(([x, y], i) => (
               <div

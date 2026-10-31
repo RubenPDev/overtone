@@ -128,7 +128,7 @@ export function distanceOf(pos, colours) {
    derived from the puzzle number, not from Math.random.
 ------------------------------------------------------------------ */
 
-export const LAUNCH_UTC = Date.UTC(2026, 9, 31); // 31 Oct 2026
+export const LAUNCH_UTC = Date.UTC(2026, 9, 26); // 31 Oct 2026
 
 export function todayNumber(now = new Date()) {
   const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());

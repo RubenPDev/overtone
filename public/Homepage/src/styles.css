@@ -50,7 +50,13 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; zoom: var(--site-zoom); }
+
+/* Very large monitors: scale the whole site rather than leaving it tiny. Zoom
+   also multiplies viewport units, so anything sized from them divides by this. */
+:root { --site-zoom: 1; }
+@media (min-width: 2200px) and (min-height: 1000px) { :root { --site-zoom: 1.25; } }
+@media (min-width: 3000px) and (min-height: 1200px) { :root { --site-zoom: 1.5; } }
 
 body {
   margin: 0;

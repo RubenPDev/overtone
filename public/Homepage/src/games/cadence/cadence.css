@@ -12,7 +12,7 @@
 
 .cadence {
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: calc(100dvh / var(--site-zoom));
   display: flex;
   justify-content: center;
   align-self: center;
@@ -484,7 +484,7 @@
 @media (min-width: 1280px) and (min-height: 620px) {
   .cadence__stage {
     display: grid;
-    max-width: 1180px;
+    max-width: 1700px;
     padding: 40px 48px;
     grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
     grid-template-rows: 1fr repeat(8, auto) 1fr;
@@ -512,5 +512,5 @@
   .cad__settings { grid-area: settings; }
 
   .cad__padwrap { grid-area: pad; align-self: center; margin: 0; }
-  .cad__pad { width: min(100% - 24px, calc(100dvh - 160px), 360px); height: auto; }
+  .cad__pad { width: min(100% - 24px, calc(100dvh / var(--site-zoom) - 160px), 760px); height: auto; }
 }
