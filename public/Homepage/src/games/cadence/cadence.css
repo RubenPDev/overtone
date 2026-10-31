@@ -476,7 +476,7 @@
   .cadence { padding-left: 310px; }
   .arch { transform: none; box-shadow: none; }
   .arch__scrim { display: none; }
-  .arch__close { display: none; }
+  .arch .arch__close { display: none; }
 }
 
 /* Wider still: two columns, controls on the left and the pad as the hero on

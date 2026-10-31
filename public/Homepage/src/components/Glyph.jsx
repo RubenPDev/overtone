@@ -50,6 +50,30 @@ function Arcs() {
   );
 }
 
+/* The game's 3x3 face at its isometric tilt, with the fixed centre filled in. */
+function Face() {
+  const cells = [-14.5, -4.5, 5.5];
+  return (
+    <g transform={`translate(${C} ${C}) scale(1 0.62) rotate(45)`}>
+      {cells.flatMap((y, r) => cells.map((x, c) => {
+        const centre = r === 1 && c === 1;
+        return (
+          <rect
+            key={`${r}-${c}`}
+            x={x}
+            y={y}
+            width="9"
+            height="9"
+            rx="2"
+            vectorEffect="non-scaling-stroke"
+            fill={centre ? 'currentColor' : 'none'}
+          />
+        );
+      }))}
+    </g>
+  );
+}
+
 export default function Glyph({ kind = 'ring', className }) {
   const d = useMemo(() => ringPath(kind === 'ring' ? 1 : 2), [kind]);
 
@@ -66,6 +90,7 @@ export default function Glyph({ kind = 'ring', className }) {
       {kind === 'ring' && <path d={d} />}
       {kind === 'steps' && <Steps />}
       {kind === 'arcs' && <Arcs />}
+      {kind === 'facet' && <Face />}
     </svg>
   );
 }

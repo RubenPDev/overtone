@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import ArchiveList from './ArchiveList.jsx';
 
-export default function ArchiveDrawer({ open, onClose, current, onPick }) {
+export default function ArchiveDrawer({ open, onClose, current, onPick, List = ArchiveList }) {
   const activeRef = useRef(null);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function ArchiveDrawer({ open, onClose, current, onPick }) {
           </button>
         </div>
 
-        <ArchiveList current={current} onPick={onPick} activeRef={activeRef} refresh={open} />
+        <List current={current} onPick={onPick} activeRef={activeRef} refresh={open} />
 
         <p className="arch__foot">
           This is where you can revisit past puzzles — scroll to see more.

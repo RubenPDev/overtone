@@ -4,13 +4,17 @@
    reported, so uniques need no ID. Counts can be faked by anyone determined, which
    is fine for gauging interest but rules out leaderboards. */
 
-// The site's own catalogue, so the launch date and puzzle order can't drift apart.
-// Changing melodies.js means redeploying this Worker too.
-import { dateForNumber, melodyForNumber, todayNumber } from '../../../public/Homepage/src/games/cadence/melodies.js';
+// The site's own catalogues, so launch dates and puzzle order can't drift apart.
+// Changing melodies.js or Facet's launch date means redeploying this Worker too.
+import * as cadence from '../../../public/Homepage/src/games/cadence/melodies.js';
+import * as facet from '../../../public/Homepage/src/games/facet/solver.js';
 import { DASHBOARD_HTML } from './dashboard.js';
 
 const ALLOWED_ORIGINS = new Set(['https://overtone.games', 'https://www.overtone.games']);
-const GAMES = new Set(['cadence']);
+const GAMES = {
+  cadence: { ...cadence, titleFor: (n) => cadence.melodyForNumber(n).title },
+  facet: { ...facet, titleFor: () => undefined },
+};
 const EVENTS = new Set([
   'started', 'played', 'solved', 'assisted',
   'tries1', 'tries2', 'tries3', 'tries4-5', 'tries6+',
@@ -55,15 +59,15 @@ async function recordEvent(request, env) {
 
   // At most one row per game, per event, per puzzle that has actually been released.
   const { game, puzzle, event } = body;
-  if (!GAMES.has(game) || !EVENTS.has(event) || !Number.isInteger(puzzle) || puzzle < 1 || puzzle > todayNumber()) {
-    return rejected(request);
-  }
+  if (!Object.hasOwn(GAMES, game ?? '') || !EVENTS.has(event) || !Number.isInteger(puzzle) || puzzle < 1) return rejected(request);
+  const today = GAMES[game].todayNumber();
+  if (puzzle > today) return rejected(request);
 
   const writes = [env.DB.prepare(
     `INSERT INTO counts (game, puzzle, event, n) VALUES (?1, ?2, ?3, 1)
      ON CONFLICT (game, puzzle, event) DO UPDATE SET n = n + 1`
   ).bind(game, puzzle, event)];
-  if (event === 'played') writes.push(bumpDaily(env, 'plays', puzzle === todayNumber() ? 'today' : 'archive'));
+  if (event === 'played') writes.push(bumpDaily(env, 'plays', puzzle === today ? 'today' : 'archive'));
   await env.DB.batch(writes);
 
   return accepted(request);
@@ -103,15 +107,16 @@ async function readStats(request, env) {
   }
 
   // Every released puzzle gets a row, so one nobody has played shows as zeros.
-  const today = todayNumber();
-  const out = { today, generated: new Date().toISOString(), players: { total, countries }, daily: [] };
-  for (const game of GAMES) {
+  const out = { today: {}, generated: new Date().toISOString(), players: { total, countries }, daily: [] };
+  for (const [game, { todayNumber, dateForNumber, titleFor }] of Object.entries(GAMES)) {
+    const today = todayNumber();
+    out.today[game] = today;
     out[game] = {};
     for (let puzzle = 1; puzzle <= today; puzzle++) {
       const row = { date: dateForNumber(puzzle).toISOString().slice(0, 10) };
       for (const event of EVENTS) row[event] = 0;
       // These totals are public, so today's answer stays hidden until tomorrow.
-      if (puzzle < today) row.title = melodyForNumber(puzzle).title;
+      if (puzzle < today) row.title = titleFor(puzzle);
       out[game][puzzle] = row;
     }
   }

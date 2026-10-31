@@ -34,7 +34,7 @@ function shareText(number, outcome, tries) {
   ].join('\n');
 }
 
-async function share(text) {
+export async function share(text) {
   // Phones get the system share sheet; on a desktop, copying is what people expect.
   const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   if (touch && navigator.share) {

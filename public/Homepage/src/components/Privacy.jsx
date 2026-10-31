@@ -13,8 +13,8 @@ export default function Privacy() {
       <div className="page__section">
         <h2>Saved on your device</h2>
         <p>
-          Your results, streak, whether you used a hint, your theme and your visualizer settings
-          are kept in your browser’s local storage, along with a note of which counts below it
+          Your results, best move counts, streak, whether you used a hint, your theme and your
+          visualizer settings are kept in your browser’s local storage, along with a note of which counts below it
           has already sent and the dates you last visited and first finished a puzzle. None of
           this is sent to us as it is. Clearing your site data erases it, and we can’t restore it.
         </p>

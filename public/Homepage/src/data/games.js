@@ -23,6 +23,20 @@ export const GAMES = [
     launched: '2026-11-01',
   },
   {
+    id: 'facet',
+    name: 'Facet',
+    tagline: 'Find the shortest route',
+    description:
+      'A scrambled block of colour, and a par that was proven before you started. ' +
+      'Swap and turn until the ring matches its centre, in as few moves as you can.',
+    href: '/facet',
+    glyph: 'facet',
+    accent: '83 117 242',
+    status: 'live',
+    storageKey: 'facet',
+    launched: '2026-10-31',
+  },
+  {
     id: 'interval',
     name: 'Interval',
     tagline: 'Name the distance',

@@ -11,8 +11,8 @@ export default function About() {
       <div className="about__cols">
         <div className="about__col">
           <p>
-            Overtone is a handful of daily games about hearing. Each one takes a minute or
-            two, arrives once a day, and is the same for everyone who plays it.
+            Overtone is a handful of daily games, most of them about hearing. Each one takes a
+            minute or two, arrives once a day, and is the same for everyone who plays it.
           </p>
           <p>
             There is no account, no app to install, and nothing to subscribe to. Your streak

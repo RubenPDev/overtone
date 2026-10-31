@@ -6,6 +6,7 @@ import Archive from './components/Archive.jsx';
 import Footer from './components/Footer.jsx';
 import Privacy from './components/Privacy.jsx';
 import CadenceGame from './games/cadence/CadenceGame.jsx';
+import FacetGame from './games/facet/FacetGame.jsx';
 import { reportVisit } from './lib/stats.js';
 import { useTheme } from './lib/useTheme.js';
 import { useRoute, parseRoute } from './router.js';
@@ -26,8 +27,8 @@ function Home({ navigate }) {
         <p className="hero__date">{formatToday()}</p>
         <h1 className="hero__title">Daily puzzles<br />for your ears.</h1>
         <p className="hero__lede">
-          One minute a day. No account, no app, no price. Just a tune you half-remember
-          and the gaps between its notes.
+          One minute a day. No account, no app, no price. Just a tune you half-remember,
+          or a scrambled block of colour and the shortest way back.
         </p>
       </section>
 
@@ -64,6 +65,9 @@ export default function App() {
 
   if (route.view === 'cadence') {
     return <CadenceGame puzzleNumber={route.puzzle} onNavigate={navigate} />;
+  }
+  if (route.view === 'facet') {
+    return <FacetGame puzzleNumber={route.puzzle} onNavigate={navigate} />;
   }
 
   return (

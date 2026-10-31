@@ -109,9 +109,15 @@ footer a { color: inherit; }
   </div>
 
   <section>
-    <h2>Puzzles</h2>
+    <h2>Cadence puzzles</h2>
     <p class="sub">One count per browser, per puzzle. Today's tune stays hidden until tomorrow. Tries are counted up to the first solve.</p>
     <div class="scroll"><table id="puzzles"></table></div>
+  </section>
+
+  <section>
+    <h2>Facet puzzles</h2>
+    <p class="sub">One count per browser, per puzzle. Finish rate is solved out of started. A restart counts as a try.</p>
+    <div class="scroll"><table id="facet-puzzles"></table></div>
   </section>
 
   <div class="grid">
@@ -363,24 +369,32 @@ function render(data) {
     'new': 'First day', d1: 'Next day', 'd2-6': '2–6 days', 'd7-29': '7–29 days', 'd30+': '30+ days',
   }));
 
-  var table = byId('puzzles');
-  table.textContent = '';
-  var head = el('tr');
-  ['#', 'Date', 'Tune', 'Started', 'Finished', 'Solved', 'By ear', 'With help', 'First try', 'Solve rate'].forEach(function (h) {
-    head.appendChild(el('th', '', h));
-  });
-  table.appendChild(head);
-  Object.keys(data.cadence).map(Number).sort(function (a, b) { return b - a; }).forEach(function (n) {
-    var p = data.cadence[n];
+  function firstTry(p) {
+    return pct(p.tries1, p.tries1 + p.tries2 + p.tries3 + p['tries4-5'] + p['tries6+']);
+  }
+  function renderPuzzles(id, game, heads, cells) {
+    var table = byId(id);
+    table.textContent = '';
+    var head = el('tr');
+    heads.forEach(function (h) { head.appendChild(el('th', '', h)); });
+    table.appendChild(head);
+    Object.keys(data[game]).map(Number).sort(function (a, b) { return b - a; }).forEach(function (n) {
+      var p = data[game][n];
+      var tr = el('tr', n === data.today[game] ? 'is-today' : '');
+      [n, shortDay(p.date)].concat(cells(p)).forEach(function (c) { tr.appendChild(el('td', '', c)); });
+      table.appendChild(tr);
+    });
+  }
+  renderPuzzles('puzzles', 'cadence', ['#', 'Date', 'Tune', 'Started', 'Finished', 'Solved', 'By ear', 'With help', 'First try', 'Solve rate'], function (p) {
     var solved = p.solved + p.assisted;
-    var tr = el('tr', n === data.today ? 'is-today' : '');
-    [
-      n, shortDay(p.date), p.title || 'Today’s tune',
+    return [
+      p.title || 'Today’s tune',
       fmt(p.started), fmt(p.played), fmt(solved), fmt(p.solved), fmt(p.assisted),
-      pct(p.tries1, p.tries1 + p.tries2 + p.tries3 + p['tries4-5'] + p['tries6+']),
-      pct(solved, p.played),
-    ].forEach(function (c) { tr.appendChild(el('td', '', c)); });
-    table.appendChild(tr);
+      firstTry(p), pct(solved, p.played),
+    ];
+  });
+  renderPuzzles('facet-puzzles', 'facet', ['#', 'Date', 'Started', 'Solved', 'First try', 'Finish rate'], function (p) {
+    return [fmt(p.started), fmt(p.solved), firstTry(p), pct(p.solved, p.started)];
   });
 
   renderBars(byId('countries'), Object.keys(data.players.countries).slice(0, 15).map(function (c) {

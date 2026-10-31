@@ -72,6 +72,17 @@ export function recordTry(ns, puzzleNumber, marks, solved) {
   return solved;
 }
 
+/** Fewest moves per puzzle, for games scored by moves. */
+export function readBest(ns) {
+  try { return JSON.parse(safeGet(`${ns}:best`) || '{}'); } catch { return {}; }
+}
+export function recordBest(ns, puzzleNumber, moves) {
+  const best = readBest(ns);
+  if (best[puzzleNumber] === undefined || moves < best[puzzleNumber]) {
+    safeSet(`${ns}:best`, JSON.stringify({ ...best, [puzzleNumber]: moves }));
+  }
+}
+
 /** The stored streak, unless a whole day has been missed since. */
 export function readStreak(ns) {
   const last = safeGet(`${ns}:lastPlayed`);

@@ -63,8 +63,8 @@ export function parseRoute(path) {
   if (clean === '/privacy') return { view: 'privacy' };
   if (clean === '/archive') return { view: 'archive' };
 
-  const m = clean.match(/^\/cadence(?:\/(\d+))?$/);
-  if (m) return { view: 'cadence', puzzle: m[1] ? parseInt(m[1], 10) : null };
+  const m = clean.match(/^\/(cadence|facet)(?:\/(\d+))?$/);
+  if (m) return { view: m[1], puzzle: m[2] ? parseInt(m[2], 10) : null };
 
   return { view: 'home' };
 }
