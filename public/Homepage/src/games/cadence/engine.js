@@ -258,7 +258,8 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
 
   /* One dot per note around the rim, evenly spaced (spacing them by the
      real gaps would give the rhythm away). Played notes take their pitch
-     colour; once graded, each dot shows the gap that led into it. */
+     colour; once graded, each dot shows how long that note was held. Nothing
+     follows the last note, so it can't be wrong. */
   function noteDots(cx, cy, rim) {
     if (!melody) return;
     const n = melody.notes.length;
@@ -267,13 +268,10 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
     for (let k = 0; k < n; k++) {
       const a = -Math.PI / 2 + (k / n) * Math.PI * 2;
       const x = cx + Math.cos(a) * rim, y = cy + Math.sin(a) * rim;
-      let fill = null, alpha = 1;
+      let fill = null;
       if (result) {
-        if (k === 0) { fill = theme.ok; alpha = 0.4; }
-        else {
-          const m = result.marks[k - 1];
-          fill = m === 0 ? theme.ok : m === -1 ? theme.warn : theme.bad;
-        }
+        const m = result.marks[k] ?? 0;
+        fill = m === 0 ? theme.ok : m === -1 ? theme.warn : theme.bad;
       } else if (k < lit) {
         const [r, g, b] = hueFor(melody.notes[k]);
         fill = `rgb(${r},${g},${b})`;
@@ -281,10 +279,8 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
       ctx.beginPath();
       ctx.arc(x, y, dot, 0, Math.PI * 2);
       if (fill) {
-        ctx.globalAlpha = alpha;
         ctx.fillStyle = fill;
         ctx.fill();
-        ctx.globalAlpha = 1;
       } else {
         ctx.strokeStyle = theme.faint;
         ctx.lineWidth = 1;

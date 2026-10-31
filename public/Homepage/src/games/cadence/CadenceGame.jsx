@@ -199,16 +199,16 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
           {melody.notes.map((freq, k) => {
             const played = k < state.index;
             let style = {};
-            // Each cell is graded by the gap leading into its note. The first
-            // tap only starts the clock, so it can't be early or late.
-            if (result && k > 0 && k - 1 < result.marks.length) {
-              const mark = result.marks[k - 1];
+            // Each cell is graded by how long its note was held: the gap up to the
+            // next tap. Nothing follows the last note, so it can't be wrong, and
+            // it's drawn at the tune's longest length since that's where it rests.
+            if (result) {
+              const mark = result.marks[k] ?? 0;
+              const held = melody.gaps[k] ?? Math.max(...melody.gaps);
               style = {
-                height: `${9 + Math.min(melody.gaps[k - 1], 4) * 5}px`,
+                height: `${9 + Math.min(held, 4) * 5}px`,
                 background: mark === 0 ? 'var(--ok)' : mark === -1 ? 'var(--warn)' : 'var(--bad)',
               };
-            } else if (result) {
-              style = { height: '11px', background: 'var(--ok)', opacity: 0.4 };
             } else if (played) {
               const [r, g, b] = hues[k];
               style = { height: '25px', background: `rgba(${r},${g},${b},0.85)` };

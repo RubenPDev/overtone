@@ -13,10 +13,10 @@ const LESSON = {
 };
 const WORDS = ['Hot', 'cross', 'buns', 'hot', 'cross', 'buns'];
 
-/** Same reading as the rim: a word is graded by the gap leading into it, so the first is always fine. */
+/** Same reading as the rim: a word is graded by how long it was held, and the last can't be wrong. */
 function wordColor(k, index, result) {
   if (result) {
-    const mark = k > 0 ? result.marks[k - 1] : 0;
+    const mark = result.marks[k] ?? 0;
     return mark === 0 ? 'var(--ok)' : mark === -1 ? 'var(--warn)' : 'var(--bad)';
   }
   if (k >= index) return undefined;
