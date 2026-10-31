@@ -34,7 +34,7 @@ export default function Footer({ navigate }) {
         <div className="footer__col">
           <h4>Elsewhere</h4>
           <ul>
-            <li><a href="mailto:tehrg4m3r@gmail.com">Email</a></li>
+            <li><a href="mailto:contact@overtone.games">Email</a></li>
             <li><a href={withBase('/privacy')} onClick={navigate ? linkHandler(navigate, '/privacy') : undefined}>Privacy</a></li>
             <li><a href="/credits/">Credits</a></li>
           </ul>
