@@ -11,24 +11,45 @@ import { hueFor, NEUTRAL } from './melodies.js';
    so the 60fps loop never triggers a re-render.
    ============================================================ */
 
-const TOL_LOW = 0.72;
-const TOL_HIGH = 1.38;
+const TOL_LOW = 0.60;
+const TOL_HIGH = 1.65;
+const MIN_STEP = 1.15; // how much longer a long note must be than a shorter neighbour
 const POINTS = 288;
 const STUCK_MS = 1500;
 const GESTURES = ['touchend', 'pointerup', 'click', 'keydown'];
 
+/* -1 held too short, 0 fine, 1 held too long, at a given tempo. The range alone
+   is generous enough that steady tapping could slip through, so the shape has to
+   be there too: a note written longer than its neighbour must be played longer. */
+function markGaps(played, target, scale) {
+  return played.map((gap, k) => {
+    const ratio = gap / scale / target[k];
+    if (ratio <= TOL_LOW) return -1;
+    if (ratio >= TOL_HIGH) return 1;
+    for (const j of [k - 1, k + 1]) {
+      if (j >= 0 && j < played.length && target[j] < target[k] && gap < played[j] * MIN_STEP) return -1;
+    }
+    return 0;
+  });
+}
+
+/* The tempo is whichever one the most notes agree with, not an average. An average
+   leans on the long notes, so holding one a little short made every short note
+   look wrong. Each note proposes a tempo, and ties go to the closest overall fit. */
 export function gradeGaps(played, target) {
   let num = 0, den = 0;
   for (let k = 0; k < played.length; k++) { num += played[k] * target[k]; den += target[k] * target[k]; }
-  const scale = num / den;
-  const marks = [];
-  let correct = 0;
-  for (let k = 0; k < played.length; k++) {
-    const ratio = played[k] / scale / target[k];
-    const good = ratio > TOL_LOW && ratio < TOL_HIGH;
-    if (good) correct++;
-    marks.push(good ? 0 : (ratio < 1 ? -1 : 1));
+
+  let best = null;
+  for (const scale of [num / den, ...played.map((gap, k) => gap / target[k])]) {
+    const marks = markGaps(played, target, scale);
+    const correct = marks.filter((m) => m === 0).length;
+    const error = played.reduce((sum, gap, k) => sum + Math.abs(Math.log(gap / scale / target[k])), 0);
+    if (!best || correct > best.correct || (correct === best.correct && error < best.error)) {
+      best = { scale, marks, correct, error };
+    }
   }
+  const { scale, marks, correct } = best;
   return { scale, marks, correct, total: played.length, bpm: Math.round(60 / scale) };
 }
 
