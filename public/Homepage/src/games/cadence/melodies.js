@@ -68,7 +68,7 @@ export const MELODIES = [
     title: 'Jingle Bells',
     composer: 'Pierpont',
     notes: [N.E4, N.E4, N.E4, N.E4, N.E4, N.E4, N.E4, N.G4, N.C4, N.D4, N.E4],
-    gaps: [1, 2, 1, 2, 1, 1, 1, 1, 1.5, 0.5],
+    gaps: [1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1.5, 0.5],
     playback: 0.33,
     intro: 'Mostly one pitch for the first seven notes, so you are listening to gaps alone.',
     solved: 'Two short-long pairs, then the climb. The held notes are what you recognise.',
