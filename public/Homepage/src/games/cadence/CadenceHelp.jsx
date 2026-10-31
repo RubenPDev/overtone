@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createCadenceEngine } from './engine.js';
 import { hueFor, NOTE as N } from './melodies.js';
+import { reportLesson } from '../../lib/stats.js';
 import { useDialog } from '../../lib/useDialog.js';
 
 /* Deliberately not in the catalogue, so learning the game never spoils a
@@ -29,7 +30,12 @@ export default function CadenceHelp({ visual, onClose, openedByTap }) {
   const padRef = useRef(null);
   const canvasRef = useRef(null);
   const engineRef = useRef(null);
-  const panelRef = useDialog(onClose);
+  const solvedRef = useRef(false);
+  const close = useCallback(() => {
+    reportLesson(solvedRef.current);
+    onClose();
+  }, [onClose]);
+  const panelRef = useDialog(close);
   const [state, setState] = useState({ index: 0, finished: false, result: null });
 
   useEffect(() => {
@@ -54,9 +60,10 @@ export default function CadenceHelp({ visual, onClose, openedByTap }) {
 
   const { index, finished, result } = state;
   const solved = result && result.correct === result.total;
+  if (solved) solvedRef.current = true;
 
   return (
-    <div className="cad-help" onClick={onClose}>
+    <div className="cad-help" onClick={close}>
       <div
         className="cad-help__panel"
         ref={panelRef}
@@ -109,7 +116,7 @@ export default function CadenceHelp({ visual, onClose, openedByTap }) {
 
         <div className="cad-help__actions">
           <button type="button" className="cad__btn" onClick={onHear}>Hear it</button>
-          <button type="button" className="cad__btn cad__btn--primary" onClick={onClose}>Got it</button>
+          <button type="button" className="cad__btn cad__btn--primary" onClick={close}>Got it</button>
         </div>
       </div>
     </div>

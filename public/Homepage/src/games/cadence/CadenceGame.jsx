@@ -5,7 +5,7 @@ import {
   helpSeen, hintUsed, isSolved, markHelpSeen, markHintUsed, readResults, readTries, recordPlay, recordTry,
   readVisualPrefs, writeVisualPrefs,
 } from '../../lib/progress.js';
-import { reportResult } from '../../lib/stats.js';
+import { reportResult, reportStart } from '../../lib/stats.js';
 import ArchiveDrawer from './ArchiveDrawer.jsx';
 import CadenceHelp from './CadenceHelp.jsx';
 import CadenceResult, { ResultIcon } from './CadenceResult.jsx';
@@ -116,8 +116,14 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
     setAttempts(Math.max(count, 1));
     setOutcome({ kind, firstTry: kind === 'solved' && firstSolve && count === 1 });
     recordPlay(NS, { puzzleNumber: number, outcome: kind, isToday });
-    reportResult(NS, number, kind);
+    reportResult(NS, number, kind, { tries: firstSolve ? count : null, isToday });
   }, [state.result, number, isToday]);
+
+  // Only when the tap count changes: a switch of puzzle mustn't count as a start.
+  useEffect(() => {
+    if (state.index === 1) reportStart(NS, number);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.index]);
 
   // Tapping to go again during the delay clears the outcome, and with it this timer.
   useEffect(() => {

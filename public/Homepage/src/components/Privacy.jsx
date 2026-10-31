@@ -7,7 +7,7 @@ export default function Privacy() {
       <h1 className="page__title">Very little, on purpose.</h1>
       <p className="page__lede">
         Overtone has no accounts, ads or cookies. Your progress stays in your browser, and the
-        only game data we receive is anonymous counts of plays and players.
+        only data we collect is anonymous totals of visits, plays and players.
       </p>
 
       <div className="page__section">
@@ -15,24 +15,40 @@ export default function Privacy() {
         <p>
           Your results, streak, whether you used a hint, your theme and your visualizer settings
           are kept in your browser’s local storage, along with a note of which counts below it
-          has already sent. None of this is sent to us. Clearing your site data erases it, and we
-          can’t restore it.
+          has already sent and the dates you last visited and first finished a puzzle. None of
+          this is sent to us as it is. Clearing your site data erases it, and we can’t restore it.
         </p>
       </div>
 
       <div className="page__section">
         <h2>The anonymous counts</h2>
+        <p>Your browser adds one to these running totals, and each is separate from the others:</p>
+        <ul>
+          <li>
+            <strong>Each day you visit or finish a puzzle:</strong> whether you’re new or returning,
+            and roughly how long ago you first played.
+          </li>
+          <li>
+            <strong>Your first visit:</strong> phone or desktop, and where you came from, as one
+            word from a short list such as “Reddit” or “shared link”. The actual page isn’t sent.
+          </li>
+          <li>
+            <strong>Each puzzle:</strong> that you started and finished it, whether you solved it
+            with or without help, and roughly how many tries it took.
+          </li>
+          <li>
+            <strong>Your first finish:</strong> your country, which Cloudflare works out from your
+            connection.
+          </li>
+          <li>
+            <strong>Now and then:</strong> your first tap and first solve ever, your streak length,
+            whether you solved the how-to-play lesson, and when you share a result.
+          </li>
+        </ul>
         <p>
-          The first time you finish a puzzle, your browser reports the game, the puzzle number
-          and that it was played. The first time you solve it, it also reports whether you did so
-          with or without help. The first time you finish any puzzle, we also add one to the
-          number of players from your country, which Cloudflare works out from your connection.
-        </p>
-        <p>
-          Each report just adds one to a running total. We don’t store your IP address, an
-          identifier or the time, and the country count isn’t linked to the puzzle counts, so the
-          totals can’t be traced to you. The totals themselves are public, which means a country
-          with very few players will show a small number.
+          We don’t store your IP address, an identifier or a time, only totals, most of them by
+          day. Nothing links one total to another or to you. The totals are public, so a country
+          or a quiet day with very few players will show a small number.
         </p>
       </div>
 

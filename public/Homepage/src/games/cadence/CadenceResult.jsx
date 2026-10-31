@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { readResults, readStreak, readTries } from '../../lib/progress.js';
+import { reportShare } from '../../lib/stats.js';
 import { useDialog } from '../../lib/useDialog.js';
 import { withBase } from '../../router.js';
 
@@ -29,7 +30,7 @@ function shareText(number, outcome, tries) {
   return [
     `Cadence #${number}: solved ${how}${tries ? `, ${triesLabel(tries.count)}` : ''}`,
     ...(tries ? tries.rows.map((row) => withLastNote(row).map((m) => EMOJI[m]).join('')) : []),
-    `${window.location.origin}${withBase(`/cadence/${number}`)}`,
+    `${window.location.origin}${withBase(`/cadence/${number}`)}?via=share`,
   ].join('\n');
 }
 
@@ -38,9 +39,11 @@ async function share(text) {
   const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   if (touch && navigator.share) {
     await navigator.share({ text });
+    reportShare('sheet');
     return null;
   }
   await navigator.clipboard.writeText(text);
+  reportShare('copy');
   return 'Copied!';
 }
 

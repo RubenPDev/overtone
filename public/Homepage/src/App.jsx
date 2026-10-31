@@ -6,6 +6,7 @@ import Archive from './components/Archive.jsx';
 import Footer from './components/Footer.jsx';
 import Privacy from './components/Privacy.jsx';
 import CadenceGame from './games/cadence/CadenceGame.jsx';
+import { reportVisit } from './lib/stats.js';
 import { useTheme } from './lib/useTheme.js';
 import { useRoute, parseRoute } from './router.js';
 import { GAMES } from './data/games.js';
@@ -58,6 +59,7 @@ export default function App() {
   useEffect(() => {
     const { hash } = window.location;
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
+    reportVisit();
   }, []);
 
   if (route.view === 'cadence') {
