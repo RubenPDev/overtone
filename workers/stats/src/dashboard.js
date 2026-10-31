@@ -8,6 +8,7 @@ export const DASHBOARD_HTML = String.raw`<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Overtone Stats</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23f2f0e9'%3E%3Crect width='16' height='16' rx='3.5' fill='%230e0e0d' stroke='none'/%3E%3Ccircle cx='8' cy='8' r='6.5'/%3E%3Ccircle cx='8' cy='8' r='3.5' opacity='.75'/%3E%3Ccircle cx='8' cy='8' r='1' fill='%23f2f0e9' stroke='none' opacity='.85'/%3E%3C/svg%3E">
 <style>
 :root {
   color-scheme: light;
