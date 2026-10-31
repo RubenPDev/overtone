@@ -17,7 +17,9 @@ export default function About() {
           <p>
             There is no account, no app to install, and nothing to subscribe to. Your streak
             lives in your own browser, which means clearing your data loses it — a trade we
-            made deliberately so that nothing has to leave your device.
+            made deliberately. The only thing that leaves your device is an anonymous tally
+            for each puzzle: that it was played, and whether it was solved with or without
+            help. Nothing in it identifies you.
           </p>
         </div>
 

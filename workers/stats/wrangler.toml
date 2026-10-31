@@ -1,0 +1,10 @@
+name = "overtone-stats"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+routes = [{ pattern = "stats.overtone.games", custom_domain = true }]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "overtone-stats"
+database_id = "dea7daad-5ef7-4ee5-81c9-59514be6287a"

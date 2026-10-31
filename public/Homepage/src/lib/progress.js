@@ -1,14 +1,15 @@
-/* Progress lives entirely in the visitor's browser. Nothing leaves the device,
-   which is the trade for a streak that a cleared cache will erase. */
+/* Progress lives entirely in the visitor's browser, which is the trade for a
+   streak that a cleared cache will erase. Only anonymous per-puzzle totals ever
+   leave the device; see stats.js. */
 
 export function todayStamp(d = new Date()) {
   return d.toISOString().slice(0, 10);
 }
 
-function safeGet(key) {
+export function safeGet(key) {
   try { return localStorage.getItem(key); } catch { return null; }
 }
-function safeSet(key, value) {
+export function safeSet(key, value) {
   try { localStorage.setItem(key, value); } catch { /* private mode */ }
 }
 

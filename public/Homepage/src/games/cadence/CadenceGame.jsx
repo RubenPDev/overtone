@@ -4,6 +4,7 @@ import { hueFor, puzzleForNumber, todayNumber } from './melodies.js';
 import {
   hintUsed, markHintUsed, readResults, recordPlay, readVisualPrefs, writeVisualPrefs,
 } from '../../lib/progress.js';
+import { reportResult } from '../../lib/stats.js';
 import ArchiveDrawer from './ArchiveDrawer.jsx';
 import './cadence.css';
 
@@ -103,6 +104,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
     const kind = !solved ? 'missed' : heardRef.current ? 'assisted' : 'solved';
     setOutcome({ kind, firstTry: kind === 'solved' && attemptsRef.current === 1 });
     recordPlay(NS, { puzzleNumber: number, outcome: kind, isToday });
+    reportResult(NS, number, kind);
   }, [state.result, number, isToday]);
 
   useEffect(() => {
