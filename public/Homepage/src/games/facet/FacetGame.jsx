@@ -44,8 +44,7 @@ function pipPositions() {
 const PIPS = pipPositions();
 
 /* What the floor and blocks cover on screen at scale 1, once tilted. */
-const BOARD_W = 470;
-const BOARD_H = 275;
+const BOARD_W = 470; // the height depends on the tilt, so it's set in the CSS
 
 function hex(c) {
   return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
@@ -69,17 +68,15 @@ function extrusion(colour, steps = 10) {
   return parts.join(',');
 }
 
-const ARROW_CW =
-  'M33 13.9A14 14 0 1 1 19 13.9M25.9 9.9L21.8 18.6L16.3 9.1Z';
-const ARROW_CCW =
-  'M19 13.9A14 14 0 1 0 33 13.9M26.1 9.9L30.2 18.6L35.7 9.1Z';
+const ARROW_CW = { arc: 'M33 13.9A14 14 0 1 1 19 13.9', head: 'M25.9 9.9L21.8 18.6L16.3 9.1Z' };
+const ARROW_CCW = { arc: 'M19 13.9A14 14 0 1 0 33 13.9', head: 'M26.1 9.9L30.2 18.6L35.7 9.1Z' };
 
-function TurnBlock({ dir, col, row, pulsing, onTurn }) {
+/* A grey block that acts as a button rather than a piece of the puzzle. */
+function ControlBlock({ col, row, label, toggled, pulsing, onPress, children }) {
   const [pressed, setPressed] = useState(false);
-  const d = dir > 0 ? ARROW_CW : ARROW_CCW;
   return (
     <div
-      className={`fc-block fc-turn${pulsing ? ' is-pulsing' : ''}`}
+      className={`fc-block fc-control${pulsing ? ' is-pulsing' : ''}`}
       style={{
         background: darken(CONTROL, 0.3),
         boxShadow: extrusion(CONTROL, pressed ? 4 : 10),
@@ -88,21 +85,54 @@ function TurnBlock({ dir, col, row, pulsing, onTurn }) {
       }}
       role="button"
       tabIndex={0}
-      aria-label={dir > 0 ? 'Turn ring right' : 'Turn ring left'}
+      aria-label={label}
+      aria-pressed={toggled}
       onPointerDown={() => setPressed(true)}
       onPointerUp={() => setPressed(false)}
       onPointerLeave={() => setPressed(false)}
-      onClick={() => onTurn(dir)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTurn(dir); } }}
+      onClick={onPress}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPress(); } }}
     >
       <div className="fc-face" style={{ background: CONTROL }} />
+      {children}
+    </div>
+  );
+}
+
+function TurnBlock({ dir, col, row, pulsing, onTurn }) {
+  const { arc, head } = dir > 0 ? ARROW_CW : ARROW_CCW;
+  return (
+    <ControlBlock col={col} row={row} pulsing={pulsing} onPress={() => onTurn(dir)}
+                  label={dir > 0 ? 'Turn ring right' : 'Turn ring left'}>
       {/* The arrow lies in the plane the ring turns in, so the projection
           squashing it into an ellipse is the point, not a flaw. */}
-      <svg className="fc-arrow" viewBox="0 0 52 52" aria-hidden="true">
-        <path d={d} fill="rgba(255,255,255,.92)" stroke="rgba(255,255,255,.92)"
-              strokeWidth="5" strokeLinecap="round" fillRule="evenodd" />
+      <svg className="fc-icon" viewBox="0 0 52 52" aria-hidden="true">
+        <path d={arc} fill="none" stroke="#fff" strokeOpacity=".92" strokeWidth="5" strokeLinecap="round" />
+        <path d={head} fill="#fff" fillOpacity=".92" stroke="#fff" strokeOpacity=".92" strokeWidth="2" strokeLinejoin="round" />
       </svg>
-    </div>
+    </ControlBlock>
+  );
+}
+
+function SoundBlock({ col, row, on, onToggle }) {
+  return (
+    <ControlBlock col={col} row={row} label="Sound" toggled={on} onPress={onToggle}>
+      {/* Turned to face the player, since a speaker on its side reads as nothing. */}
+      <svg className={`fc-icon fc-icon--upright${on ? '' : ' is-off'}`} viewBox="0 0 52 52" aria-hidden="true">
+        <path d="M11 21h6l9-7.5v25L17 31h-6z" fill="#fff" fillOpacity=".92" stroke="#fff" strokeOpacity=".92"
+              strokeWidth="2" strokeLinejoin="round" />
+        <g fill="none" stroke="#fff" strokeOpacity=".92" strokeWidth="3.5" strokeLinecap="round">
+          {on ? (
+            <>
+              <path d="M31.5 20.5a8 8 0 0 1 0 11" />
+              <path d="M36.5 15.5a15 15 0 0 1 0 21" />
+            </>
+          ) : (
+            <path d="M32 21l9 10M41 21l-9 10" />
+          )}
+        </g>
+      </svg>
+    </ControlBlock>
   );
 }
 
@@ -148,8 +178,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
   const [moves, setMoves] = useState(0);
   const [solved, setSolved] = useState(false);
   const [hovered, setHovered] = useState(null);
-  const [showFloor, setShowFloor] = useState(true);
-  const [soundOn, setSoundOn] = useState(true);
+  const [soundOn, setSoundOn] = useState(sound.enabled);
   const [tutStep, setTutStep] = useState(() => (helpSeen(NS) ? -1 : 0));
   const [showArchive, setShowArchive] = useState(false);
   const [showResult, setShowResult] = useState(() => isSolved(readResults(NS)[number]));
@@ -161,7 +190,8 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
   useLayoutEffect(() => {
     const stage = stageRef.current;
     const fit = () => {
-      const scale = Math.min(stage.clientWidth / BOARD_W, stage.clientHeight / BOARD_H);
+      const boardH = parseFloat(getComputedStyle(stage).getPropertyValue('--fc-board-h'));
+      const scale = Math.min(stage.clientWidth / BOARD_W, stage.clientHeight / boardH);
       stage.style.setProperty('--fc-scale', scale.toFixed(3));
     };
     fit();
@@ -256,6 +286,12 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
     onNavigate(puzzlePath(n));
   }, [onNavigate]);
 
+  const toggleSound = useCallback(() => {
+    sound.unlock();
+    sound.setEnabled(!sound.enabled);
+    setSoundOn(sound.enabled);
+  }, []);
+
   const advanceTutorial = useCallback((skip) => {
     sound.tick();
     const next = skip ? TUTORIAL.length : tutStep + 1;
@@ -266,7 +302,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
   const tutorial = tutStep >= 0 && tutStep < TUTORIAL.length ? TUTORIAL[tutStep] : null;
   const highlight = tutorial ? tutorial.highlight : null;
 
-  const litPips = showFloor && distance != null ? Math.min(PIP_COUNT, distance * 2) : 0;
+  const litPips = distance != null ? Math.min(PIP_COUNT, distance * 2) : 0;
   const allLit = solved;
 
   const dateLabel = dateForNumber(number).toLocaleDateString(undefined, {
@@ -326,7 +362,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
             </div>
           </div>
           <span className="fc-label">
-            {showFloor && distance != null && !solved ? `${distance} from solved` : ''}
+            {distance != null && !solved ? `${distance} from solved` : ''}
           </span>
         </div>
 
@@ -374,6 +410,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
               <div className="fc-pin" />
             </div>
 
+            <SoundBlock col={0} row={0} on={soundOn} onToggle={toggleSound} />
             <TurnBlock dir={-1} col={0} row={4} pulsing={highlight === 'turns'} onTurn={doTurn} />
             <TurnBlock dir={1} col={4} row={0} pulsing={highlight === 'turns'} onTurn={doTurn} />
 
@@ -427,19 +464,6 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
               )}
           </p>
         )}
-
-        <div className="fc-toggles">
-          <label>
-            <input type="checkbox" checked={showFloor}
-                   onChange={(e) => setShowFloor(e.target.checked)} />
-            Floor shows distance
-          </label>
-          <label>
-            <input type="checkbox" checked={soundOn}
-                   onChange={(e) => { setSoundOn(e.target.checked); sound.setEnabled(e.target.checked); }} />
-            Sound
-          </label>
-        </div>
 
         <div className="fc-actions">
           <button type="button" onClick={restart}>Restart</button>
