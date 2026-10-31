@@ -30,6 +30,14 @@ export function markHintUsed(ns, puzzleNumber) {
   if (!list.includes(puzzleNumber)) safeSet(`${ns}:hinted`, JSON.stringify([...list, puzzleNumber]));
 }
 
+/** Anyone with a result already knows how to play, even if they predate the lesson. */
+export function helpSeen(ns) {
+  return safeGet(`${ns}:helpSeen`) !== null || Object.keys(readResults(ns)).length > 0;
+}
+export function markHelpSeen(ns) {
+  safeSet(`${ns}:helpSeen`, '1');
+}
+
 /**
  * Records a finished puzzle. Only today's puzzle moves the streak — replaying
  * the archive shouldn't inflate it. Pass `outcome` to record an assisted solve;

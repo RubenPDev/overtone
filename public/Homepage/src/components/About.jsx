@@ -31,7 +31,7 @@ export default function About() {
           </p>
           <p>
             Built by one person, slowly. If something sounds wrong or breaks on your phone,{' '}
-            <a href="mailto:tehrg4m3r@gmail.com">write in</a> — it genuinely helps.
+            <a href="mailto:contact@overtone.games">write in</a> — it genuinely helps.
           </p>
         </div>
       </div>

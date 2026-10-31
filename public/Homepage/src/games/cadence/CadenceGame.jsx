@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createCadenceEngine } from './engine.js';
 import { hueFor, puzzleForNumber, todayNumber } from './melodies.js';
 import {
-  hintUsed, markHintUsed, readResults, recordPlay, readVisualPrefs, writeVisualPrefs,
+  helpSeen, hintUsed, markHelpSeen, markHintUsed, readResults, recordPlay, readVisualPrefs, writeVisualPrefs,
 } from '../../lib/progress.js';
 import { reportResult } from '../../lib/stats.js';
 import ArchiveDrawer from './ArchiveDrawer.jsx';
@@ -51,8 +51,11 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
   });
   const [showSettings, setShowSettings] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
+  // false, or how it was opened: 'auto' on a first visit, 'tap' from the button.
+  const [showHelp, setShowHelp] = useState(() => (helpSeen(NS) ? false : 'auto'));
   const closeHelp = useCallback(() => setShowHelp(false), []);
+
+  useEffect(() => { if (showHelp) markHelpSeen(NS); }, [showHelp]);
   const [visual, setVisual] = useState(() => readVisualPrefs(NS, DEFAULT_VISUAL));
 
   /* Engine owns the canvas and the audio; it is created once for the lifetime
@@ -158,7 +161,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
         current={number}
         onPick={pickPuzzle}
       />
-      {showHelp && <CadenceHelp visual={visual} onClose={closeHelp} />}
+      {showHelp && <CadenceHelp visual={visual} onClose={closeHelp} openedByTap={showHelp === 'tap'} />}
 
       <div className="cadence__stage">
         <header className="cad__bar">
@@ -170,7 +173,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
           </button>
 
           <div className="cad__barend">
-            <button type="button" className="cad__iconbtn" onClick={() => setShowHelp(true)} aria-label="How to play">
+            <button type="button" className="cad__iconbtn" onClick={() => setShowHelp('tap')} aria-label="How to play">
               <span>?</span>
             </button>
             <button type="button" className="cad__iconbtn" onClick={() => setShowArchive(true)} aria-label="Open archive">

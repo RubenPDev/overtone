@@ -248,8 +248,9 @@
   background: var(--paper);
   border: 1px solid var(--rule-2);
   border-radius: var(--radius);
-  outline: none;
 }
+/* Focused so that keyboard users start inside the dialog; it isn't a control. */
+.cad-help__panel:focus, .cad-help__panel:focus-visible { outline: none; }
 .cad-help__title {
   font-family: var(--display);
   font-size: 26px;

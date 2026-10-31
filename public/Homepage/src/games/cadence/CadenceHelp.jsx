@@ -13,7 +13,18 @@ const LESSON = {
 };
 const WORDS = ['Hot', 'cross', 'buns', 'hot', 'cross', 'buns'];
 
-export default function CadenceHelp({ visual, onClose }) {
+/** Same reading as the rim: a word is graded by the gap leading into it, so the first is always fine. */
+function wordColor(k, index, result) {
+  if (result) {
+    const mark = k > 0 ? result.marks[k - 1] : 0;
+    return mark === 0 ? 'var(--ok)' : mark === -1 ? 'var(--warn)' : 'var(--bad)';
+  }
+  if (k >= index) return undefined;
+  const [r, g, b] = hueFor(LESSON.notes[k]);
+  return `rgb(${r},${g},${b})`;
+}
+
+export default function CadenceHelp({ visual, onClose, openedByTap }) {
   const padRef = useRef(null);
   const canvasRef = useRef(null);
   const engineRef = useRef(null);
@@ -30,7 +41,7 @@ export default function CadenceHelp({ visual, onClose }) {
     engine.setVisual(visual);
     engine.loadMelody(LESSON);
     // Still inside the tap that opened this, so iOS may let audio start now.
-    engine.unlock();
+    if (openedByTap) engine.unlock();
     return () => { engine.destroy(); engineRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -76,14 +87,9 @@ export default function CadenceHelp({ visual, onClose }) {
         </p>
 
         <p className="cad-help__words" aria-hidden="true">
-          {WORDS.map((word, k) => {
-            const [r, g, b] = hueFor(LESSON.notes[k]);
-            return (
-              <span key={k} style={k < index ? { color: `rgb(${r},${g},${b})` } : undefined}>
-                {word}
-              </span>
-            );
-          })}
+          {WORDS.map((word, k) => (
+            <span key={k} style={{ color: wordColor(k, index, result) }}>{word}</span>
+          ))}
         </p>
 
         <div className="cad__padwrap">
@@ -101,7 +107,7 @@ export default function CadenceHelp({ visual, onClose }) {
           {result && !solved && (
             <>
               <b className="is-bad">{result.correct} of {result.total} gaps right.</b>{' '}
-              On the rim, amber means you held too short and red too long. Tap to go again.
+              Amber means you held too short, red too long. Tap to go again.
             </>
           )}
         </p>

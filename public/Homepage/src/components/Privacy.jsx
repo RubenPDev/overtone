@@ -55,7 +55,7 @@ export default function Privacy() {
       <div className="page__section">
         <h2>Questions</h2>
         <p>
-          Write to <a href="mailto:tehrg4m3r@gmail.com">tehrg4m3r@gmail.com</a>. If this page
+          Write to <a href="mailto:contact@overtone.games">contact@overtone.games</a>. If this page
           changes, the date below will too.
         </p>
         <p className="page__updated">Last updated October 31, 2026.</p>
