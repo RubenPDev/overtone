@@ -27,6 +27,13 @@
   flex-direction: column;
   padding: 22px 0 40px;
 }
+/* Phones: keep content off the screen edges, and clear of a notch in landscape. */
+@media (max-width: 660px) {
+  .cadence__stage {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
 
 /* Fallback entry animation for browsers without View Transitions. */
 @media (prefers-reduced-motion: no-preference) {
@@ -92,14 +99,20 @@
 
 /* ---------- the pad ---------- */
 
-.cad__padwrap { display: flex; justify-content: center; margin: 12px 0 34px; }
+.cad__padwrap { display: flex; justify-content: center; align-items: center; margin: 12px 0 34px; }
 
 /* An instrument dial: a softly lit, slightly recessed face inside a thin
    outer bezel. The note glow, rim dots and trace are drawn on the canvas. */
 .cad__pad {
   --bezel: var(--rule);
+  /* Sized by one value on both axes: iOS can leave aspect-ratio stale when the
+     viewport changes during load. svh, because dvh moves with the browser's
+     toolbars and would resize the pad under the player's finger. */
+  --pad-size: clamp(240px, min(74vw, calc(100svh - 480px)), 320px);
   position: relative;
-  width: clamp(240px, min(74vw, calc(100dvh - 480px)), 320px);
+  flex: none;
+  width: var(--pad-size);
+  height: var(--pad-size);
   aspect-ratio: 1;
   border-radius: 50%;
   background:
@@ -357,5 +370,5 @@
   .cad__settings { grid-area: settings; }
 
   .cad__padwrap { grid-area: pad; align-self: center; margin: 0; }
-  .cad__pad { width: min(100% - 24px, calc(100dvh - 160px), 360px); }
+  .cad__pad { width: min(100% - 24px, calc(100dvh - 160px), 360px); height: auto; }
 }

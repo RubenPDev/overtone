@@ -14,6 +14,8 @@ import { hueFor, NEUTRAL } from './melodies.js';
 const TOL_LOW = 0.72;
 const TOL_HIGH = 1.38;
 const POINTS = 288;
+const STUCK_MS = 1500;
+const GESTURES = ['touchend', 'pointerup', 'click', 'keydown'];
 
 export function gradeGaps(played, target) {
   let num = 0, den = 0;
@@ -36,6 +38,7 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
   let melody = null;
   let ac = null, analyser = null, scopeData = null;
   const buffers = new Map();
+  let warmTimer = 0, pendingFreq = null, resumeAskedAt = 0;
 
   let taps = [], index = 0, finished = false;
   let lastTapTime = 0, fastestGap = Infinity, lastFreq = 330;
@@ -101,52 +104,107 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
     return b;
   }
 
-  function ensureAudio() {
-    if (!ac) {
-      ac = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
-      analyser = ac.createAnalyser();
-      analyser.fftSize = 2048;
-      analyser.smoothingTimeConstant = 0;
-      scopeData = new Float32Array(analyser.fftSize);
+  function buildGraph() {
+    ac = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    ac.onstatechange = onAudioState;
+    analyser = ac.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0;
+    scopeData = new Float32Array(analyser.fftSize);
 
-      // analyser (dry, so the scope reads the clean note) -> soft top end
-      //   -> dry + reverb -> gentle glue compression -> out
-      const tone = ac.createBiquadFilter();
-      tone.type = 'lowpass';
-      tone.frequency.value = 5200;
-      tone.Q.value = 0.5;
-      const dry = ac.createGain();
-      dry.gain.value = 0.85;
-      const room = ac.createConvolver();
-      room.buffer = roomImpulse();
-      const wet = ac.createGain();
-      wet.gain.value = 0.28;
-      const glue = ac.createDynamicsCompressor();
-      glue.threshold.value = -14;
-      glue.knee.value = 10;
-      glue.ratio.value = 3;
-      analyser.connect(tone);
-      tone.connect(dry); dry.connect(glue);
-      tone.connect(room); room.connect(wet); wet.connect(glue);
-      glue.connect(ac.destination);
-    }
-    if (melody) {
-      for (const f of melody.notes) if (!buffers.has(f)) buffers.set(f, synth(f));
-      // Silent prime so the first audible note isn't paying setup cost.
-      const s = ac.createBufferSource(), g = ac.createGain();
-      s.buffer = buffers.get(melody.notes[0]);
-      g.gain.value = 0;
-      s.connect(g); g.connect(ac.destination); s.start();
-    }
-    if (ac.state === 'suspended') ac.resume();
+    // analyser (dry, so the scope reads the clean note) -> soft top end
+    //   -> dry + reverb -> gentle glue compression -> out
+    const tone = ac.createBiquadFilter();
+    tone.type = 'lowpass';
+    tone.frequency.value = 5200;
+    tone.Q.value = 0.5;
+    const dry = ac.createGain();
+    dry.gain.value = 0.85;
+    const room = ac.createConvolver();
+    room.buffer = roomImpulse();
+    const wet = ac.createGain();
+    wet.gain.value = 0.28;
+    const glue = ac.createDynamicsCompressor();
+    glue.threshold.value = -14;
+    glue.knee.value = 10;
+    glue.ratio.value = 3;
+    analyser.connect(tone);
+    tone.connect(dry); dry.connect(glue);
+    tone.connect(room); room.connect(wet); wet.connect(glue);
+    glue.connect(ac.destination);
   }
 
-  function fire(freq, when) {
-    lastFreq = freq;
+  function bufferFor(freq) {
+    if (!buffers.has(freq)) buffers.set(freq, synth(freq));
+    return buffers.get(freq);
+  }
+
+  /* Synthesising every note on the first tap would stall the very taps being
+     timed, so it happens ahead of time, one step at a time, between frames.
+     The context can be built without a gesture; it just starts out suspended. */
+  function warmUp() {
+    clearTimeout(warmTimer);
+    warmTimer = setTimeout(() => {
+      if (!melody) return;
+      if (!ac) { buildGraph(); warmUp(); return; }
+      const next = melody.notes.find((f) => !buffers.has(f));
+      if (next !== undefined) { bufferFor(next); warmUp(); }
+    }, 30);
+  }
+
+  function ensureAudio() {
+    if (!ac) buildGraph();
+    // Not just 'suspended': iOS reports 'interrupted' after the app is left.
+    if (ac.state !== 'running') ac.resume().catch(() => {});
+  }
+
+  /* iOS only lets audio start from the end of a touch, not from pointerdown,
+     so every gesture on the page gets a chance to unlock it. If a gesture
+     already asked and the context is still stuck (iOS can leave one dead after
+     an interruption), only a new context will bring the sound back. */
+  function onGesture() {
+    if (!ac) buildGraph();
+    if (ac.state === 'running') return;
+    const now = performance.now();
+    if (!resumeAskedAt) resumeAskedAt = now;
+    else if (now - resumeAskedAt > STUCK_MS) {
+      ac.onstatechange = null;
+      ac.close().catch(() => {});
+      buildGraph();
+      resumeAskedAt = now;
+    }
+    ac.resume().catch(() => {});
     const s = ac.createBufferSource();
-    s.buffer = buffers.get(freq);
+    s.buffer = ac.createBuffer(1, 1, ac.sampleRate);
+    s.connect(ac.destination);
+    s.start();
+  }
+
+  function onAudioState() {
+    if (ac.state !== 'running') return;
+    resumeAskedAt = 0;
+    if (pendingFreq !== null) {
+      const freq = pendingFreq;
+      pendingFreq = null;
+      fire(freq);
+    }
+  }
+
+  /* Coming back to the page: worth trying, though iOS may insist on a gesture. */
+  function onReturn() {
+    pendingFreq = null;
+    if (ac && !document.hidden && ac.state !== 'running') ac.resume().catch(() => {});
+  }
+
+  function fire(freq) {
+    lastFreq = freq;
+    // Notes started while silent would all sound at once on waking, so only
+    // the latest is kept, to play as soon as the context is running.
+    if (ac.state !== 'running') { pendingFreq = freq; return; }
+    const s = ac.createBufferSource();
+    s.buffer = bufferFor(freq);
     s.connect(analyser);
-    s.start(when || 0);
+    s.start(0);
   }
 
   /* ---------------- reporting ---------------- */
@@ -338,6 +396,7 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
 
   function reset() {
     clearReveal();
+    pendingFreq = null;
     taps = [];
     index = 0;
     finished = false;
@@ -406,7 +465,7 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
         revealLit = k;
       }, offset * 1000));
       const s = ac.createBufferSource();
-      s.buffer = buffers.get(freq);
+      s.buffer = bufferFor(freq);
       s.connect(analyser);
       s.start(t);
       lastFreq = freq;
@@ -432,6 +491,9 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
   pad.addEventListener('dblclick', noSelect);
   pad.addEventListener('contextmenu', noSelect);
   window.addEventListener('resize', onResize);
+  GESTURES.forEach((type) => window.addEventListener(type, onGesture, true));
+  document.addEventListener('visibilitychange', onReturn);
+  window.addEventListener('pageshow', onReturn);
 
   sizeCanvas();
   draw();
@@ -439,7 +501,7 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
   return {
     loadMelody(m) {
       melody = m;
-      if (ac) for (const f of m.notes) if (!buffers.has(f)) buffers.set(f, synth(f));
+      warmUp();
       reset();
     },
     reset,
@@ -450,6 +512,10 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
       disposed = true;
       cancelAnimationFrame(raf);
       clearReveal();
+      clearTimeout(warmTimer);
+      GESTURES.forEach((type) => window.removeEventListener(type, onGesture, true));
+      document.removeEventListener('visibilitychange', onReturn);
+      window.removeEventListener('pageshow', onReturn);
       pad.removeEventListener('pointerdown', onPress);
       pad.removeEventListener('mousedown', onPress);
       pad.removeEventListener('dblclick', noSelect);
