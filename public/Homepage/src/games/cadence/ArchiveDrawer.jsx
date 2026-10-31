@@ -9,11 +9,12 @@ const STATE_LABEL = {
 };
 
 function fmtDate(d) {
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  // Puzzle dates are UTC midnights; local time would show the day before in the Americas.
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
 export default function ArchiveDrawer({ open, onClose, current, onPick }) {
-  const puzzles = useMemo(() => archiveList(), []);
+  const puzzles = useMemo(() => archiveList(), [open]);
   const results = useMemo(() => readResults('cadence'), [open]);
   const today = todayNumber();
   const listRef = useRef(null);

@@ -228,14 +228,12 @@ export function puzzleForNumber(n) {
 }
 
 /**
- * Newest first, capped — the archive drawer scrolls through these. Every tune
- * in the catalogue is listed even if its calendar day hasn't come round yet
- * (including before launch), so the list never shows fewer than MELODIES.
+ * Newest first, capped — the archive drawer scrolls through these. Starts at
+ * today's puzzle, so tunes whose calendar day hasn't come round stay hidden.
  */
 export function archiveList(limit = 120) {
-  const newest = Math.max(todayNumber(), MELODIES.length);
   const out = [];
-  for (let n = newest; n >= 1 && out.length < limit; n--) out.push(puzzleForNumber(n));
+  for (let n = todayNumber(); n >= 1 && out.length < limit; n--) out.push(puzzleForNumber(n));
   return out;
 }
 

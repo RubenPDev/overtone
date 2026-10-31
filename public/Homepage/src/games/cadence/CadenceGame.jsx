@@ -32,10 +32,16 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
   const engineRef = useRef(null);
 
   const today = useMemo(() => todayNumber(), []);
-  const number = puzzleNumber ?? today;
+  // A URL can name a puzzle whose day hasn't come yet (or never existed).
+  const invalidUrl = puzzleNumber != null && (puzzleNumber < 1 || puzzleNumber > todayNumber());
+  const number = puzzleNumber == null || invalidUrl ? today : puzzleNumber;
   const puzzle = useMemo(() => puzzleForNumber(number), [number]);
   const melody = puzzle.melody;
   const isToday = number === today;
+
+  useEffect(() => {
+    if (invalidUrl) onNavigate('/cadence', { replace: true });
+  }, [invalidUrl, onNavigate]);
 
   const [state, setState] = useState({
     index: 0, total: melody.notes.length, finished: false,
@@ -136,7 +142,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
   const { result } = state;
 
   const dateLabel = puzzle.date.toLocaleDateString(undefined, {
-    month: 'short', day: 'numeric', year: 'numeric',
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
   });
 
   return (
