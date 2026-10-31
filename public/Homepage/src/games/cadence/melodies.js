@@ -16,7 +16,7 @@ export const NOTE = {
 const N = NOTE;
 
 /* The day the calendar starts. Puzzle 1 is this date, UTC. */
-export const LAUNCH_UTC = Date.UTC(2026, 10, 1); // 1 Nov 2026
+export const LAUNCH_UTC = Date.UTC(2026, 9, 30); // Oct 30, 2026
 
 export const MELODIES = [
   {
