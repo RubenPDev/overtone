@@ -1,7 +1,7 @@
 import React from 'react';
 
 // The name after paypal.me/ on your PayPal.Me link. The link stays hidden until it's set.
-const PAYPAL_ME = '';
+const PAYPAL_ME = 'PorcayoEspinoza';
 const SUGGESTED = { amount: '1.99', code: 'USD', label: '$1.99' };
 
 /** A plain link, so nothing loads from PayPal unless someone chooses to go there. */
