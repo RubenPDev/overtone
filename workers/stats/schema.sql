@@ -18,3 +18,6 @@ CREATE TABLE IF NOT EXISTS daily (
   n      INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (day, metric, key)
 );
+
+-- /likes runs on every homepage visit, and this stops it reading the whole table.
+CREATE INDEX IF NOT EXISTS daily_metric ON daily (metric);

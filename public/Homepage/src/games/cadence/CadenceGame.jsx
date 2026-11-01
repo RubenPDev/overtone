@@ -88,6 +88,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
   const [attempts, setAttempts] = useState(() => readTries(NS, number)?.count ?? 0);
   const [armed, setArmed] = useState(false);
   const [outcome, setOutcome] = useState(null);
+  const [replaying, setReplaying] = useState(false);
   const heardRef = useRef(heard);
 
   useEffect(() => {
@@ -97,6 +98,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
     setAttempts(readTries(NS, number)?.count ?? 0);
     setArmed(false);
     setOutcome(null);
+    setReplaying(false);
     // Coming back to a solved puzzle shows how it went, not a blank board.
     setShowResult(isSolved(readResults(NS)[number]));
   }, [number]);
@@ -121,6 +123,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
 
   // Only when the tap count changes: a switch of puzzle mustn't count as a start.
   useEffect(() => {
+    if (state.index > 0) setReplaying(true);
     if (state.index === 1) reportStart(NS, number);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.index]);
@@ -134,6 +137,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
 
   const onReplay = useCallback(() => {
     setShowResult(false);
+    setReplaying(true);
     engineRef.current?.reset();
   }, []);
 
@@ -172,6 +176,9 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
 
   const hues = useMemo(() => melody.notes.map(hueFor), [melody]);
   const { result } = state;
+  // A puzzle already solved opens solved, until the player starts on it again.
+  const pastResult = readResults(NS)[number];
+  const returning = !replaying && !result && state.index === 0 && isSolved(pastResult);
 
   const dateLabel = puzzle.date.toLocaleDateString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
@@ -223,7 +230,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
 
         <div className="cad__stripwrap">
           <span>{isToday ? 'Today' : `Puzzle ${number}`}</span>
-          <span>{state.index} / {state.total}</span>
+          <span>{returning ? melody.notes.length : state.index} / {melody.notes.length}</span>
         </div>
 
         <div className="cad__strip">
@@ -233,8 +240,8 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
             // Each cell is graded by how long its note was held: the gap up to the
             // next tap. Nothing follows the last note, so it can't be wrong, and
             // it's drawn at the tune's longest length since that's where it rests.
-            if (result) {
-              const mark = result.marks[k] ?? 0;
+            if (result || returning) {
+              const mark = result?.marks[k] ?? 0;
               const held = melody.gaps[k] ?? Math.max(...melody.gaps);
               style = {
                 height: `${9 + Math.min(held, 4) * 5}px`,
@@ -252,7 +259,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
           <div className="cad__pad" ref={padRef} style={{ viewTransitionName: 'mark-cadence' }}>
             <canvas ref={canvasRef} className="cad__scope" />
             <span className={`cad__padlabel${state.index > 0 && !state.finished ? ' is-quiet' : ''}`}>
-              {state.finished ? 'tap to try again' : state.index === 0 ? 'tap anywhere' : 'keep going'}
+              {state.finished || returning ? 'tap to try again' : state.index === 0 ? 'tap anywhere' : 'keep going'}
             </span>
           </div>
         </div>
@@ -263,7 +270,12 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
         </div>
 
         <p className="cad__hint">
-          {result ? (
+          {returning ? (
+            <>
+              <b className="is-ok">{pastResult === 'assisted' ? 'Solved, with help.' : 'Solved by ear.'}</b>{' '}
+              {melody.title} — {melody.composer.replace(/\.$/, '')}. {melody.solved}
+            </>
+          ) : result ? (
             result.correct === result.total ? (
               <>
                 <b className="is-ok">
@@ -286,7 +298,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
         </p>
 
         <div className="cad__actions">
-          <button type="button" className="cad__btn" onClick={() => engineRef.current?.reset()}>Reset</button>
+          <button type="button" className="cad__btn" onClick={onReplay}>Reset</button>
           <button
             type="button"
             className={`cad__btn${armed ? ' is-armed' : ''}`}

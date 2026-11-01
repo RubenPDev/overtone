@@ -135,6 +135,16 @@ async function readStats(request, env) {
   });
 }
 
+/* The one number the site itself shows, so it mustn't cost a read of all of /stats. */
+async function readLikes(request, env) {
+  const { likes } = await env.DB.prepare(
+    `SELECT COALESCE(SUM(n), 0) AS likes FROM daily WHERE metric = 'like'`
+  ).first();
+  return new Response(JSON.stringify({ likes }), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...corsHeaders(request) },
+  });
+}
+
 const WRITES = { '/event': recordEvent, '/player': recordPlayer, '/track': recordDaily };
 
 export default {
@@ -145,6 +155,7 @@ export default {
       return WRITES[pathname](request, env);
     }
     if (request.method === 'GET' && pathname === '/stats') return readStats(request, env);
+    if (request.method === 'GET' && pathname === '/likes') return readLikes(request, env);
     if (request.method === 'GET' && pathname === '/') {
       return new Response(DASHBOARD_HTML, {
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Robots-Tag': 'noindex' },

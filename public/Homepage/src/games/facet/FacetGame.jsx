@@ -2,13 +2,15 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import {
   N, PITCH, CENTRE, RC, SWAPS,
   FAR, applyPerm, buildTables, swapPerm, turnPerm, distanceOf, isBuilt,
-  scrambleFor, todayNumber, dateForNumber, puzzlePath,
+  scrambleFor, solvedPosition, todayNumber, dateForNumber, puzzlePath,
 } from './solver.js';
 import { sound } from './sound.js';
 import {
-  hasLiked, helpSeen, isSolved, markHelpSeen, markLiked, readResults, readTries, recordBest, recordPlay, recordTry,
+  hasLiked, helpSeen, isSolved, markHelpSeen, markLiked, readBest, readResults, readTries, recordBest, recordPlay, recordTry,
 } from '../../lib/progress.js';
 import { reportLike, reportResult, reportStart } from '../../lib/stats.js';
+import { countOwnLike } from '../../lib/useLikes.js';
+import { HEART_PATH } from '../../components/LikeCount.jsx';
 import ArchiveDrawer from '../cadence/ArchiveDrawer.jsx';
 import { ResultIcon } from '../cadence/CadenceResult.jsx';
 import ArchiveList from './ArchiveList.jsx';
@@ -140,7 +142,7 @@ function LikeBlock({ col, row, liked, onLike }) {
   return (
     <ControlBlock col={col} row={row} label={liked ? 'Liked' : 'Like Facet'} toggled={liked} onPress={onLike}>
       <svg className="fc-icon fc-icon--upright" viewBox="0 0 52 52" aria-hidden="true">
-        <path d="M26 38.5C14.5 30.5 11 25 11 20.2 11 15.8 14.4 13 18 13c3.4 0 6.4 2 8 5 1.6-3 4.6-5 8-5 3.6 0 7 2.8 7 7.2 0 4.8-3.5 10.3-15 18.3z"
+        <path d={HEART_PATH}
               fill={liked ? '#fff' : 'none'} fillOpacity=".92" stroke="#fff" strokeOpacity=".92"
               strokeWidth="3.5" strokeLinejoin="round" />
       </svg>
@@ -189,6 +191,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
   const [pos, setPos] = useState(identity);
   const [moves, setMoves] = useState(0);
   const [solved, setSolved] = useState(false);
+  const [restored, setRestored] = useState(false); // solved on an earlier visit, not just now
   const [hovered, setHovered] = useState(null);
   const [soundOn, setSoundOn] = useState(sound.enabled);
   const [liked, setLiked] = useState(() => hasLiked(NS));
@@ -216,12 +219,19 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
   const colours = puzzle ? puzzle.colours : null;
   const par = puzzle ? puzzle.par : 0;
 
-  useEffect(() => {
-    setPos(identity);
-    setMoves(0);
-    setSolved(false);
-    sound.resetPhrase();
-  }, [number, identity, puzzle]);
+  /* A puzzle already solved opens solved, on a default layout since the player's
+     own isn't kept. Set while rendering, so the scramble never gets painted first. */
+  const [loaded, setLoaded] = useState(null);
+  if (puzzle !== loaded) {
+    const done = puzzle !== null && isSolved(readResults(NS)[number]);
+    setLoaded(puzzle);
+    setPos(done ? solvedPosition(puzzle.colours) : identity);
+    setMoves(done ? readBest(NS)[number] ?? puzzle.par : 0);
+    setSolved(done);
+    setRestored(done);
+  }
+
+  useEffect(() => { sound.resetPhrase(); }, [number, puzzle]);
 
   // Coming back to a solved puzzle shows how it went, not a blank board.
   useEffect(() => {
@@ -246,10 +256,10 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
 
   // Restarting during the delay clears `solved`, and with it this timer.
   useEffect(() => {
-    if (!solved) return undefined;
+    if (!solved || restored) return undefined;
     const t = setTimeout(() => setShowResult(true), RESULT_DELAY_MS);
     return () => clearTimeout(t);
-  }, [solved]);
+  }, [solved, restored]);
 
   // Only when the count changes: a switch of puzzle mustn't count as a start.
   useEffect(() => {
@@ -293,6 +303,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
     setPos(identity);
     setMoves(0);
     setSolved(false);
+    setRestored(false);
     setHovered(null);
     setShowResult(false);
     sound.resetPhrase();
@@ -315,6 +326,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
     sound.tick();
     markLiked(NS);
     setLiked(true);
+    countOwnLike();
     reportLike(NS);
   }, []);
 

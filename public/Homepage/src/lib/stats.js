@@ -6,7 +6,7 @@ import { readStreak, safeGet, safeSet, todayStamp } from './progress.js';
    is tried again next time. The server decides the date and rejects anything not
    on its lists. Nothing is sent from the dev server. */
 
-const STATS_URL = 'https://stats.overtone.games';
+export const STATS_URL = 'https://stats.overtone.games';
 
 function post(path, body) {
   return fetch(`${STATS_URL}${path}`, {

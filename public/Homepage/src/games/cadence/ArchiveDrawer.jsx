@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import ArchiveList from './ArchiveList.jsx';
+import LikeCount from '../../components/LikeCount.jsx';
 
 /* On a wide screen the drawer never closes, so opening it can't be the only cue
    to re-read the list: `finished` should change once a result has been saved. */
@@ -38,9 +39,10 @@ export default function ArchiveDrawer({ open, onClose, current, onPick, finished
 
         <List current={current} onPick={onPick} activeRef={activeRef} refresh={`${open}/${finished}`} />
 
-        <p className="arch__foot">
-          This is where you can revisit past puzzles — scroll to see more.
-        </p>
+        <div className="arch__foot">
+          <p>This is where you can revisit past puzzles — scroll to see more.</p>
+          <LikeCount />
+        </div>
       </aside>
     </>
   );

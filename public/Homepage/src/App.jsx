@@ -4,6 +4,7 @@ import GameCard from './components/GameCard.jsx';
 import About from './components/About.jsx';
 import Archive from './components/Archive.jsx';
 import Footer from './components/Footer.jsx';
+import LikeCount from './components/LikeCount.jsx';
 import Privacy from './components/Privacy.jsx';
 import CadenceGame from './games/cadence/CadenceGame.jsx';
 import FacetGame from './games/facet/FacetGame.jsx';
@@ -40,6 +41,7 @@ function Home({ navigate }) {
         <div className="games__head">
           <span className="eyebrow">Today</span>
           <span className="games__rule" aria-hidden="true" />
+          <LikeCount />
         </div>
 
         <GameCard game={featured} featured navigate={navigate} />

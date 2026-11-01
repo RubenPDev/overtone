@@ -279,6 +279,13 @@ export function applyPerm(pos, m) {
   return next;
 }
 
+/** A solved layout of these tiles. Which colour takes which arm is arbitrary. */
+export function solvedPosition(colours) {
+  const tiles = [[], [], [], [], []];
+  colours.forEach((colour, tile) => tiles[colour].push(tile));
+  return solvedBoard().map((colour) => tiles[colour].pop());
+}
+
 /* Proving a board is further than this gets slow fast (seconds at 14, even
    on a desktop), and the floor is already full by here. */
 export const FAR = 12;
