@@ -328,6 +328,7 @@ function render(data) {
   var activeWeek = totals(week, 'active');
   var returning = sum(activeWeek) - (activeWeek['new'] || 0);
   var shares = sum(totals(data.daily, 'share'));
+  var likes = sum(totals(data.daily, 'like'));
 
   byId('updated').textContent = 'Updated ' + new Date(data.generated).toLocaleString() + ' · refreshes when you reload';
 
@@ -339,6 +340,7 @@ function render(data) {
     [fmt(sum(today.active || {})), 'Players today', 'since midnight UTC'],
     [pct(returning, sum(activeWeek)), 'Returning, last 7 days', fmt(returning) + ' of ' + fmt(sum(activeWeek)) + ' daily players'],
     [fmt(shares), 'Shares, all time', 'Share button used'],
+    [fmt(likes), 'Likes, all time', 'heart on the Facet board'],
   ].forEach(function (t) {
     var tile = el('div', 'tile');
     tile.appendChild(el('b', '', t[0]));

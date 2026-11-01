@@ -51,6 +51,14 @@ export function resetForNewRules(ns, version) {
   safeSet(`${ns}:rules`, version);
 }
 
+/** A like is for keeps: there's no way to take one back out of a running total. */
+export function hasLiked(ns) {
+  return safeGet(`${ns}:liked`) !== null;
+}
+export function markLiked(ns) {
+  safeSet(`${ns}:liked`, '1');
+}
+
 export function isSolved(outcome) {
   return outcome === 'solved' || outcome === 'assisted';
 }

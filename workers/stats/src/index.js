@@ -30,6 +30,7 @@ const METRICS = {
   streak: ['1', '2-3', '4-6', '7-13', '14-29', '30+'],
   share: ['sheet', 'copy'],
   lesson: ['solved', 'skipped'],
+  like: ['facet'],
 };
 
 function corsHeaders(request) {

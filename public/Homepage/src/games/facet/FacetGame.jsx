@@ -6,9 +6,9 @@ import {
 } from './solver.js';
 import { sound } from './sound.js';
 import {
-  helpSeen, isSolved, markHelpSeen, readResults, readTries, recordBest, recordPlay, recordTry,
+  hasLiked, helpSeen, isSolved, markHelpSeen, markLiked, readResults, readTries, recordBest, recordPlay, recordTry,
 } from '../../lib/progress.js';
-import { reportResult, reportStart } from '../../lib/stats.js';
+import { reportLike, reportResult, reportStart } from '../../lib/stats.js';
 import ArchiveDrawer from '../cadence/ArchiveDrawer.jsx';
 import { ResultIcon } from '../cadence/CadenceResult.jsx';
 import ArchiveList from './ArchiveList.jsx';
@@ -136,6 +136,18 @@ function SoundBlock({ col, row, on, onToggle }) {
   );
 }
 
+function LikeBlock({ col, row, liked, onLike }) {
+  return (
+    <ControlBlock col={col} row={row} label={liked ? 'Liked' : 'Like Facet'} toggled={liked} onPress={onLike}>
+      <svg className="fc-icon fc-icon--upright" viewBox="0 0 52 52" aria-hidden="true">
+        <path d="M26 38.5C14.5 30.5 11 25 11 20.2 11 15.8 14.4 13 18 13c3.4 0 6.4 2 8 5 1.6-3 4.6-5 8-5 3.6 0 7 2.8 7 7.2 0 4.8-3.5 10.3-15 18.3z"
+              fill={liked ? '#fff' : 'none'} fillOpacity=".92" stroke="#fff" strokeOpacity=".92"
+              strokeWidth="3.5" strokeLinejoin="round" />
+      </svg>
+    </ControlBlock>
+  );
+}
+
 const TUTORIAL = [
   {
     text: 'Tap any outer block. It trades places with the one face cell it touches. With a mouse, hover first and both light up so you can see the pair.',
@@ -179,6 +191,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
   const [solved, setSolved] = useState(false);
   const [hovered, setHovered] = useState(null);
   const [soundOn, setSoundOn] = useState(sound.enabled);
+  const [liked, setLiked] = useState(() => hasLiked(NS));
   const [tutStep, setTutStep] = useState(() => (helpSeen(NS) ? -1 : 0));
   const [showArchive, setShowArchive] = useState(false);
   const [showResult, setShowResult] = useState(() => isSolved(readResults(NS)[number]));
@@ -294,6 +307,20 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
     sound.unlock();
     sound.setEnabled(!sound.enabled);
     setSoundOn(sound.enabled);
+  }, []);
+
+  const like = useCallback(() => {
+    if (hasLiked(NS)) return;
+    sound.unlock();
+    sound.tick();
+    markLiked(NS);
+    setLiked(true);
+    reportLike(NS);
+  }, []);
+
+  // A like that couldn't be sent at the time goes on the next visit.
+  useEffect(() => {
+    if (hasLiked(NS)) reportLike(NS);
   }, []);
 
   const advanceTutorial = useCallback((skip) => {
@@ -418,6 +445,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
             <SoundBlock col={0} row={0} on={soundOn} onToggle={toggleSound} />
             <TurnBlock dir={-1} col={0} row={4} pulsing={highlight === 'turns'} onTurn={doTurn} />
             <TurnBlock dir={1} col={4} row={0} pulsing={highlight === 'turns'} onTurn={doTurn} />
+            <LikeBlock col={4} row={4} liked={liked} onLike={like} />
 
             {SWAPS.map(([arm, ring]) => {
               const [row, col] = RC[arm];

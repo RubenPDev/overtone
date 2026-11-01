@@ -149,6 +149,11 @@ export function reportShare(method) {
   if (!import.meta.env.DEV) track('share', method);
 }
 
+/** Once per browser, per game. Call it on every visit too, to retry one that failed. */
+export function reportLike(ns) {
+  if (!import.meta.env.DEV) once(`${ns}:likeReported`, () => track('like', ns));
+}
+
 /** Once per browser: did the lesson work, or did they just close it? */
 export function reportLesson(solved) {
   if (!import.meta.env.DEV) once('overtone:lessonReported', () => track('lesson', solved ? 'solved' : 'skipped'));

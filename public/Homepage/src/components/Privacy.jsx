@@ -42,7 +42,8 @@ export default function Privacy() {
           </li>
           <li>
             <strong>Now and then:</strong> your first tap and first solve ever, your streak length,
-            whether you solved the how-to-play lesson, and when you share a result.
+            whether you solved the how-to-play lesson, when you share a result, and when you
+            tap a game’s heart.
           </li>
         </ul>
         <p>
