@@ -6,6 +6,7 @@ import {
   readVisualPrefs, writeVisualPrefs,
 } from '../../lib/progress.js';
 import { reportResult, reportStart } from '../../lib/stats.js';
+import GameBar, { PuzzleStepper, RestartIcon } from '../../components/GameBar.jsx';
 import ArchiveDrawer from './ArchiveDrawer.jsx';
 import CadenceHelp from './CadenceHelp.jsx';
 import CadenceResult, { ResultIcon } from './CadenceResult.jsx';
@@ -31,7 +32,7 @@ function GearIcon() {
   );
 }
 
-export default function CadenceGame({ puzzleNumber, onNavigate }) {
+export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggleTheme }) {
   const padRef = useRef(null);
   const canvasRef = useRef(null);
   const engineRef = useRef(null);
@@ -197,35 +198,19 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
       {showHelp && <CadenceHelp visual={visual} onClose={closeHelp} openedByTap={showHelp === 'tap'} />}
 
       <div className="cadence__stage">
-        <header className="cad__bar">
-          <button type="button" className="cad__iconbtn" onClick={() => onNavigate('/')} aria-label="Back to all games">
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M13 8H3M7 4L3 8l4 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span>Games</span>
-          </button>
-
-          <div className="cad__barend">
-            {isSolved(readResults(NS)[number]) && (
-              <button type="button" className="cad__iconbtn" onClick={() => setShowResult(true)} aria-label="Your result">
-                <ResultIcon name="star" />
-              </button>
-            )}
-            <button type="button" className="cad__iconbtn" onClick={() => setShowHelp('tap')} aria-label="How to play">
-              <span>?</span>
+        <GameBar onNavigate={onNavigate} isDark={isDark} onToggleTheme={onToggleTheme}>
+          {isSolved(readResults(NS)[number]) && (
+            <button type="button" className="pillbar__btn" onClick={() => setShowResult(true)} aria-label="Your result">
+              <ResultIcon name="star" />
             </button>
-            <button type="button" className="cad__iconbtn" onClick={() => setShowArchive(true)} aria-label="Open archive">
-              <span>#{number}</span>
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M2.5 4h11M2.5 8h11M2.5 12h11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-              </svg>
-            </button>
-          </div>
-        </header>
+          )}
+          <button type="button" className="pillbar__btn" onClick={() => setShowHelp('tap')} aria-label="How to play">?</button>
+        </GameBar>
 
-        <div className="cad__masthead">
-          <h1 className="cad__title">Cadence</h1>
-          <span className="cad__stamp">{dateLabel}</span>
+        <div className="gamehead">
+          <PuzzleStepper number={number} today={today} onPick={pickPuzzle} onOpenArchive={() => setShowArchive(true)} />
+          <h1 className="gamehead__title">Cadence</h1>
+          <span className="gamehead__stamp">{dateLabel}</span>
         </div>
 
         <div className="cad__stripwrap">
@@ -298,7 +283,6 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
         </p>
 
         <div className="cad__actions">
-          <button type="button" className="cad__btn" onClick={onReplay}>Reset</button>
           <button
             type="button"
             className={`cad__btn${armed ? ' is-armed' : ''}`}
@@ -310,9 +294,12 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
               : armed ? 'Sure? Counts as assisted'
               : heard || solvedClean ? 'Hear it again' : 'Hear answer'}
           </button>
+          <button type="button" className="cad__btn cad__btn--round" onClick={onReplay} aria-label="Reset" title="Reset">
+            <RestartIcon />
+          </button>
           <button
             type="button"
-            className="cad__btn cad__btn--icon"
+            className="cad__btn cad__btn--round"
             onClick={() => setShowSettings((v) => !v)}
             aria-expanded={showSettings}
             aria-label="Visualizer settings"

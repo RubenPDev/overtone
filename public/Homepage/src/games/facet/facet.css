@@ -1,17 +1,17 @@
 /* ============================================================
    Facet — isometric cube-face puzzle.
-   Uses the site's theme tokens for chrome; the blocks carry their
-   own colour, so they read the same in either theme.
+   Uses the site's theme tokens for chrome. The blocks are drawn
+   here too, as candy: each colour is three values, and the theme
+   decides how toned-down and how glossy they look.
    ============================================================ */
 
 .facet {
-  --ok: #1D9E75;
-  --warn: #EF9F27;
-  --bad: #E24B4A;
   min-height: 100vh;
   min-height: calc(100dvh / var(--site-zoom));
   display: flex;
   justify-content: center;
+  /* The plate's rounded corners leave its box poking out past the screen. */
+  overflow-x: clip;
   -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
@@ -33,49 +33,22 @@
   }
   .fc-stage { width: auto; margin-inline: -16px; }
 }
-/* The archive drawer lives beside the game on a wide screen. */
-@media (min-width: 1080px) {
-  .facet { padding-left: 310px; }
-}
 
 /* ---------- chrome ---------- */
 
-.fc-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-.fc-barend { display: flex; align-items: center; gap: 8px; }
-
-.fc-chip {
-  display: inline-flex; align-items: center; gap: 7px;
-  font: inherit; font-size: 13px;
-  padding: 8px 12px;
-  color: var(--ink-2);
-  background: transparent;
-  border: 1px solid var(--rule);
-  border-radius: 100px;
-  cursor: pointer;
-  transition: color 180ms, border-color 180ms;
-}
-.fc-chip:hover { color: var(--ink); border-color: var(--rule-2); }
-.fc-chip svg { width: 14px; height: 14px; }
-.fc-chip span, .fc-chip--static { font-family: var(--mono); font-size: 12px; }
-.fc-chip--static { cursor: default; color: var(--ink-3); }
-
-.fc-masthead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.fc-title { font-family: var(--display); font-size: 30px; font-weight: 600; letter-spacing: -0.035em; }
-.fc-stamp { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
-
-.fc-score { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 2px; }
-.fc-label { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
-.fc-moves { font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--ink); }
-.fc-moves span { font-size: 15px; color: var(--ink-3); }
+.fc-score { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 6px; }
+.fc-label { font-size: 14px; font-weight: 700; color: var(--ink-3); }
+.fc-moves { font-size: 30px; font-weight: 800; line-height: 1.15; color: var(--ink); }
+.fc-moves span { font-size: 18px; font-weight: 600; color: var(--ink-2); }
 
 /* ---------- the isometric board ---------- */
 
 /* The game measures this box and sets --fc-scale so the board fills it. */
 .fc-stage {
   --fc-tilt: 56deg;
-  --fc-board-h: 275; /* its height on screen at scale 1, which follows the tilt */
-  aspect-ratio: 470 / var(--fc-board-h);
-  max-height: max(220px, calc(100svh - 430px));
+  --fc-board-h: 284; /* its height on screen at scale 1, which follows the tilt */
+  aspect-ratio: 490 / var(--fc-board-h);
+  max-height: max(220px, calc(100svh - 420px));
   display: grid;
   /* The board's unscaled box can be taller than the stage; it mustn't push it off centre. */
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
@@ -97,77 +70,170 @@
 @media (max-width: 660px) {
   .fc-stage {
     --fc-tilt: 45deg;
-    --fc-board-h: 340;
-    max-height: max(250px, calc(100svh - 360px));
+    --fc-board-h: 356;
+    max-height: max(250px, calc(100svh - 370px));
+    margin-bottom: 12px;
   }
 }
 
+/* The pearl the blocks sit on. Its thickness runs along local (1,1), like theirs,
+   and a faint wash of the candy colours round the edge plays as iridescence. */
+.fc-plate {
+  position: absolute;
+  inset: -36px;
+  border-radius: 34px;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / var(--plate-sheen)) 0%, transparent 34%, transparent 70%, rgb(255 255 255 / calc(var(--plate-sheen) * .6)) 100%),
+    conic-gradient(from 200deg at 50% 50%,
+      rgb(105 255 208 / .2), rgb(179 209 255 / .24), rgb(214 140 255 / .2),
+      rgb(255 156 159 / .2), rgb(255 230 106 / .2), rgb(105 255 208 / .2)),
+    linear-gradient(135deg, var(--plate-a) 0%, var(--plate-b) 52%, var(--plate-c) 100%);
+  box-shadow:
+    inset 1.5px 1.5px 1px var(--plate-edge),
+    inset -1.5px -1.5px 2px var(--plate-edge),
+    inset 0 0 26px rgb(255 255 255 / var(--plate-sheen)),
+    1px 1px 0 var(--plate-side), 2px 2px 0 var(--plate-side), 3px 3px 0 var(--plate-side),
+    4px 4px 0 var(--plate-side), 5px 5px 0 var(--plate-side), 6px 6px 0 var(--plate-side),
+    7px 7px 0 var(--plate-side-2), 8px 8px 0 var(--plate-side-2), 9px 9px 0 var(--plate-side-2),
+    10px 10px 0 var(--plate-side-2),
+    20px 20px 26px var(--shadow),
+    34px 34px 54px var(--shadow);
+}
+
+.fc-tone-0 { --c: #69ffd0; --hi: #cbfff0; --s: #2fc4a0; --s2: #1fa084; }
+.fc-tone-1 { --c: #ff9c9f; --hi: #ffdcdc; --s: #ec6f78; --s2: #cc525e; }
+.fc-tone-2 { --c: #b3d1ff; --hi: #e8f1ff; --s: #7f9fec; --s2: #5f80d2; }
+.fc-tone-3 { --c: #ffe66a; --hi: #fff9c8; --s: #efb03e; --s2: #d9942a; }
+.fc-tone-4 { --c: #d68cff; --hi: #f3dcff; --s: #a765dc; --s2: #8a4bc0; }
+/* The fixed centre: the target colour, but matte and set a shade deeper. */
+.fc-tone-centre { --c: #45e6b4; --hi: #76efcb; --s: #25a888; --s2: #1a8e72; }
+
 .fc-block {
+  --f: color-mix(in oklab, var(--c), var(--candy-tint) var(--candy-tint-amt));
+  --lit: color-mix(in oklab, var(--hi), var(--candy-tint) var(--candy-tint-amt));
+  --side: color-mix(in oklab, var(--s), var(--candy-tint) var(--candy-tint-amt));
+  --side-2: color-mix(in oklab, var(--s2), var(--candy-tint) var(--candy-tint-amt));
+  --lift: 13;
   position: absolute;
   width: 52px; height: 52px;
   left: 0; top: 0;
-  border-radius: 13px;
+  border-radius: 15px;
+  background: var(--side);
+  /* Depth is a stack of hard shadows along local (1,1), the one direction that
+     projects to straight down. Below them the candy throws its colour on the plate. */
+  box-shadow:
+    1px 1px 0 var(--side), 2px 2px 0 var(--side), 3px 3px 0 var(--side), 4px 4px 0 var(--side),
+    5px 5px 0 var(--side), 6px 6px 0 var(--side), 7px 7px 0 var(--side), 8px 8px 0 var(--side),
+    9px 9px 0 var(--side-2), 10px 10px 0 var(--side-2), 11px 11px 0 var(--side-2),
+    12px 12px 0 var(--side-2), 13px 13px 0 var(--side-2),
+    var(--halo, 0 0 0 transparent),
+    15px 15px 10px color-mix(in srgb, var(--s) var(--cast), transparent),
+    23px 23px 24px color-mix(in srgb, var(--c) var(--cast), transparent);
   transition: transform 240ms cubic-bezier(.3,.9,.4,1),
               filter 180ms ease,
               box-shadow 120ms ease;
 }
 
-/* Face sits tight to the far corner and pulls back 3px on the near one,
-   so what shows underneath is the same hue a shade down — never black. */
+/* Lit from the far corner, which is the top of the screen. */
 .fc-face {
   position: absolute;
-  top: 1px; left: 1px; right: 3px; bottom: 3px;
-  border-radius: 11px;
-  box-shadow: inset 1px 1px 0 rgba(255,255,255,.10);
+  top: 0; left: 0; right: 1.5px; bottom: 1.5px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--lit) 0%, var(--f) 44%, color-mix(in oklab, var(--f), var(--side) 15%) 100%);
+  box-shadow:
+    inset 1.5px 1.5px 1px rgb(255 255 255 / var(--gloss)),
+    inset -2px -2px 4px color-mix(in srgb, var(--side) 50%, transparent),
+    inset -1px -1px 0 rgb(255 255 255 / calc(var(--gloss) * .35));
+}
+/* The window reflected near the far corner, and the light that bounces back up
+   through the candy at the near one. */
+.fc-face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(38% 26% at 30% 24%, rgb(255 255 255 / var(--gloss)) 0%, rgb(255 255 255 / calc(var(--gloss) * .4)) 55%, transparent 100%),
+    radial-gradient(55% 45% at 80% 82%, rgb(255 255 255 / calc(var(--gloss) * .34)), transparent 100%);
 }
 
 .fc-centre .fc-face {
-  top: 3px; left: 3px; right: 1px; bottom: 1px;
-  box-shadow: inset 0 1.5px 3px rgba(0,0,0,.35);
+  background: linear-gradient(135deg, var(--lit) 0%, var(--f) 40%, var(--side) 140%);
+  box-shadow:
+    inset 1.5px 1.5px 3px color-mix(in srgb, var(--side-2) 45%, transparent),
+    inset -1px -1px 1px rgb(255 255 255 / calc(var(--gloss) * .4));
 }
-
-.fc-pin {
-  position: absolute;
-  left: 50%; top: 50%;
-  width: 13px; height: 13px;
-  margin: -6.5px 0 0 -6.5px;
-  border-radius: 50%;
-  border: 2px solid rgba(0,0,0,.26);
-}
+.fc-centre .fc-face::before { background: none; }
 
 /* Softer than hovering, which still has to show the pair on a cell that's already lit. */
-.fc-block.is-settled { filter: brightness(1.22); }
-.fc-block.is-glowing { filter: brightness(1.42) saturate(1.1); z-index: 800 !important; }
+.fc-block.is-settled {
+  filter: brightness(1.05) saturate(1.28);
+  --halo: 0 0 16px 3px color-mix(in srgb, var(--c) 70%, transparent);
+}
+.fc-block.is-settled .fc-face { box-shadow:
+  inset 1.5px 1.5px 1px rgb(255 255 255 / var(--gloss)),
+  inset 0 0 11px rgb(255 255 255 / calc(var(--gloss) * .62)),
+  inset -1px -1px 0 rgb(255 255 255 / calc(var(--gloss) * .35)); }
+.fc-block.is-glowing {
+  filter: brightness(1.14) saturate(1.2);
+  --halo: 0 0 24px 7px color-mix(in srgb, var(--c) 90%, transparent);
+  z-index: 800 !important;
+}
+.fc-block.is-glowing .fc-face { box-shadow:
+  inset 1.5px 1.5px 1px rgb(255 255 255 / var(--gloss)),
+  inset 0 0 18px rgb(255 255 255 / var(--gloss)); }
 
-.fc-control { cursor: pointer; z-index: 850; }
+/* White sugar in the light, warm toffee in the dark. */
+.fc-control {
+  --c: #f6fdfb; --hi: #ffffff; --s: #cbd8d8; --s2: #aebfbf;
+  --f: var(--c); --lit: var(--hi); --side: var(--s); --side-2: var(--s2);
+  color: var(--ctl-ink);
+  cursor: pointer;
+  z-index: 850;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .fc-control { --c: #57494a; --hi: #7a6968; --s: #372c30; --s2: #2a2125; }
+}
+:root[data-theme='dark'] .fc-control { --c: #57494a; --hi: #7a6968; --s: #372c30; --s2: #2a2125; }
+
+.fc-control.is-pressed {
+  box-shadow:
+    1px 1px 0 var(--side), 2px 2px 0 var(--side), 3px 3px 0 var(--side-2), 4px 4px 0 var(--side-2),
+    6px 6px 8px color-mix(in srgb, var(--s) var(--cast), transparent);
+}
 /* Touch screens keep :hover on after a tap, which would leave the block lit. */
 @media (hover: hover) {
-  .fc-control:hover { filter: brightness(1.3); }
+  .fc-control:hover { filter: brightness(1.1) drop-shadow(0 0 6px rgb(255 255 255 / .4)); }
 }
 .fc-control:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
 .fc-icon { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .fc-icon--upright { transform: rotate(-45deg); }
 .fc-icon.is-off { opacity: .55; }
+.fc-icon .is-liked { color: var(--heart); }
 
 .fc-hit {
   position: absolute;
   width: 52px; height: 52px;
-  border-radius: 13px;
+  border-radius: 15px;
   cursor: pointer;
   z-index: 900;
 }
-.fc-hit:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.fc-hit:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
-/* ---------- the floor ---------- */
+/* ---------- the rim lights ---------- */
 
 .fc-pip {
   position: absolute;
-  width: 15px; height: 15px;
-  border-radius: 5px;
-  background: var(--rule);
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  /* Above the shadows the blocks throw, which would otherwise smother the near rows. */
+  z-index: 700;
+  pointer-events: none;
+  background: var(--pip-off);
   transition: background 260ms ease, box-shadow 260ms ease;
 }
-.fc-pip.is-on { background: #16C492; box-shadow: 0 0 9px rgba(22,196,146,.55); }
+.fc-pip.is-on { background: var(--ok); box-shadow: 0 0 8px 1px color-mix(in srgb, var(--ok) 75%, transparent); }
 
 /* ---------- the win ---------- */
 
@@ -178,7 +244,7 @@
 }
 @keyframes fc-wave {
   0%, 100% { translate: 0 0; }
-  45% { translate: -16px -16px; filter: brightness(1.5); }
+  45% { translate: -16px -16px; filter: brightness(1.2) saturate(1.5); }
 }
 
 /* ---------- tutorial ---------- */
@@ -186,39 +252,30 @@
 .is-pulsing { animation: fc-pulse 1.1s ease-in-out infinite; }
 @keyframes fc-pulse {
   0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.55); }
+  50% { filter: brightness(1.18) saturate(1.5); }
 }
 
 .fc-card {
-  border: 1px solid var(--rule);
-  border-radius: 12px;
+  border: 1px solid var(--card-edge);
+  border-radius: 20px;
   padding: 14px 16px;
   background: var(--card);
+  box-shadow: 0 12px 24px -18px var(--shadow);
   margin-bottom: 14px;
 }
-.fc-card p { font-size: 13px; line-height: 1.6; color: var(--ink-2); margin: 0 0 12px; }
+.fc-card p { font-size: 14px; line-height: 1.55; color: var(--ink-2); margin: 0 0 12px; }
 .fc-cardfoot { display: flex; gap: 8px; align-items: center; }
 .fc-cardfoot .fc-label { margin-left: auto; }
+.fc-cardfoot .cad__btn { padding: 8px 18px; min-height: 0; }
 
-.fc-msg { font-size: 13px; line-height: 1.6; color: var(--ink-2); margin: 0 0 14px; min-height: 58px; }
-.fc-msg b { font-weight: 500; }
-.fc-msg .is-ok { color: #1D9E75; }
+.fc-msg { font-size: 15px; line-height: 1.55; color: var(--ink-2); margin: 0 0 14px; min-height: 58px; }
+.fc-msg b { font-weight: 800; }
+.fc-msg .is-ok { color: var(--ok-ink); }
 
 /* ---------- controls ---------- */
 
-.fc-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.fc-actions button, .fc-cardfoot button {
-  font: inherit; font-size: 13px;
-  padding: 12px 10px;
-  color: var(--ink-2);
-  background: transparent;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: color 180ms, border-color 180ms;
-}
-.fc-cardfoot button { padding: 8px 14px; }
-.fc-actions button:hover, .fc-cardfoot button:hover { color: var(--ink); border-color: var(--rule-2); }
+.fc-actions { display: flex; align-items: center; gap: 14px; }
+.fc-actions .cad__btn--primary { flex: 1; max-width: 260px; }
 
 @media (prefers-reduced-motion: reduce) {
   .fc-block { transition: none; }
@@ -230,30 +287,31 @@
 
 /* Two columns, controls on the left and the board as the hero on the right.
    The 1fr rows above and below centre the left column against it. */
-@media (min-width: 1280px) and (min-height: 620px) {
+@media (min-width: 1024px) and (min-height: 560px) {
   .facet__stage-wrap {
     display: grid;
     max-width: 1700px;
     min-height: calc(100dvh / var(--site-zoom));
-    padding: 40px 48px;
-    grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
-    grid-template-rows: 1fr repeat(5, auto) 1fr;
+    padding: 32px clamp(28px, 4vw, 64px) 40px;
+    grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+    grid-template-rows: auto 1fr repeat(4, auto) 1fr;
     grid-template-areas:
+      "bar     bar"
       ".       board"
-      "bar     board"
       "mast    board"
       "score   board"
       "msg     board"
       "actions board"
       ".       board";
-    column-gap: clamp(40px, 5vw, 88px);
+    column-gap: clamp(32px, 5vw, 88px);
   }
-  .fc-bar { grid-area: bar; }
-  .fc-masthead { grid-area: mast; }
-  .fc-title { font-size: 40px; }
-  .fc-score { grid-area: score; margin-bottom: 18px; }
+  .facet__stage-wrap > .gamebar { grid-area: bar; }
+  .facet__stage-wrap > .gamehead { grid-area: mast; }
+  .fc-score { grid-area: score; margin-bottom: 12px; }
+  .fc-moves { font-size: 44px; }
+  .fc-moves span { font-size: 24px; }
   .fc-card, .fc-msg { grid-area: msg; }
-  .fc-msg { font-size: 14px; }
+  .fc-msg { font-size: 16px; margin-bottom: 26px; }
   .fc-actions { grid-area: actions; }
   .fc-stage { grid-area: board; max-height: none; aspect-ratio: auto; min-height: 0; }
 }

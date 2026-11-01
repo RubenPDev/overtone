@@ -4,12 +4,6 @@
    header's dark-mode toggle governs the game too.
    ============================================================ */
 
-.cadence, .archive__game {
-  --ok: #1D9E75;
-  --warn: #EF9F27;
-  --bad: #E24B4A;
-}
-
 .cadence {
   min-height: 100vh;
   min-height: calc(100dvh / var(--site-zoom));
@@ -56,62 +50,30 @@
   to   { opacity: 1; transform: none; }
 }
 
-/* ---------- top bar ---------- */
-
-.cad__bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
-
-.cad__iconbtn {
-  display: inline-flex; align-items: center; gap: 7px;
-  font: inherit; font-size: 13px;
-  padding: 8px 12px;
-  color: var(--ink-2);
-  background: transparent;
-  border: 1px solid var(--rule);
-  border-radius: 100px;
-  cursor: pointer;
-  transition: color 180ms, border-color 180ms;
-}
-.cad__barend { display: flex; align-items: center; gap: 8px; }
-.cad__iconbtn:hover { color: var(--ink); border-color: var(--rule-2); }
-.cad__iconbtn svg { width: 14px; height: 14px; }
-.cad__iconbtn span { font-family: var(--mono); font-size: 12px; }
-
-/* ---------- masthead ---------- */
-
-.cad__masthead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
-.cad__title {
-  font-family: var(--display);
-  font-size: 30px;
-  font-weight: 600;
-  letter-spacing: -0.035em;
-}
-.cad__stamp { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
-
 /* ---------- strip ---------- */
 
 .cad__stripwrap { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
-.cad__stripwrap span { font-size: 12px; color: var(--ink-3); font-family: var(--mono); }
+.cad__stripwrap span { font-size: 14px; font-weight: 700; color: var(--ink-3); }
 
-.cad__strip { display: flex; gap: 3px; height: 30px; align-items: flex-end; margin-bottom: 30px; }
+.cad__strip { display: flex; gap: 4px; height: 30px; align-items: flex-end; margin-bottom: 26px; }
 .cad__cell {
-  flex: 1; height: 9px;
-  border-radius: 2px;
+  flex: 1; height: 10px;
+  border-radius: 100px;
   background: var(--rule);
   transition: background 220ms ease, height 180ms ease;
 }
 
 /* ---------- the pad ---------- */
 
-.cad__padwrap { display: flex; justify-content: center; align-items: center; margin: 12px 0 34px; }
+.cad__padwrap { display: flex; justify-content: center; align-items: center; margin: 24px 0 44px; }
 
-/* An instrument dial: a softly lit, slightly recessed face inside a thin
-   outer bezel. The note glow, rim dots and trace are drawn on the canvas. */
+/* The board's candy, turned round: a glossy dome on a ring of the same pearl, whose
+   thickness shows below it. The note glow, rim dots and trace are on the canvas. */
 .cad__pad {
-  --bezel: var(--rule);
   /* Sized by one value on both axes: iOS can leave aspect-ratio stale when the
      viewport changes during load. svh, because dvh moves with the browser's
      toolbars and would resize the pad under the player's finger. */
-  --pad-size: clamp(240px, min(74vw, calc(100svh - 480px)), 320px);
+  --pad-size: clamp(230px, min(70vw, calc(100svh - 500px)), 320px);
   position: relative;
   flex: none;
   width: var(--pad-size);
@@ -119,31 +81,31 @@
   aspect-ratio: 1;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 50% 30%,
-      color-mix(in srgb, var(--card), var(--ink) 5%) 0%,
-      var(--card) 55%,
-      color-mix(in srgb, var(--card), var(--paper) 60%) 100%);
+    radial-gradient(38% 26% at 34% 20%, rgb(255 255 255 / var(--dome-gloss)), transparent 100%),
+    conic-gradient(from 200deg,
+      rgb(105 255 208 / var(--dome-wash)), rgb(179 209 255 / var(--dome-wash)), rgb(214 140 255 / var(--dome-wash)),
+      rgb(255 156 159 / var(--dome-wash)), rgb(255 230 106 / var(--dome-wash)), rgb(105 255 208 / var(--dome-wash))),
+    radial-gradient(circle at 36% 24%, var(--dome-hi) 0%, var(--dome) 46%, var(--dome-lo) 100%);
   box-shadow:
-    inset 0 0 0 1px var(--rule),
-    inset 0 1px 0 color-mix(in srgb, var(--ink) 9%, transparent),
-    inset 0 -18px 36px -24px rgba(0, 0, 0, 0.45),
-    0 0 0 10px var(--paper),
-    0 0 0 11px var(--bezel),
-    0 28px 50px -30px rgba(0, 0, 0, 0.6);
+    inset 0 2px 1px rgb(255 255 255 / var(--gloss)),
+    inset 0 -16px 30px -14px var(--dome-shade),
+    0 0 0 13px var(--plate-b),
+    0 0 0 14.5px var(--plate-edge),
+    0 7px 0 14px var(--plate-side),
+    0 13px 0 14px var(--plate-side-2),
+    0 34px 44px 6px var(--shadow);
   overflow: hidden;
   cursor: pointer;
   touch-action: none;
   transition: box-shadow 240ms ease, transform 140ms ease;
 }
-.cad__pad:hover { --bezel: var(--rule-2); }
 .cad__pad:active { transform: scale(0.992); }
 .cad__scope { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
 .cad__padlabel {
   position: absolute; left: 0; right: 0; bottom: 47%;
   text-align: center;
-  font-family: var(--mono);
-  font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
-  color: var(--ink-1);
+  font-size: 14px; font-weight: 800;
+  color: var(--ink-2);
   pointer-events: none;
   transition: opacity 300ms ease;
 }
@@ -151,35 +113,66 @@
 
 /* ---------- readouts ---------- */
 
-.cad__readouts { display: flex; justify-content: space-between; margin-bottom: 18px; }
-.cad__readouts span { font-size: 11px; color: var(--ink-3); font-family: var(--mono); letter-spacing: 0.02em; }
+.cad__readouts { display: flex; justify-content: space-between; margin-bottom: 14px; }
+.cad__readouts span { font-size: 13px; font-weight: 600; color: var(--ink-3); }
 
-.cad__hint { font-size: 13px; line-height: 1.65; color: var(--ink-2); min-height: 86px; margin-bottom: 22px; }
-.cad__hint b { font-weight: 500; }
-.cad__hint .is-ok { color: var(--ok); }
-.cad__hint .is-bad { color: var(--bad); }
+.cad__hint { font-size: 15px; line-height: 1.55; color: var(--ink-2); min-height: 86px; margin-bottom: 20px; }
+.cad__hint b { font-weight: 800; }
+.cad__hint .is-ok { color: var(--ok-ink); }
+.cad__hint .is-bad { color: var(--bad-ink); }
 
 /* ---------- actions ---------- */
 
-.cad__actions { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
+.cad__actions { display: flex; align-items: center; gap: 10px; }
+.cad__actions .cad__btn:first-child { flex: 1; }
+
+/* Facet and the popups share these. */
 .cad__btn {
-  font: inherit; font-size: 13px;
-  padding: 12px 10px;
+  min-height: 48px;
+  padding: 12px 20px;
+  font: inherit; font-size: 15px; font-weight: 800;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: 100px;
+  box-shadow: 0 10px 20px -16px var(--shadow);
+  cursor: pointer;
+  transition: color 180ms, background 180ms, box-shadow 180ms, transform 120ms;
+}
+.cad__btn:hover { background: var(--card-hover); }
+.cad__btn:active { transform: translateY(1px) scale(0.985); }
+.cad__btn:disabled { opacity: 0.5; cursor: default; }
+.cad__btn:disabled:hover { background: var(--card); }
+.cad__btn:disabled:active { transform: none; }
+.cad__btn.is-armed { color: var(--warn-ink); border-color: var(--warn); }
+
+.cad__btn--primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 56px;
+  color: var(--btn-ink);
+  background: var(--btn);
+  border-color: transparent;
+  box-shadow:
+    inset 0 1.5px 0 rgb(255 255 255 / calc(var(--gloss) * .55)),
+    0 4px 0 var(--btn-side),
+    0 16px 22px -10px var(--shadow);
+}
+.cad__btn--primary:hover { background: var(--btn-hover); }
+.cad__btn--primary:active { transform: translateY(3px); box-shadow: inset 0 1.5px 0 rgb(255 255 255 / .3), 0 1px 0 var(--btn-side); }
+.cad__btn--primary svg { width: 18px; height: 18px; }
+
+.cad__btn--round {
+  flex: none;
+  width: 56px; height: 56px;
+  padding: 0;
+  display: grid; place-items: center;
   color: var(--ink-2);
   background: transparent;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: color 180ms, border-color 180ms, transform 120ms;
+  border: 1.5px solid var(--rule-2);
+  box-shadow: none;
 }
-.cad__btn:hover { color: var(--ink); border-color: var(--rule-2); }
-.cad__btn:active { transform: scale(0.985); }
-.cad__btn:disabled { opacity: 0.4; cursor: default; }
-.cad__btn:disabled:hover { color: var(--ink-2); border-color: var(--rule); }
-.cad__btn:disabled:active { transform: none; }
-.cad__btn.is-armed { color: var(--warn); border-color: var(--warn); }
-.cad__btn--icon { width: 46px; padding: 12px 0; display: grid; place-items: center; }
-.cad__btn--icon svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+.cad__btn--round:hover { color: var(--ink); background: var(--card); }
+.cad__btn--round svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ---------- settings drawer ---------- */
 
@@ -190,41 +183,39 @@
   margin-top: 0;
   transition: max-height 320ms ease, opacity 220ms ease, margin 320ms ease;
 }
-.cad__settings.is-open { max-height: 340px; opacity: 1; margin-top: 12px; }
+.cad__settings.is-open { max-height: 340px; opacity: 1; margin-top: 14px; }
 
 .cad__panel {
-  border: 1px solid var(--rule);
-  border-radius: 12px;
+  border: 1px solid var(--card-edge);
+  border-radius: 20px;
   background: var(--card);
   padding: 18px 18px 20px;
 }
 .cad__panel h2 {
-  font-family: var(--mono);
-  font-size: 10px; font-weight: 400;
-  letter-spacing: 0.12em; text-transform: uppercase;
+  font-size: 14px; font-weight: 800;
   color: var(--ink-3);
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 .cad__row { display: flex; align-items: center; gap: 14px; margin-bottom: 15px; }
 .cad__row:last-child { margin-bottom: 0; }
-.cad__row label { font-size: 13px; color: var(--ink-2); min-width: 58px; }
-.cad__row output { font-size: 11px; color: var(--ink-3); font-family: var(--mono); min-width: 38px; text-align: right; }
+.cad__row label { font-size: 14px; color: var(--ink-2); min-width: 58px; }
+.cad__row output { font-size: 13px; color: var(--ink-3); min-width: 38px; text-align: right; }
 
 .cad__row input[type=range] {
   -webkit-appearance: none; appearance: none;
-  flex: 1; height: 18px;
+  flex: 1; height: 20px;
   background: transparent;
   cursor: pointer;
 }
-.cad__row input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--rule-2); border-radius: 2px; }
-.cad__row input[type=range]::-moz-range-track { height: 2px; background: var(--rule-2); border-radius: 2px; }
+.cad__row input[type=range]::-webkit-slider-runnable-track { height: 6px; background: var(--rule-2); border-radius: 6px; }
+.cad__row input[type=range]::-moz-range-track { height: 6px; background: var(--rule-2); border-radius: 6px; }
 .cad__row input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
-  width: 14px; height: 14px; margin-top: -6px;
-  border-radius: 50%; background: var(--ink); border: none;
+  width: 18px; height: 18px; margin-top: -6px;
+  border-radius: 50%; background: var(--btn); border: 2px solid var(--btn-ink);
 }
 .cad__row input[type=range]::-moz-range-thumb {
-  width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: none;
+  width: 14px; height: 14px; border-radius: 50%; background: var(--btn); border: 2px solid var(--btn-ink);
 }
 
 /* ============================================================
@@ -236,7 +227,7 @@
   z-index: 50;
   display: flex;
   padding: 16px;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--scrim);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -244,86 +235,92 @@
   width: 100%;
   max-width: 440px;
   margin: auto;
-  padding: 24px 22px 20px;
-  background: var(--paper);
-  border: 1px solid var(--rule-2);
-  border-radius: var(--radius);
+  padding: 26px 24px 22px;
+  background: var(--sheet);
+  border: 1px solid var(--card-edge);
+  border-radius: 28px;
+  box-shadow: 0 30px 60px -24px var(--shadow);
 }
 /* Focused so that keyboard users start inside the dialog; it isn't a control. */
 .cad-help__panel:focus, .cad-help__panel:focus-visible { outline: none; }
 .cad-help__title {
   font-family: var(--display);
-  font-size: 26px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  margin-bottom: 12px;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 10px;
 }
-.cad-help__text { font-size: 14px; line-height: 1.6; color: var(--ink-2); margin-bottom: 10px; }
-.cad-help__text em { color: var(--ink); }
+.cad-help__text { font-size: 15px; line-height: 1.55; color: var(--ink-2); margin-bottom: 10px; }
+.cad-help__text em { color: var(--ink); font-weight: 700; }
 
 .cad-help__words {
   display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 8px;
-  margin: 16px 0 22px;
-  font-family: var(--mono);
-  font-size: 13px;
+  margin: 16px 0 34px;
+  font-size: 15px; font-weight: 800;
   color: var(--ink-3);
 }
 .cad-help__words span { transition: color 160ms; }
 .cad-help__words span:nth-child(3) { margin-right: 18px; }
 
-.cad-help .cad__padwrap { margin: 0 0 24px; }
+.cad-help .cad__padwrap { margin: 0 0 36px; }
 .cad-help .cad__pad {
   --pad-size: clamp(170px, 46vw, 200px);
   width: var(--pad-size);
   height: var(--pad-size);
 }
 
-.cad-help__result { min-height: 66px; font-size: 13px; line-height: 1.6; color: var(--ink-2); text-align: center; }
-.cad-help__result b { font-weight: 500; }
-.cad-help__result .is-ok { color: var(--ok); }
-.cad-help__result .is-bad { color: var(--bad); }
+.cad-help__result { min-height: 66px; font-size: 14px; line-height: 1.55; color: var(--ink-2); text-align: center; }
+.cad-help__result b { font-weight: 800; }
+.cad-help__result .is-ok { color: var(--ok-ink); }
+.cad-help__result .is-bad { color: var(--bad-ink); }
 
 .cad-help__list {
   margin: 6px 0 18px;
   padding: 14px 0 0 18px;
   border-top: 1px solid var(--rule);
   list-style: disc;
-  font-size: 13px; line-height: 1.55;
+  font-size: 14px; line-height: 1.5;
   color: var(--ink-2);
 }
 .cad-help__list li + li { margin-top: 5px; }
 
-.cad-help__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.cad__btn--primary { color: var(--ink); border-color: var(--rule-2); }
+.cad-help__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+.cad-help__actions .cad__btn { min-height: 52px; }
 
 /* ============================================================
    Result popup (shares its scrim and panel with How to play)
    ============================================================ */
 
-.cad-result { position: relative; text-align: center; padding-top: 28px; }
-.cad-result__close { position: absolute; top: 12px; right: 12px; }
+.cad-result { position: relative; text-align: center; padding-top: 30px; }
+.cad-result__close { position: absolute; top: 14px; right: 14px; }
 
 .cad-result__icon {
   width: 16px; height: 16px;
   fill: none; stroke: currentColor;
-  stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
 }
 
 .cad-result__badge {
-  width: 58px; height: 58px;
-  margin: 0 auto 14px;
+  width: 72px; height: 72px;
+  margin: 0 auto 16px;
   display: grid; place-items: center;
-  color: var(--ok);
-  background: color-mix(in srgb, var(--ok) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent);
-  border-radius: 50%;
+  color: #174f49;
+  background: linear-gradient(135deg, #cbfff0, #69ffd0 58%);
+  border-radius: 24px;
+  box-shadow:
+    inset 1.5px 2px 1px rgba(255, 255, 255, 0.85),
+    0 5px 0 #2fc4a0,
+    0 16px 18px -6px rgba(47, 196, 160, 0.55);
 }
 .cad-result__badge.is-assisted {
-  color: var(--warn);
-  background: color-mix(in srgb, var(--warn) 14%, transparent);
-  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+  color: #6c4300;
+  background: linear-gradient(135deg, #fff9c8, #ffe66a 58%);
+  box-shadow:
+    inset 1.5px 2px 1px rgba(255, 255, 255, 0.85),
+    0 5px 0 #efb03e,
+    0 16px 18px -6px rgba(239, 176, 62, 0.55);
 }
-.cad-result__badge .cad-result__icon { width: 27px; height: 27px; }
+.cad-result__badge .cad-result__icon { width: 32px; height: 32px; }
 @media (prefers-reduced-motion: no-preference) {
   .cad-result__badge { animation: cad-pop 420ms cubic-bezier(.2, 1.5, .4, 1) backwards; }
 }
@@ -334,15 +331,15 @@
 
 .cad-result__title {
   font-family: var(--display);
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 30px;
+  font-weight: 800;
   line-height: 1.15;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
-.cad-result__meta { margin-top: 4px; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
-.cad-result__tune { margin-top: 16px; font-size: 14px; color: var(--ink-2); }
-.cad-result__tune b { font-weight: 500; color: var(--ink); }
-.cad-result__note { margin-top: 2px; font-size: 13px; line-height: 1.55; color: var(--ink-2); }
+.cad-result__meta { margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--ink-3); }
+.cad-result__tune { margin-top: 14px; font-size: 15px; color: var(--ink-2); }
+.cad-result__tune b { font-weight: 800; color: var(--ink); }
+.cad-result__note { margin-top: 4px; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
 
 .cad-result__tiles {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
@@ -352,19 +349,20 @@
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   padding: 12px 4px 10px;
   color: var(--ink-3);
+  background: var(--card);
   border: 1px solid var(--rule);
-  border-radius: 10px;
+  border-radius: 18px;
 }
-.cad-result__tiles dd { margin: 2px 0 0; font-family: var(--display); font-size: 22px; font-weight: 600; line-height: 1.2; color: var(--ink); }
-.cad-result__tiles dt { font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em; }
+.cad-result__tiles dd { margin: 2px 0 0; font-size: 24px; font-weight: 800; line-height: 1.2; color: var(--ink); }
+.cad-result__tiles dt { font-size: 12px; font-weight: 700; }
 
 .cad-result__rows { display: flex; flex-direction: column; gap: 4px; max-width: 260px; margin: 0 auto 16px; }
 .cad-result__row { display: flex; gap: 3px; }
-.cad-result__row span { flex: 1; height: 10px; border-radius: 2px; }
+.cad-result__row span { flex: 1; height: 10px; border-radius: 100px; }
 .cad-result__row .is-ok { background: var(--ok); }
 .cad-result__row .is-short { background: var(--warn); }
 .cad-result__row .is-long { background: var(--bad); }
-.cad-result__more { margin: -8px 0 14px; font-size: 11px; color: var(--ink-3); }
+.cad-result__more { margin: -8px 0 14px; font-size: 12px; color: var(--ink-3); }
 
 /* ============================================================
    Archive drawer
@@ -372,7 +370,7 @@
 
 .arch__scrim {
   position: fixed; inset: 0;
-  background: rgba(72, 47, 47, 0.45);
+  background: var(--scrim);
   opacity: 0;
   pointer-events: none;
   transition: opacity 280ms ease;
@@ -383,43 +381,46 @@
 .arch {
   position: fixed;
   top: 0; bottom: 0; left: 0;
-  width: min(310px, 86vw);
+  width: min(330px, 86vw);
   display: flex;
   flex-direction: column;
-  background: var(--card);
-  border-right: 1px solid var(--rule);
+  background: var(--sheet);
+  border-right: 1px solid var(--card-edge);
+  border-radius: 0 28px 28px 0;
+  box-shadow: 20px 0 50px -24px var(--shadow);
   transform: translateX(-100%);
-  transition: transform 320ms cubic-bezier(.22,.8,.3,1);
+  /* Hidden as well as off-screen once shut, so the keyboard can't tab into it. */
+  visibility: hidden;
+  transition: transform 320ms cubic-bezier(.22,.8,.3,1), visibility 0s linear 320ms;
   z-index: 41;
 }
-.arch.is-open { transform: none; }
+.arch.is-open { transform: none; visibility: visible; transition-delay: 0s; }
 
 .arch__head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 20px 18px 14px;
-  border-bottom: 1px solid var(--rule);
+  padding: 20px 18px 12px 22px;
 }
 .arch__title {
-  font-family: var(--mono);
-  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--ink-3);
+  font-size: 22px; font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 .arch__close {
-  width: 28px; height: 28px;
+  width: 34px; height: 34px;
   display: grid; place-items: center;
   padding: 0;
   color: var(--ink-3);
-  background: transparent; border: none; cursor: pointer;
-  transition: color 160ms;
+  background: var(--rule); border: none; border-radius: 50%; cursor: pointer;
+  transition: color 160ms, background 160ms;
 }
-.arch__close:hover { color: var(--ink); }
+.arch__close:hover { color: var(--ink); background: var(--rule-2); }
 .arch__close svg { width: 15px; height: 15px; }
 
 .arch__list {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
-  margin: 0; padding: 8px 0;
+  margin: 0; padding: 4px 10px 10px;
   list-style: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -427,23 +428,23 @@
 .arch__item {
   width: 100%;
   display: flex; align-items: center; gap: 11px;
-  padding: 10px 18px;
+  padding: 10px 12px;
   font: inherit;
   text-align: left;
   color: var(--ink-2);
-  background: transparent; border: none; cursor: pointer;
+  background: transparent; border: none; border-radius: 14px; cursor: pointer;
   transition: background 160ms, color 160ms;
 }
 .arch__item:hover { background: var(--rule); color: var(--ink); }
-.arch__item.is-current { background: var(--rule); color: var(--ink); }
-.arch__item.is-current .arch__no { color: var(--ink); }
+.arch__item.is-current { background: var(--btn); color: var(--btn-ink); }
+.arch__item.is-current .arch__no, .arch__item.is-current .arch__tune { color: var(--btn-ink); }
 
 .arch__dot {
   flex: none;
-  width: 7px; height: 7px;
+  width: 11px; height: 11px;
   border-radius: 50%;
   background: transparent;
-  border: 1px solid var(--rule-2);
+  border: 1.5px solid var(--rule-2);
 }
 .arch__dot--solved { background: var(--ok); border-color: var(--ok); }
 /* Half-filled: solved, but only after hearing the answer. */
@@ -451,47 +452,39 @@
 .arch__dot--missed { background: var(--warn); border-color: var(--warn); }
 
 .arch__no {
-  font-family: var(--mono);
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 800;
   color: var(--ink-3);
   min-width: 34px;
 }
 .arch__meta { display: flex; flex-direction: column; min-width: 0; }
-.arch__date { font-size: 13px; line-height: 1.35; }
+.arch__date { font-size: 14px; font-weight: 700; line-height: 1.35; }
 .arch__tune {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--ink-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .arch__foot {
-  padding: 14px 18px 20px;
+  padding: 14px 22px 20px;
   border-top: 1px solid var(--rule);
-  font-size: 11.5px; line-height: 1.5;
+  font-size: 13px; line-height: 1.5;
   color: var(--ink-3);
 }
 .arch__foot .likes { margin-top: 8px; }
 
-/* On a wide screen the drawer can simply live beside the game. */
-@media (min-width: 1080px) {
-  .cadence { padding-left: 310px; }
-  .arch { transform: none; box-shadow: none; }
-  .arch__scrim { display: none; }
-  .arch .arch__close { display: none; }
-}
-
-/* Wider still: two columns, controls on the left and the pad as the hero on
-   the right. The 1fr rows above and below centre the left column against it. */
-@media (min-width: 1280px) and (min-height: 620px) {
+/* Wide: two columns, controls on the left and the pad as the hero on the right.
+   The 1fr rows above and below centre the left column against it. */
+@media (min-width: 1024px) and (min-height: 560px) {
   .cadence__stage {
     display: grid;
     max-width: 1700px;
-    padding: 40px 48px;
-    grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
-    grid-template-rows: 1fr repeat(8, auto) 1fr;
+    padding: 32px clamp(28px, 4vw, 64px) 40px;
+    grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+    grid-template-rows: auto 1fr repeat(7, auto) 1fr;
     grid-template-areas:
+      "bar       bar"
       ".         pad"
-      "bar       pad"
       "mast      pad"
       "stripwrap pad"
       "strip     pad"
@@ -500,18 +493,18 @@
       "actions   pad"
       "settings  pad"
       ".         pad";
-    column-gap: clamp(40px, 5vw, 88px);
+    column-gap: clamp(32px, 5vw, 88px);
   }
-  .cad__bar { grid-area: bar; }
-  .cad__masthead { grid-area: mast; }
-  .cad__title { font-size: 40px; }
+  .cadence__stage > .gamebar { grid-area: bar; }
+  .cadence__stage > .gamehead { grid-area: mast; }
   .cad__stripwrap { grid-area: stripwrap; }
   .cad__strip { grid-area: strip; }
   .cad__readouts { grid-area: readouts; }
-  .cad__hint { grid-area: hint; font-size: 14px; }
+  .cad__hint { grid-area: hint; font-size: 16px; }
   .cad__actions { grid-area: actions; }
   .cad__settings { grid-area: settings; }
 
   .cad__padwrap { grid-area: pad; align-self: center; margin: 0; }
-  .cad__pad { width: min(100% - 24px, calc(100dvh / var(--site-zoom) - 160px), 760px); height: auto; }
+  .cad__pad { --pad-size: min(40vw, calc(100dvh / var(--site-zoom) - 240px), 620px); }
+  .cad-help .cad__pad { --pad-size: 200px; }
 }

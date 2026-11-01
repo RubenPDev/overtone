@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import Header from './components/Header.jsx';
 import GameCard from './components/GameCard.jsx';
 import About from './components/About.jsx';
+import CandyBoard from './components/CandyBoard.jsx';
 import Archive from './components/Archive.jsx';
 import Footer from './components/Footer.jsx';
 import LikeCount from './components/LikeCount.jsx';
@@ -29,12 +30,15 @@ function Home({ navigate }) {
   return (
     <>
       <section className="hero">
-        <p className="hero__date">{formatToday()}</p>
-        <h1 className="hero__title">Daily puzzles<br />for your ears.</h1>
-        <p className="hero__lede">
-          One minute a day. No account, no app, no price. Just a tune you half-remember,
-          or a scrambled block of colour and the shortest way back.
-        </p>
+        <div>
+          <p className="hero__date">{formatToday()}</p>
+          <h1 className="hero__title">Daily puzzles<br />for your ears.</h1>
+          <p className="hero__lede">
+            One minute a day. No account, no app, no price. Just a tune you half-remember,
+            or a scrambled block of colour and the shortest way back.
+          </p>
+        </div>
+        <CandyBoard />
       </section>
 
       <section className="games" id="games">
@@ -70,10 +74,10 @@ export default function App() {
   }, []);
 
   if (route.view === 'cadence') {
-    return <CadenceGame puzzleNumber={route.puzzle} onNavigate={navigate} />;
+    return <CadenceGame puzzleNumber={route.puzzle} onNavigate={navigate} isDark={isDark} onToggleTheme={toggle} />;
   }
   if (route.view === 'facet') {
-    return <FacetGame puzzleNumber={route.puzzle} onNavigate={navigate} />;
+    return <FacetGame puzzleNumber={route.puzzle} onNavigate={navigate} isDark={isDark} onToggleTheme={toggle} />;
   }
 
   return (

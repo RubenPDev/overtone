@@ -18,32 +18,44 @@ function Moon() {
   );
 }
 
+export function BrandMark() {
+  return (
+    <span className="brand__mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="9.2" strokeWidth="1.5" />
+        <circle cx="12" cy="12" r="5.2" strokeWidth="1.5" opacity="0.6" />
+        <circle cx="12" cy="12" r="1.7" strokeWidth="1.5" opacity="0.35" />
+      </svg>
+    </span>
+  );
+}
+
+export function ThemeToggle({ className, isDark, onToggle }) {
+  return (
+    <button
+      type="button"
+      className={className}
+      onClick={onToggle}
+      aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+      title={isDark ? 'Light theme' : 'Dark theme'}
+    >
+      {isDark ? <Sun /> : <Moon />}
+    </button>
+  );
+}
+
 export default function Header({ isDark, onToggleTheme, navigate }) {
   return (
     <header className="masthead">
       <a className="brand" href={withBase('/')} onClick={navigate ? linkHandler(navigate, '/') : undefined}>
-        <span className="brand__mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <circle cx="12" cy="12" r="9.2" strokeWidth="1.1" />
-            <circle cx="12" cy="12" r="5.2" strokeWidth="1.1" opacity="0.55" />
-            <circle cx="12" cy="12" r="1.7" strokeWidth="1.1" opacity="0.3" />
-          </svg>
-        </span>
+        <BrandMark />
         <span className="brand__word">Overtone</span>
       </a>
 
       <nav className="masthead__nav">
         <a href={withBase('/#games')}>Games</a>
         <a href={withBase('/#about')}>About</a>
-        <button
-          type="button"
-          className="themetoggle"
-          onClick={onToggleTheme}
-          aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-          title={isDark ? 'Light theme' : 'Dark theme'}
-        >
-          {isDark ? <Sun /> : <Moon />}
-        </button>
+        <ThemeToggle className="themetoggle" isDark={isDark} onToggle={onToggleTheme} />
       </nav>
     </header>
   );

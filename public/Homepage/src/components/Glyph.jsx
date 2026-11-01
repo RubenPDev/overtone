@@ -52,7 +52,7 @@ function Arcs() {
 
 /* The game's 3x3 face at its isometric tilt, with the fixed centre filled in. */
 function Face() {
-  const cells = [-14.5, -4.5, 5.5];
+  const cells = [-20, -6.5, 7];
   return (
     <g transform={`translate(${C} ${C}) scale(1 0.62) rotate(45)`}>
       {cells.flatMap((y, r) => cells.map((x, c) => {
@@ -62,9 +62,9 @@ function Face() {
             key={`${r}-${c}`}
             x={x}
             y={y}
-            width="9"
-            height="9"
-            rx="2"
+            width="13"
+            height="13"
+            rx="3.5"
             vectorEffect="non-scaling-stroke"
             fill={centre ? 'currentColor' : 'none'}
           />
@@ -83,10 +83,9 @@ export default function Glyph({ kind = 'ring', className }) {
       viewBox={`0 0 ${SIZE} ${SIZE}`}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.25"
+      strokeWidth="1.8"
       aria-hidden="true"
     >
-      <circle cx={C} cy={C} r="27" strokeWidth="0.5" opacity="0.3" />
       {kind === 'ring' && <path d={d} />}
       {kind === 'steps' && <Steps />}
       {kind === 'arcs' && <Arcs />}

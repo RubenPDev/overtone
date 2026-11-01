@@ -11,6 +11,7 @@ import {
 import { reportLike, reportResult, reportStart } from '../../lib/stats.js';
 import { countOwnLike } from '../../lib/useLikes.js';
 import { HEART_PATH } from '../../components/LikeCount.jsx';
+import GameBar, { PuzzleStepper, RestartIcon } from '../../components/GameBar.jsx';
 import ArchiveDrawer from '../cadence/ArchiveDrawer.jsx';
 import { ResultIcon } from '../cadence/CadenceResult.jsx';
 import ArchiveList from './ArchiveList.jsx';
@@ -20,12 +21,8 @@ import './facet.css';
 const NS = 'facet';
 const RESULT_DELAY_MS = 1350; // lets the win chime ring and the wave cross the board
 
-const TARGET = '#16C492';
-const JUNK = ['#F65C76', '#5375F2', '#EE971F', '#A361F0'];
-const CONTROL = '#737C8F';
-
-/* The floor: 24 flat pips walking the perimeter from the near corner. */
-const RING_HALF = 156;
+/* The rim: 24 lights set into the plate, walking its edge from the near corner. */
+const RING_HALF = 166;
 const RING_SIDE = RING_HALF * 2;
 const PIP_COUNT = 24;
 
@@ -39,52 +36,28 @@ function pipPositions() {
     else if (u < RING_SIDE * 2) { x = CENTRE + RING_HALF; y = CENTRE - RING_HALF + (u - RING_SIDE); }
     else if (u < RING_SIDE * 3) { x = CENTRE + RING_HALF - (u - RING_SIDE * 2); y = CENTRE + RING_HALF; }
     else { x = CENTRE - RING_HALF; y = CENTRE + RING_HALF - (u - RING_SIDE * 3); }
-    out.push([x - 7.5, y - 7.5]);
+    out.push([x - 5, y - 5]);
   }
   return out;
 }
 const PIPS = pipPositions();
 
-/* What the floor and blocks cover on screen at scale 1, once tilted. */
-const BOARD_W = 470; // the height depends on the tilt, so it's set in the CSS
+/* What the plate and blocks cover on screen at scale 1, once tilted. */
+const BOARD_W = 490; // the height depends on the tilt, so it's set in the CSS
 
 /* How far along the winning wave a block is: 0 at the screen's left corner, 8 at the right. */
 const waveStep = (col, row) => col - row + 4;
 
-function hex(c) {
-  return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
-}
-function darken(c, k) {
-  const p = hex(c);
-  return `rgb(${Math.round(p[0] * (1 - k))},${Math.round(p[1] * (1 - k))},${Math.round(p[2] * (1 - k))})`;
-}
-
-/* Depth is a stack of hard shadows along local (1,1) — the one direction
-   that projects to straight down once the board is tilted. */
-function extrusion(colour, steps = 10) {
-  const mid = darken(colour, 0.48);
-  const low = darken(colour, 0.62);
-  const parts = [];
-  for (let i = 1; i <= steps; i++) {
-    parts.push(`${i}px ${i}px 0 ${i > steps * 0.7 ? low : mid}`);
-  }
-  parts.push(`${steps + 3}px ${steps + 3}px 11px rgba(0,0,0,.45)`);
-  parts.push(`${steps + 9}px ${steps + 9}px 24px rgba(0,0,0,.26)`);
-  return parts.join(',');
-}
-
 const ARROW_CW = { arc: 'M33 13.9A14 14 0 1 1 19 13.9', head: 'M25.9 9.9L21.8 18.6L16.3 9.1Z' };
 const ARROW_CCW = { arc: 'M19 13.9A14 14 0 1 0 33 13.9', head: 'M26.1 9.9L30.2 18.6L35.7 9.1Z' };
 
-/* A grey block that acts as a button rather than a piece of the puzzle. */
+/* A plain block that acts as a button rather than a piece of the puzzle. */
 function ControlBlock({ col, row, label, toggled, pulsing, onPress, children }) {
   const [pressed, setPressed] = useState(false);
   return (
     <div
-      className={`fc-block fc-control${pulsing ? ' is-pulsing' : ''}`}
+      className={`fc-block fc-control${pressed ? ' is-pressed' : ''}${pulsing ? ' is-pulsing' : ''}`}
       style={{
-        background: darken(CONTROL, 0.3),
-        boxShadow: extrusion(CONTROL, pressed ? 4 : 10),
         transform: `translate3d(${col * PITCH}px,${row * PITCH}px,0)`,
         zIndex: Math.round(col * PITCH + row * PITCH),
         '--fc-wave': waveStep(col, row),
@@ -99,7 +72,7 @@ function ControlBlock({ col, row, label, toggled, pulsing, onPress, children }) 
       onClick={onPress}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPress(); } }}
     >
-      <div className="fc-face" style={{ background: CONTROL }} />
+      <div className="fc-face" />
       {children}
     </div>
   );
@@ -113,8 +86,8 @@ function TurnBlock({ dir, col, row, pulsing, onTurn }) {
       {/* The arrow lies in the plane the ring turns in, so the projection
           squashing it into an ellipse is the point, not a flaw. */}
       <svg className="fc-icon" viewBox="0 0 52 52" aria-hidden="true">
-        <path d={arc} fill="none" stroke="#fff" strokeOpacity=".92" strokeWidth="5" strokeLinecap="round" />
-        <path d={head} fill="#fff" fillOpacity=".92" stroke="#fff" strokeOpacity=".92" strokeWidth="2" strokeLinejoin="round" />
+        <path d={arc} fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+        <path d={head} fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
       </svg>
     </ControlBlock>
   );
@@ -125,9 +98,9 @@ function SoundBlock({ col, row, on, onToggle }) {
     <ControlBlock col={col} row={row} label="Sound" toggled={on} onPress={onToggle}>
       {/* Turned to face the player, since a speaker on its side reads as nothing. */}
       <svg className={`fc-icon fc-icon--upright${on ? '' : ' is-off'}`} viewBox="0 0 52 52" aria-hidden="true">
-        <path d="M11 21h6l9-7.5v25L17 31h-6z" fill="#fff" fillOpacity=".92" stroke="#fff" strokeOpacity=".92"
+        <path d="M11 21h6l9-7.5v25L17 31h-6z" fill="currentColor" stroke="currentColor"
               strokeWidth="2" strokeLinejoin="round" />
-        <g fill="none" stroke="#fff" strokeOpacity=".92" strokeWidth="3.5" strokeLinecap="round">
+        <g fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
           {on ? (
             <>
               <path d="M31.5 20.5a8 8 0 0 1 0 11" />
@@ -146,8 +119,8 @@ function LikeBlock({ col, row, liked, onLike }) {
   return (
     <ControlBlock col={col} row={row} label={liked ? 'Liked' : 'Like Facet'} toggled={liked} onPress={onLike}>
       <svg className="fc-icon fc-icon--upright" viewBox="0 0 52 52" aria-hidden="true">
-        <path d={HEART_PATH}
-              fill={liked ? '#fff' : 'none'} fillOpacity=".92" stroke="#fff" strokeOpacity=".92"
+        <path d={HEART_PATH} className={liked ? 'is-liked' : undefined}
+              fill={liked ? 'currentColor' : 'none'} stroke="currentColor"
               strokeWidth="3.5" strokeLinejoin="round" />
       </svg>
     </ControlBlock>
@@ -160,16 +133,16 @@ const TUTORIAL = [
     highlight: 'swaps',
   },
   {
-    text: 'The grey blocks at the left and right corners turn the ring of eight a quarter turn. The centre never moves — it sets the colour you are aiming for.',
+    text: 'The plain blocks at the left and right corners turn the ring of eight a quarter turn. The centre never moves — it sets the colour you are aiming for.',
     highlight: 'turns',
   },
   {
-    text: 'To finish, fill the eight around the centre with its colour and make each outer row of three a single colour. Any colour can take any row, and whatever is already right glows. The floor shows how far you are, two tiles lit per move still needed.',
+    text: 'To finish, fill the eight around the centre with its colour and make each outer row of three a single colour. Any colour can take any row, and whatever is already right glows. The lights around the rim show how far you are, two lit per move still needed.',
     highlight: 'floor',
   },
 ];
 
-export default function FacetGame({ puzzleNumber, onNavigate }) {
+export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTheme }) {
   const today = useMemo(() => todayNumber(), []);
   // A URL can name a puzzle whose day hasn't come yet (or never existed).
   const invalidUrl = puzzleNumber != null && (puzzleNumber < 1 || puzzleNumber > todayNumber());
@@ -376,37 +349,23 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
       {showResult && <FacetResult ns={NS} number={number} onClose={closeResult} onReplay={restart} />}
 
       <div className="facet__stage-wrap">
-        <header className="fc-bar">
-          <button type="button" className="fc-chip" onClick={() => onNavigate('/')} aria-label="Back to all games">
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M13 8H3M7 4L3 8l4 4" fill="none" stroke="currentColor"
-                    strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span>Games</span>
-          </button>
-          <div className="fc-barend">
-            {isSolved(readResults(NS)[number]) && (
-              <button type="button" className="fc-chip" onClick={() => setShowResult(true)} aria-label="Your result">
-                <ResultIcon name="star" />
-              </button>
-            )}
-            <button type="button" className="fc-chip" onClick={() => setShowArchive(true)} aria-label="Open archive">
-              <span>#{number}</span>
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M2.5 4h11M2.5 8h11M2.5 12h11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-              </svg>
+        <GameBar onNavigate={onNavigate} isDark={isDark} onToggleTheme={onToggleTheme}>
+          {isSolved(readResults(NS)[number]) && (
+            <button type="button" className="pillbar__btn" onClick={() => setShowResult(true)} aria-label="Your result">
+              <ResultIcon name="star" />
             </button>
-          </div>
-        </header>
+          )}
+        </GameBar>
 
-        <div className="fc-masthead">
-          <h1 className="fc-title">Facet</h1>
-          <span className="fc-stamp">{dateLabel}</span>
+        <div className="gamehead">
+          <PuzzleStepper number={number} today={today} onPick={pickPuzzle} onOpenArchive={() => setShowArchive(true)} />
+          <h1 className="gamehead__title">Facet</h1>
+          <span className="gamehead__stamp">{dateLabel}</span>
         </div>
 
         <div className="fc-score">
           <div>
-            <div className="fc-label">moves</div>
+            <div className="fc-label">Moves</div>
             <div className="fc-moves">
               {moves} <span>/ par {ready ? par : '—'}</span>
             </div>
@@ -418,6 +377,8 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
 
         <div className="fc-stage" ref={stageRef}>
           <div className={`fc-board${solved && !restored ? ' is-waving' : ''}`}>
+            <div className="fc-plate" />
+
             {PIPS.map(([x, y], i) => (
               <div
                 key={`pip-${i}`}
@@ -427,39 +388,34 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
             ))}
 
             {ready && colours && pos.map((tileId, position) => {
-              const colour = colours[tileId] === 0 ? TARGET : JUNK[colours[tileId] - 1];
               const [row, col] = RC[position];
               const x = col * PITCH;
               const y = row * PITCH;
               return (
                 <div
                   key={`tile-${tileId}`}
-                  className={`fc-block${settled[position] ? ' is-settled' : ''}${glowing.has(tileId) ? ' is-glowing' : ''}${highlight === 'swaps' && position >= 8 ? ' is-pulsing' : ''}`}
+                  className={`fc-block fc-tone-${colours[tileId]}${settled[position] ? ' is-settled' : ''}${glowing.has(tileId) ? ' is-glowing' : ''}${highlight === 'swaps' && position >= 8 ? ' is-pulsing' : ''}`}
+                  data-tone={colours[tileId]}
                   style={{
-                    background: darken(colour, 0.3),
-                    boxShadow: extrusion(colour),
                     transform: `translate3d(${x}px,${y}px,0)`,
                     zIndex: Math.round(x + y),
                     '--fc-wave': waveStep(col, row),
                   }}
                 >
-                  <div className="fc-face" style={{ background: colour }} />
+                  <div className="fc-face" />
                 </div>
               );
             })}
 
             <div
-              className={`fc-block fc-centre${solved ? ' is-settled' : ''}`}
+              className={`fc-block fc-centre fc-tone-centre${solved ? ' is-settled' : ''}`}
               style={{
-                background: darken(TARGET, 0.3),
-                boxShadow: extrusion(TARGET),
                 transform: `translate3d(${2 * PITCH}px,${2 * PITCH}px,0)`,
                 zIndex: 240,
                 '--fc-wave': waveStep(2, 2),
               }}
             >
-              <div className="fc-face" style={{ background: darken(TARGET, 0.16) }} />
-              <div className="fc-pin" />
+              <div className="fc-face" />
             </div>
 
             <SoundBlock col={0} row={0} on={soundOn} onToggle={toggleSound} />
@@ -491,10 +447,10 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
           <div className="fc-card">
             <p>{tutorial.text}</p>
             <div className="fc-cardfoot">
-              <button type="button" onClick={() => advanceTutorial(false)}>
+              <button type="button" className="cad__btn cad__btn--primary" onClick={() => advanceTutorial(false)}>
                 {tutStep === TUTORIAL.length - 1 ? 'Start' : 'Next'}
               </button>
-              <button type="button" onClick={() => advanceTutorial(true)}>Skip</button>
+              <button type="button" className="cad__btn" onClick={() => advanceTutorial(true)}>Skip</button>
               <span className="fc-label">{tutStep + 1} / {TUTORIAL.length}</span>
             </div>
           </div>
@@ -519,8 +475,12 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
         )}
 
         <div className="fc-actions">
-          <button type="button" onClick={restart}>Restart</button>
-          <button type="button" onClick={() => { setTutStep(0); }}>How to play</button>
+          <button type="button" className="cad__btn cad__btn--primary" onClick={() => { setTutStep(0); }}>
+            How to play
+          </button>
+          <button type="button" className="cad__btn cad__btn--round" onClick={restart} aria-label="Restart" title="Restart">
+            <RestartIcon />
+          </button>
         </div>
       </div>
     </div>

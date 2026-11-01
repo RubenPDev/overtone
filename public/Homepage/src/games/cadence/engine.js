@@ -265,7 +265,7 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
 
   /* Theme colours, re-read every half second or so, so the light/dark
      toggle reaches the canvas without a getComputedStyle every frame. */
-  const theme = { faint: 'rgba(128,128,128,0.2)', ok: '#1D9E75', warn: '#EF9F27', bad: '#E24B4A' };
+  const theme = { faint: 'rgba(128,128,128,0.2)', ok: '#2fc4a0', warn: '#efa93a', bad: '#ec6f78' };
   let themeAge = Infinity;
   function readTheme() {
     const cs = getComputedStyle(pad);
@@ -284,7 +284,7 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
   function noteDots(cx, cy, rim) {
     if (!melody) return;
     const n = melody.notes.length;
-    const dot = Math.max(1.8, W * 0.0085);
+    const dot = Math.max(2.4, W * 0.012);
     const lit = Math.max(index, revealLit + 1);
     for (let k = 0; k < n; k++) {
       const a = -Math.PI / 2 + (k / n) * Math.PI * 2;
@@ -398,8 +398,8 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
       if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     ctx.closePath();
-    ctx.strokeStyle = `rgba(${rgb},${(0.26 + Math.min(0.50, rms * 6) + flash * 0.10).toFixed(3)})`;
-    ctx.lineWidth = 1 + Math.min(1.3, rms * 5) + flash * 0.4;
+    ctx.strokeStyle = `rgba(${rgb},${(0.5 + Math.min(0.45, rms * 6) + flash * 0.05).toFixed(3)})`;
+    ctx.lineWidth = 2 + Math.min(1.6, rms * 5) + flash * 0.5;
     ctx.stroke();
   }
 
