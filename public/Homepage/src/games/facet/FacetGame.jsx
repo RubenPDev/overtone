@@ -18,7 +18,7 @@ import FacetResult from './FacetResult.jsx';
 import './facet.css';
 
 const NS = 'facet';
-const RESULT_DELAY_MS = 900; // lets the win chime ring and the floor light up
+const RESULT_DELAY_MS = 1350; // lets the win chime ring and the wave cross the board
 
 const TARGET = '#16C492';
 const JUNK = ['#F65C76', '#5375F2', '#EE971F', '#A361F0'];
@@ -47,6 +47,9 @@ const PIPS = pipPositions();
 
 /* What the floor and blocks cover on screen at scale 1, once tilted. */
 const BOARD_W = 470; // the height depends on the tilt, so it's set in the CSS
+
+/* How far along the winning wave a block is: 0 at the screen's left corner, 8 at the right. */
+const waveStep = (col, row) => col - row + 4;
 
 function hex(c) {
   return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
@@ -84,6 +87,7 @@ function ControlBlock({ col, row, label, toggled, pulsing, onPress, children }) 
         boxShadow: extrusion(CONTROL, pressed ? 4 : 10),
         transform: `translate3d(${col * PITCH}px,${row * PITCH}px,0)`,
         zIndex: Math.round(col * PITCH + row * PITCH),
+        '--fc-wave': waveStep(col, row),
       }}
       role="button"
       tabIndex={0}
@@ -411,7 +415,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
         </div>
 
         <div className="fc-stage" ref={stageRef}>
-          <div className="fc-board">
+          <div className={`fc-board${solved && !restored ? ' is-waving' : ''}`}>
             {PIPS.map(([x, y], i) => (
               <div
                 key={`pip-${i}`}
@@ -434,6 +438,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
                     boxShadow: extrusion(colour),
                     transform: `translate3d(${x}px,${y}px,0)`,
                     zIndex: Math.round(x + y),
+                    '--fc-wave': waveStep(col, row),
                   }}
                 >
                   <div className="fc-face" style={{ background: colour }} />
@@ -448,6 +453,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
                 boxShadow: extrusion(TARGET),
                 transform: `translate3d(${2 * PITCH}px,${2 * PITCH}px,0)`,
                 zIndex: 240,
+                '--fc-wave': waveStep(2, 2),
               }}
             >
               <div className="fc-face" style={{ background: darken(TARGET, 0.16) }} />

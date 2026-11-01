@@ -167,6 +167,18 @@
 }
 .fc-pip.is-on { background: #16C492; box-shadow: 0 0 9px rgba(22,196,146,.55); }
 
+/* ---------- the win ---------- */
+
+/* Each block rises in turn, once the winning move has landed. `translate` keeps
+   clear of the transform that places it, and along local (-1,-1) it's straight up. */
+.fc-board.is-waving .fc-block {
+  animation: fc-wave 560ms ease-in-out calc(240ms + var(--fc-wave) * 60ms);
+}
+@keyframes fc-wave {
+  0%, 100% { translate: 0 0; filter: brightness(1); }
+  45% { translate: -16px -16px; filter: brightness(1.28); }
+}
+
 /* ---------- tutorial ---------- */
 
 .is-pulsing { animation: fc-pulse 1.1s ease-in-out infinite; }
@@ -209,6 +221,7 @@
 @media (prefers-reduced-motion: reduce) {
   .fc-block { transition: none; }
   .is-pulsing { animation: none; }
+  .fc-board.is-waving .fc-block { animation: none; }
 }
 
 /* ---------- wide screens ---------- */
