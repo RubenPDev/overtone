@@ -7,11 +7,11 @@
 
 :root {
   --paper: #f7f5ef;
-  --card: #2e2d2d;
+  --card: #e8e8e8;
   --card-hover: #fffdf6;
-  --ink: #747473;
-  --ink-2: #9b9d9ed3;
-  --ink-3: #8d8a80;
+  --ink: #313131;
+  --ink-2: #090909d3;
+  --ink-3: #464645;
   --rule: rgba(27, 26, 23, 0.10);
   --rule-2: rgba(27, 26, 23, 0.18);
 
@@ -29,11 +29,11 @@
     --paper: #0e0e0d;
     --card: #171716;
     --card-hover: #1d1d1b;
-    --ink: #f2f0e9;
-    --ink-2: #a5a29a;
-    --ink-3: #74716a;
-    --rule: rgba(242, 240, 233, 0.10);
-    --rule-2: rgba(242, 240, 233, 0.20);
+    --ink: #1e1d1d;
+    --ink-2: #131313;
+    --ink-3: #232222;
+    --rule: rgba(242, 240, 233, 0.932);
+    --rule-2: rgba(23, 23, 23, 0.2);
   }
 }
 
@@ -42,8 +42,8 @@
   --card: #171716;
   --card-hover: #1d1d1b;
   --ink: #f2f0e9;
-  --ink-2: #a5a29a;
-  --ink-3: #74716a;
+  --ink-2: #d1d0cf;
+  --ink-3: #b7b6b5ab;
   --rule: rgba(242, 240, 233, 0.10);
   --rule-2: rgba(242, 240, 233, 0.20);
 }
