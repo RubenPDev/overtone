@@ -51,8 +51,8 @@
   --dome-wash: 0.2;
 
   /* Candy: how much each cell is toned down, and how wet it looks. */
-  --candy-tint: #3b2436;
-  --candy-tint-amt: 0%;
+  --candy-tint: #f2f2f2;
+  --candy-tint-amt: 30%;
   --gloss: 0.82;
   --cast: 46%;
   --pip-off: rgba(35, 46, 43, 0.12);
@@ -115,8 +115,8 @@
 
     --candy-tint: #3b2436;
     --candy-tint-amt: 13%;
-    --gloss: 0.6;
-    --cast: 62%;
+    --gloss: 0.1;
+    --cast: 22%;
     --pip-off: rgba(247, 239, 228, 0.13);
     --ctl-ink: #eadfd2;
   }
@@ -166,9 +166,9 @@
   --dome-gloss: 0.1;
   --dome-wash: 0.055;
 
-  --candy-tint: #3b2436;
+  --candy-tint: #a6d2ad;
   --candy-tint-amt: 13%;
-  --gloss: 0.6;
+  --gloss: 0.1;
   --cast: 62%;
   --pip-off: rgba(247, 239, 228, 0.13);
   --ctl-ink: #eadfd2;
