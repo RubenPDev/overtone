@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import {
   N, PITCH, CENTRE, RC, SWAPS,
   FAR, applyPerm, buildTables, swapPerm, turnPerm, distanceOf, isBuilt,
-  scrambleFor, solvedPosition, todayNumber, dateForNumber, puzzlePath,
+  scrambleFor, settledCells, solvedPosition, todayNumber, dateForNumber, puzzlePath,
 } from './solver.js';
 import { sound } from './sound.js';
 import {
@@ -164,7 +164,7 @@ const TUTORIAL = [
     highlight: 'turns',
   },
   {
-    text: 'To finish, fill the eight around the centre with its colour and make each outer row of three a single colour. Any colour can take any row. The floor shows how far you are, two tiles lit per move still needed.',
+    text: 'To finish, fill the eight around the centre with its colour and make each outer row of three a single colour. Any colour can take any row, and whatever is already right glows. The floor shows how far you are, two tiles lit per move still needed.',
     highlight: 'floor',
   },
 ];
@@ -356,6 +356,8 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
   });
 
+  const settled = useMemo(() => (colours ? settledCells(pos, colours) : []), [pos, colours]);
+
   const glowing = useMemo(() => {
     if (!hovered) return new Set();
     return new Set([pos[hovered.arm], pos[hovered.ring]]);
@@ -432,7 +434,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
               return (
                 <div
                   key={`tile-${tileId}`}
-                  className={`fc-block${glowing.has(tileId) ? ' is-glowing' : ''}${highlight === 'swaps' && position >= 8 ? ' is-pulsing' : ''}`}
+                  className={`fc-block${settled[position] ? ' is-settled' : ''}${glowing.has(tileId) ? ' is-glowing' : ''}${highlight === 'swaps' && position >= 8 ? ' is-pulsing' : ''}`}
                   style={{
                     background: darken(colour, 0.3),
                     boxShadow: extrusion(colour),
@@ -447,7 +449,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
             })}
 
             <div
-              className="fc-block fc-centre"
+              className={`fc-block fc-centre${solved ? ' is-settled' : ''}`}
               style={{
                 background: darken(TARGET, 0.3),
                 boxShadow: extrusion(TARGET),

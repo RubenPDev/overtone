@@ -286,6 +286,21 @@ export function solvedPosition(colours) {
   return solvedBoard().map((colour) => tiles[colour].pop());
 }
 
+/**
+ * Which positions are right so far: the target colour in the ring, and finished
+ * outer rows. Any colour can finish on any arm, so one tile there can't be right alone.
+ */
+export function settledCells(pos, colours) {
+  const board = pos.map((tile) => colours[tile]);
+  const settled = board.map((colour, p) => p < 8 && colour === 0);
+  for (const [a, b, c] of ARMS) {
+    if (board[a] !== 0 && board[a] === board[b] && board[b] === board[c]) {
+      settled[a] = settled[b] = settled[c] = true;
+    }
+  }
+  return settled;
+}
+
 /* Proving a board is further than this gets slow fast (seconds at 14, even
    on a desktop), and the floor is already full by here. */
 export const FAR = 12;

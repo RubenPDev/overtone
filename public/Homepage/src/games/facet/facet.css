@@ -135,6 +135,8 @@
   border: 2px solid rgba(0,0,0,.26);
 }
 
+/* Softer than hovering, which still has to show the pair on a cell that's already lit. */
+.fc-block.is-settled { filter: brightness(1.22); }
 .fc-block.is-glowing { filter: brightness(1.42) saturate(1.1); z-index: 800 !important; }
 
 .fc-control { cursor: pointer; z-index: 850; }
@@ -175,8 +177,8 @@
   animation: fc-wave 560ms ease-in-out calc(240ms + var(--fc-wave) * 60ms);
 }
 @keyframes fc-wave {
-  0%, 100% { translate: 0 0; filter: brightness(1); }
-  45% { translate: -16px -16px; filter: brightness(1.28); }
+  0%, 100% { translate: 0 0; }
+  45% { translate: -16px -16px; filter: brightness(1.5); }
 }
 
 /* ---------- tutorial ---------- */
