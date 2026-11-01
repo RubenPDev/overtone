@@ -1,4 +1,5 @@
 import React from 'react';
+import DonateLink from './DonateLink.jsx';
 import { linkHandler, withBase } from '../router.js';
 import { GAMES } from '../data/games.js';
 
@@ -41,6 +42,8 @@ export default function Footer({ navigate }) {
           </ul>
         </div>
       </div>
+
+      <DonateLink />
 
       <div className="footer__base">
         <p>© {year} Overtone. All melodies are in the public domain.</p>

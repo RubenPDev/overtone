@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import DonateLink from '../../components/DonateLink.jsx';
 import { readResults, readStreak, readTries } from '../../lib/progress.js';
 import { reportShare } from '../../lib/stats.js';
 import { useDialog } from '../../lib/useDialog.js';
@@ -141,6 +142,8 @@ export default function CadenceResult({ ns, puzzle, onClose, onReplay }) {
           </button>
           <button type="button" className="cad__btn" onClick={onReplay}>Play again</button>
         </div>
+
+        <DonateLink quiet />
       </div>
     </div>
   );

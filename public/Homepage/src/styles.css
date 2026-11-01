@@ -659,6 +659,40 @@ a.card:hover .card__cta svg { transform: translateX(3px); }
 .footer__base p { font-size: 13px; color: var(--ink-3); }
 .footer__note { font-style: italic; }
 
+/* Candy that stays light in either theme, like the game marks. */
+.donate {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-bottom: 32px;
+  padding: 10px 18px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #4a3500;
+  background: linear-gradient(135deg, #fff9c8, #ffe66a 58%);
+  border-radius: 100px;
+  box-shadow:
+    inset 1px 1.5px 1px rgba(255, 255, 255, 0.8),
+    0 3px 0 #efb03e,
+    0 12px 16px -8px rgba(239, 176, 62, 0.6);
+  transition: transform 120ms, box-shadow 120ms;
+}
+.donate:hover { transform: translateY(-1px); }
+.donate:active { transform: translateY(2px); box-shadow: inset 1px 1.5px 1px rgba(255, 255, 255, 0.8), 0 1px 0 #efb03e; }
+.donate svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* On the result card, where it mustn't compete with Share. */
+.donate--quiet {
+  margin: 14px 0 0;
+  padding: 2px 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+  background: none;
+  box-shadow: none;
+}
+.donate--quiet:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; transform: none; }
+.donate--quiet:active { transform: none; box-shadow: none; }
+.donate--quiet svg { width: 15px; height: 15px; }
+
 /* ---------- motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {

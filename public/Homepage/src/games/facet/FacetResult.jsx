@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import DonateLink from '../../components/DonateLink.jsx';
 import { ResultIcon, share } from '../cadence/CadenceResult.jsx';
 import { readBest, readStreak } from '../../lib/progress.js';
 import { useDialog } from '../../lib/useDialog.js';
@@ -90,6 +91,8 @@ export default function FacetResult({ ns, number, onClose, onReplay }) {
           </button>
           <button type="button" className="cad__btn" onClick={onReplay}>Play again</button>
         </div>
+
+        <DonateLink quiet />
       </div>
     </div>
   );

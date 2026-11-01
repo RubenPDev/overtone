@@ -63,7 +63,17 @@ export default function Privacy() {
           <li><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Pages</a> hosts the site.</li>
           <li><a href="https://www.cloudflare.com/privacypolicy/">Cloudflare</a> runs the domain’s DNS and the counter.</li>
           <li><a href="https://policies.google.com/privacy">Google Fonts</a> serves the typefaces.</li>
+          <li><a href="https://www.paypal.com/webapps/mpp/ua/privacy-full">PayPal</a> handles donations, but only if you follow the link to it. Nothing on this site loads from PayPal.</li>
         </ul>
+      </div>
+
+      <div className="page__section">
+        <h2>If you buy us a coffee</h2>
+        <p>
+          The payment happens on PayPal, under its terms. We never see your card or bank details,
+          but PayPal shows us your name, email address and the amount, the same as any payment
+          you send there. We use them only for our records and to reply if you write in.
+        </p>
       </div>
 
       <div className="page__section">
@@ -80,7 +90,7 @@ export default function Privacy() {
           Write to <a href="mailto:contact@overtone.games">contact@overtone.games</a>. If this page
           changes, the date below will too.
         </p>
-        <p className="page__updated">Last updated October 31, 2026.</p>
+        <p className="page__updated">Last updated November 1, 2026.</p>
       </div>
     </section>
   );
