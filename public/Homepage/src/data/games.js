@@ -28,7 +28,8 @@ export const GAMES = [
     tagline: 'Find the shortest route',
     description:
       'A scrambled block of colour, and a par that was proven before you started. ' +
-      'Swap and turn until the ring matches its centre, in as few moves as you can.',
+      'Swap and turn until the ring matches its centre and every outer row is one colour, ' +
+      'in as few moves as you can.',
     href: '/facet',
     glyph: 'facet',
     accent: '83 117 242',

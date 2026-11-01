@@ -7,10 +7,14 @@ import Footer from './components/Footer.jsx';
 import Privacy from './components/Privacy.jsx';
 import CadenceGame from './games/cadence/CadenceGame.jsx';
 import FacetGame from './games/facet/FacetGame.jsx';
+import { resetForNewRules } from './lib/progress.js';
 import { reportVisit } from './lib/stats.js';
 import { useTheme } from './lib/useTheme.js';
 import { useRoute, parseRoute } from './router.js';
 import { GAMES } from './data/games.js';
+
+// Outer rows became part of the goal, which replaced every Facet board.
+resetForNewRules('facet', 'full-colour');
 
 function formatToday() {
   return new Date().toLocaleDateString(undefined, {

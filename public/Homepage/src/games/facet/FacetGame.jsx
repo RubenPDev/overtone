@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   N, PITCH, CENTRE, RC, SWAPS,
-  applyPerm, swapPerm, turnPerm, distances, distanceOf, isBuilt,
+  FAR, applyPerm, buildTables, swapPerm, turnPerm, distanceOf, isBuilt,
   scrambleFor, todayNumber, dateForNumber, puzzlePath,
 } from './solver.js';
 import { sound } from './sound.js';
@@ -146,7 +146,7 @@ const TUTORIAL = [
     highlight: 'turns',
   },
   {
-    text: 'The floor is your distance to solved, two tiles lit per move still needed. Fill all eight blocks around the centre, in as few moves as you can.',
+    text: 'To finish, fill the eight around the centre with its colour and make each outer row of three a single colour. Any colour can take any row. The floor shows how far you are, two tiles lit per move still needed.',
     highlight: 'floor',
   },
 ];
@@ -167,7 +167,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
   const [ready, setReady] = useState(() => isBuilt());
   useEffect(() => {
     if (ready) return undefined;
-    const id = setTimeout(() => { distances(); setReady(true); }, 0);
+    const id = setTimeout(() => { buildTables(); setReady(true); }, 0);
     return () => clearTimeout(id);
   }, [ready]);
 
@@ -215,7 +215,11 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
     setShowResult(isSolved(readResults(NS)[number]));
   }, [number]);
 
-  const distance = colours ? distanceOf(pos, colours) : null;
+  // The start needs no search: par is that board's distance, however far out it is.
+  const distance = useMemo(() => {
+    if (!colours) return null;
+    return moves === 0 ? par : distanceOf(pos, colours);
+  }, [pos, colours, moves, par]);
 
   useEffect(() => {
     if (distance !== 0 || solved || !colours) return;
@@ -321,6 +325,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
         onClose={() => setShowArchive(false)}
         current={number}
         onPick={pickPuzzle}
+        finished={solved}
         List={ArchiveList}
       />
       {showResult && <FacetResult ns={NS} number={number} onClose={closeResult} onReplay={restart} />}
@@ -362,7 +367,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
             </div>
           </div>
           <span className="fc-label">
-            {distance != null && !solved ? `${distance} from solved` : ''}
+            {distance != null && !solved ? `${moves > 0 && distance >= FAR ? `${FAR}+` : distance} from solved` : ''}
           </span>
         </div>
 
@@ -460,7 +465,7 @@ export default function FacetGame({ puzzleNumber, onNavigate }) {
                   </>
                 )
               ) : (
-                <>Par {par}. Swap blocks inward and turn the ring until the eight around the centre all match it.</>
+                <>Par {par}. Match the eight around the centre to it, and make each outer row of three a single colour.</>
               )}
           </p>
         )}

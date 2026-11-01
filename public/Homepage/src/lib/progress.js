@@ -38,6 +38,19 @@ export function markHelpSeen(ns) {
   safeSet(`${ns}:helpSeen`, '1');
 }
 
+/**
+ * For when a game's rules change: its old results describe boards that no longer
+ * exist, and everyone needs the lesson again. The streak stays, since those days
+ * really were played.
+ */
+export function resetForNewRules(ns, version) {
+  if (safeGet(`${ns}:rules`) === version) return;
+  try {
+    for (const key of ['results', 'best', 'tries', 'helpSeen']) localStorage.removeItem(`${ns}:${key}`);
+  } catch { /* private mode */ }
+  safeSet(`${ns}:rules`, version);
+}
+
 export function isSolved(outcome) {
   return outcome === 'solved' || outcome === 'assisted';
 }

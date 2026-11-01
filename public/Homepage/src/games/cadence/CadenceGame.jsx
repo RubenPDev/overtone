@@ -184,6 +184,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate }) {
         onClose={() => setShowArchive(false)}
         current={number}
         onPick={pickPuzzle}
+        finished={outcome?.kind}
       />
       {showResult && <CadenceResult ns={NS} puzzle={puzzle} onClose={closeResult} onReplay={onReplay} />}
       {showHelp && <CadenceHelp visual={visual} onClose={closeHelp} openedByTap={showHelp === 'tap'} />}

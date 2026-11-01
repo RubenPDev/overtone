@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import ArchiveList from './ArchiveList.jsx';
 
-export default function ArchiveDrawer({ open, onClose, current, onPick, List = ArchiveList }) {
+/* On a wide screen the drawer never closes, so opening it can't be the only cue
+   to re-read the list: `finished` should change once a result has been saved. */
+export default function ArchiveDrawer({ open, onClose, current, onPick, finished, List = ArchiveList }) {
   const activeRef = useRef(null);
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export default function ArchiveDrawer({ open, onClose, current, onPick, List = A
           </button>
         </div>
 
-        <List current={current} onPick={onPick} activeRef={activeRef} refresh={open} />
+        <List current={current} onPick={onPick} activeRef={activeRef} refresh={`${open}/${finished}`} />
 
         <p className="arch__foot">
           This is where you can revisit past puzzles — scroll to see more.
