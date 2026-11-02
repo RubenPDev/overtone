@@ -475,6 +475,8 @@ main a:not(.card):hover { text-decoration-color: currentColor; }
   gap: 16px;
   margin-top: 16px;
 }
+/* The games that are out, side by side in full, each with its description. */
+.games__grid--live { grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); }
 
 .card {
   position: relative;
@@ -495,6 +497,15 @@ a.card:hover {
 }
 
 .card--featured { padding: 30px; gap: 26px; align-items: flex-start; }
+/* Side by side the descriptions differ in length, so the foot sits at the bottom
+   and the buttons line up. */
+.card--featured .card__body { align-self: stretch; display: flex; flex-direction: column; }
+.card--featured .card__foot { margin-top: auto; padding-top: 18px; }
+/* A phone has no width to spare beside the mark, so it sits above the text. */
+@media (max-width: 520px) {
+  .card--featured { flex-direction: column; gap: 16px; padding: 22px; }
+  .card.card--featured .card__mark { width: 72px; height: 72px; border-radius: 22px; }
+}
 /* The smaller cards wrap so their foot can take a row of its own, pinned to the
    bottom so the cards in a row line up. */
 .card:not(.card--featured) { flex-wrap: wrap; row-gap: 0; }

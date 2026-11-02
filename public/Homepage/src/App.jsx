@@ -25,8 +25,6 @@ function formatToday() {
 }
 
 function Home({ navigate }) {
-  const [featured, ...rest] = GAMES;
-
   return (
     <>
       <section className="hero">
@@ -48,10 +46,8 @@ function Home({ navigate }) {
           <LikeCount />
         </div>
 
-        <GameCard game={featured} featured navigate={navigate} />
-
-        <div className="games__grid">
-          {rest.map((g) => <GameCard key={g.id} game={g} navigate={navigate} />)}
+        <div className="games__grid games__grid--live">
+          {GAMES.map((g) => <GameCard key={g.id} game={g} featured navigate={navigate} />)}
         </div>
       </section>
 

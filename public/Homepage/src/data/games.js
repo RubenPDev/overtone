@@ -17,7 +17,7 @@ export const GAMES = [
       'A new melody every day. The notes are handed to you one tap at a time — ' +
       'the rhythm is the puzzle. Tap at any speed; only the pattern counts.',
     href: '/cadence',
-    glyph: 'ring',
+    glyph: 'pad',
     accent: '105 255 208',
     status: 'live',
     storageKey: 'cadence',
@@ -38,32 +38,6 @@ export const GAMES = [
     status: 'live',
     storageKey: 'facet',
     launched: '2026-10-31',
-  },
-  {
-    id: 'interval',
-    name: 'Interval',
-    tagline: 'Name the distance',
-    description:
-      'Two notes, one gap. Six guesses to name it. Starts with octaves and fifths, ' +
-      'ends somewhere far less comfortable.',
-    href: '/interval',
-    glyph: 'steps',
-    accent: '179 209 255',
-    status: 'soon',
-    storageKey: 'interval',
-  },
-  {
-    id: 'canon',
-    name: 'Canon',
-    tagline: 'Rebuild it by ear',
-    description:
-      'Hear a short phrase once, then reconstruct it note by note. ' +
-      'The melody never repeats itself for you.',
-    href: '/canon',
-    glyph: 'arcs',
-    accent: '255 230 106',
-    status: 'soon',
-    storageKey: 'canon',
   },
 ];
 

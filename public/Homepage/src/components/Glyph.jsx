@@ -1,94 +1,73 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 
-const SIZE = 64;
-const C = SIZE / 2;
+/* Each game's mark is a small piece of its own board, made of the same candy:
+   lit from the top left, with a darker side showing below. */
 
-/* The ring is generated from the same maths the game's oscilloscope uses:
-   a base radius, a sharpened wave, and an uneven term that varies peak
-   height without disturbing the baseline circle. */
-function ringPath(seed = 1, points = 180, base = 20, amp = 5.2) {
-  const pts = [];
-  for (let k = 0; k < points; k++) {
-    const a = (k / points) * Math.PI * 2 - Math.PI / 2;
-    const wave =
-      Math.sin(a * 3 * seed) * 0.7 +
-      Math.sin(a * 5 * seed + 1.3) * 0.3;
-    const sharp = Math.sign(wave) * Math.pow(Math.abs(wave), 1.6);
-    const uneven =
-      1 + 0.34 * (Math.sin(a * 2 + 0.9) * 0.62 + Math.sin(a * 3 - 1.7) * 0.46);
-    const r = base + sharp * amp * uneven;
-    pts.push(`${(C + Math.cos(a) * r).toFixed(2)} ${(C + Math.sin(a) * r).toFixed(2)}`);
-  }
-  return `M${pts.join('L')}Z`;
-}
-
-function Steps() {
-  const bars = [10, 18, 14, 26, 22, 34];
+/* Cadence: the pad you tap, from above, with its inner ring and the six dots round it. */
+function Pad() {
+  const dots = Array.from({ length: 6 }, (_, i) => {
+    const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+    return [32 + Math.cos(a) * 14, 32 + Math.sin(a) * 14];
+  });
   return (
-    <g>
-      {bars.map((h, i) => (
-        <line
-          key={i}
-          x1={12 + i * 8}
-          y1={C + 14}
-          x2={12 + i * 8}
-          y2={C + 14 - h}
-          strokeLinecap="round"
-        />
+    <>
+      <defs>
+        <radialGradient id="glyph-pad" cx="38%" cy="32%" r="75%">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset=".55" stopColor="#d9fff2" />
+          <stop offset="1" stopColor="#93ecd2" />
+        </radialGradient>
+      </defs>
+      <circle cx="32" cy="35" r="19" fill="#2aa889" opacity=".55" />
+      <circle cx="32" cy="32" r="19" fill="url(#glyph-pad)" />
+      <circle cx="32" cy="32" r="8.5" fill="none" stroke="#27413e" strokeOpacity=".28" strokeWidth="1.4" />
+      {dots.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="1.5" fill="#27413e" fillOpacity=".45" />
       ))}
-    </g>
+    </>
   );
 }
 
-function Arcs() {
-  return (
-    <g>
-      <path d="M10 42 Q22 16 34 42" />
-      <path d="M22 46 Q34 20 46 46" opacity="0.6" />
-      <path d="M34 50 Q46 24 58 50" opacity="0.32" />
-    </g>
-  );
-}
+/* Facet: its 3x3 face at the board's tilt, one block from solved. Each block is
+   its top over its side, drawn back to front. */
+const TONES = {
+  teal: ['#69ffd0', '#2fc4a0'],
+  pink: ['#ff9c9f', '#ec6f78'],
+  yellow: ['#ffe66a', '#efb03e'],
+  centre: ['#45e6b4', '#1f8f6e'],
+};
+const FACE = [
+  ['teal', 'teal', 'yellow'],
+  ['teal', 'centre', 'teal'],
+  ['pink', 'teal', 'teal'],
+];
 
-/* The game's 3x3 face at its isometric tilt, with the fixed centre filled in. */
 function Face() {
-  const cells = [-20, -6.5, 7];
+  const pitch = 13.5;
+  const size = 11.5;
+  const depth = 2.6;
+  const start = -pitch - size / 2;
   return (
-    <g transform={`translate(${C} ${C}) scale(1 0.62) rotate(45)`}>
-      {cells.flatMap((y, r) => cells.map((x, c) => {
-        const centre = r === 1 && c === 1;
+    <g transform="translate(32 34) scale(1 .62) rotate(45)">
+      {FACE.flatMap((row, r) => row.map((tone, c) => {
+        const [top, side] = TONES[tone];
+        const x = start + c * pitch;
+        const y = start + r * pitch;
         return (
-          <rect
-            key={`${r}-${c}`}
-            x={x}
-            y={y}
-            width="13"
-            height="13"
-            rx="3.5"
-            vectorEffect="non-scaling-stroke"
-            fill={centre ? 'currentColor' : 'none'}
-          />
+          <g key={`${r}-${c}`}>
+            <rect x={x + depth} y={y + depth} width={size} height={size} rx="3.4" fill={side} />
+            <rect x={x} y={y} width={size} height={size} rx="3.4" fill={top} />
+          </g>
         );
       }))}
     </g>
   );
 }
 
-export default function Glyph({ kind = 'ring', className }) {
-  const d = useMemo(() => ringPath(kind === 'ring' ? 1 : 2), [kind]);
-
+export default function Glyph({ kind, className }) {
   return (
-    <svg
-      className={className}
-      viewBox={`0 0 ${SIZE} ${SIZE}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      aria-hidden="true"
-    >
-      {kind === 'ring' && <path d={d} />}
-      {kind === 'steps' && <Steps />}
-      {kind === 'arcs' && <Arcs />}
+    <svg className={className} viewBox="0 0 64 64" aria-hidden="true">
+      {kind === 'pad' && <Pad />}
       {kind === 'facet' && <Face />}
     </svg>
   );
