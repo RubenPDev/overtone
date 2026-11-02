@@ -453,6 +453,7 @@ main a:not(.card):hover { text-decoration-color: currentColor; }
   border: 1px solid var(--card-edge);
   border-radius: 100px;
   box-shadow: 0 10px 20px -14px var(--shadow);
+  user-select: none;
 }
 
 /* ---------- games ---------- */
