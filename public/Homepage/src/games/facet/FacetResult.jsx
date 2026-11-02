@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import DonateLink from '../../components/DonateLink.jsx';
 import { ResultIcon, share } from '../cadence/CadenceResult.jsx';
 import { readBest, readStreak } from '../../lib/progress.js';
-import { useDialog } from '../../lib/useDialog.js';
+import { useDialog, useLeave } from '../../lib/useDialog.js';
 import { withBase } from '../../router.js';
 import { dateForNumber, parFor } from './solver.js';
 
@@ -14,7 +14,9 @@ function shareText(number, best, par) {
 }
 
 export default function FacetResult({ ns, number, onClose, onReplay }) {
-  const panelRef = useDialog(onClose);
+  const [leaving, leave] = useLeave();
+  const close = useCallback(() => leave(onClose), [leave, onClose]);
+  const panelRef = useDialog(close);
   const best = useMemo(() => readBest(ns)[number], [ns, number]);
   const streak = useMemo(() => readStreak(ns), [ns]);
   const par = parFor(number);
@@ -41,7 +43,7 @@ export default function FacetResult({ ns, number, onClose, onReplay }) {
   });
 
   return (
-    <div className="cad-help" onClick={onClose}>
+    <div className={`cad-help cad-help--result${leaving ? ' is-leaving' : ''}`} onClick={close}>
       <div
         className="cad-help__panel cad-result"
         ref={panelRef}
@@ -51,7 +53,7 @@ export default function FacetResult({ ns, number, onClose, onReplay }) {
         aria-labelledby="fc-result-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <button type="button" className="arch__close cad-result__close" onClick={onClose} aria-label="Close">
+        <button type="button" className="arch__close cad-result__close" onClick={close} aria-label="Close">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
@@ -89,7 +91,7 @@ export default function FacetResult({ ns, number, onClose, onReplay }) {
           <button type="button" className="cad__btn cad__btn--primary" onClick={onShare} aria-live="polite">
             {shareLabel || 'Share'}
           </button>
-          <button type="button" className="cad__btn" onClick={onReplay}>Play again</button>
+          <button type="button" className="cad__btn" onClick={() => leave(onReplay)}>Play again</button>
         </div>
 
         <DonateLink quiet />

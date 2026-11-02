@@ -241,8 +241,9 @@
   border-radius: 28px;
   box-shadow: 0 30px 60px -24px var(--shadow);
 }
-/* Focused so that keyboard users start inside the dialog; it isn't a control. */
-.cad-help__panel:focus, .cad-help__panel:focus-visible { outline: none; }
+/* Focused so that keyboard users start inside the dialog; it isn't a control, so
+   it keeps its own corners rather than the focus ring's. */
+.cad-help__panel:focus, .cad-help__panel:focus-visible { outline: none; border-radius: 28px; }
 .cad-help__title {
   font-family: var(--display);
   font-size: 28px;
@@ -323,6 +324,30 @@
 .cad-result__badge .cad-result__icon { width: 32px; height: 32px; }
 @media (prefers-reduced-motion: no-preference) {
   .cad-result__badge { animation: cad-pop 420ms cubic-bezier(.2, 1.5, .4, 1) backwards; }
+
+  /* The result springs up out of the board, its badge and tiles landing just
+     after, and it sinks away again when closed. */
+  .cad-help--result { animation: cad-fade-in 240ms ease-out backwards; }
+  .cad-help--result .cad-help__panel { animation: cad-panel-in 460ms cubic-bezier(.2, 1.25, .4, 1) backwards; }
+  .cad-help--result .cad-result__badge { animation-delay: 110ms; }
+  .cad-help--result .cad-result__tiles > div,
+  .cad-help--result .cad-result__rows { animation: cad-rise 380ms cubic-bezier(.2, 1.3, .4, 1) backwards; }
+  .cad-help--result .cad-result__tiles > div:nth-child(1) { animation-delay: 180ms; }
+  .cad-help--result .cad-result__tiles > div:nth-child(2) { animation-delay: 230ms; }
+  .cad-help--result .cad-result__tiles > div:nth-child(3) { animation-delay: 280ms; }
+  .cad-help--result .cad-result__rows { animation-delay: 330ms; }
+
+  .cad-help--result.is-leaving { animation: cad-fade-out 200ms ease-in forwards; }
+  .cad-help--result.is-leaving .cad-help__panel { animation: cad-panel-out 200ms cubic-bezier(.5, 0, .75, 0) forwards; }
+}
+@keyframes cad-fade-in { from { opacity: 0; } }
+@keyframes cad-fade-out { to { opacity: 0; } }
+@keyframes cad-panel-in {
+  from { opacity: 0; transform: translateY(28px) scale(0.92); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes cad-panel-out {
+  to { opacity: 0; transform: translateY(16px) scale(0.95); }
 }
 @keyframes cad-pop {
   from { opacity: 0; transform: scale(0.6); }

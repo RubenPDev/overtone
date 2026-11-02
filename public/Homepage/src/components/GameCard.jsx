@@ -30,6 +30,26 @@ export default function GameCard({ game, featured = false, navigate }) {
     ? { href: withBase(game.href), onClick: follow }
     : { 'aria-disabled': 'true' };
 
+  /* The featured card keeps this under its description; the smaller ones run it
+     the whole width of the card, below the mark, so it stays on one line. */
+  const foot = (
+    <div className="card__foot">
+      {live ? (
+        <>
+          <span className="card__cta">
+            {stats.played ? 'See today’s result' : 'Play'}
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <Streak n={stats.streak} />
+        </>
+      ) : (
+        <span className="card__cta card__cta--muted">In the workshop</span>
+      )}
+    </div>
+  );
+
   return (
     <Wrapper
       {...props}
@@ -54,23 +74,9 @@ export default function GameCard({ game, featured = false, navigate }) {
 
         <p className="card__tagline">{game.tagline}</p>
         {featured && <p className="card__desc">{game.description}</p>}
-
-        <div className="card__foot">
-          {live ? (
-            <>
-              <span className="card__cta">
-                {stats.played ? 'See today’s result' : 'Play'}
-                <svg viewBox="0 0 16 16" aria-hidden="true">
-                  <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <Streak n={stats.streak} />
-            </>
-          ) : (
-            <span className="card__cta card__cta--muted">In the workshop</span>
-          )}
-        </div>
+        {featured && foot}
       </div>
+      {!featured && foot}
     </Wrapper>
   );
 }

@@ -107,7 +107,7 @@
 .fc-tone-3 { --c: #ffe66a; --hi: #fff9c8; --s: #efb03e; --s2: #d9942a; }
 .fc-tone-4 { --c: #d68cff; --hi: #f3dcff; --s: #a765dc; --s2: #8a4bc0; }
 /* The fixed centre: the target colour, but matte and set a shade deeper. */
-.fc-tone-centre { --c: #45e6b4; --hi: #76efcb; --s: #25a888; --s2: #1a8e72; }
+.fc-tone-centre { --c: #45e6b4; --hi: #76efcb; --s: #32b088; --s2: #17513e; }
 
 .fc-block {
   --f: color-mix(in oklab, var(--c), var(--candy-tint) var(--candy-tint-amt));
@@ -145,7 +145,6 @@
   box-shadow:
     inset 1.5px 1.5px 1px rgb(255 255 255 / var(--gloss)),
     inset -2px -2px 4px color-mix(in srgb, var(--side) 50%, transparent),
-    inset -1px -1px 0 rgb(255 255 255 / calc(var(--gloss) * .35));
 }
 /* The window reflected near the far corner, and the light that bounces back up
    through the candy at the near one. */
@@ -154,22 +153,23 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(38% 26% at 30% 24%, rgb(255 255 255 / var(--gloss)) 0%, rgb(255 255 255 / calc(var(--gloss) * .4)) 55%, transparent 100%),
-    radial-gradient(55% 45% at 80% 82%, rgb(255 255 255 / calc(var(--gloss) * .34)), transparent 100%);
+    radial-gradient(55% 45% at 80% 82%, rgb(255 255 255 / calc(var(--gloss) * .34)), transparent 0%);
 }
 
 .fc-centre .fc-face {
   background: linear-gradient(135deg, var(--lit) 0%, var(--f) 40%, var(--side) 140%);
   box-shadow:
-    inset 1.5px 1.5px 3px color-mix(in srgb, var(--side-2) 45%, transparent),
-    inset -1px -1px 1px rgb(255 255 255 / calc(var(--gloss) * .4));
+    inset 1.5px 1.5px 1px rgb(255 255 255 / var(--gloss)),
+    inset -2px -2px 4px color-mix(in srgb, var(--side) 50%, transparent),
+    inset -1px -1px 0 rgb(255 255 255 / calc(var(--gloss) * .35)),
+    inset 0 0 12px rgb(255 255 255 / calc(var(--gloss) * .62));
 }
 .fc-centre .fc-face::before { background: none; }
 
 /* Softer than hovering, which still has to show the pair on a cell that's already lit. */
 .fc-block.is-settled {
   filter: brightness(1.05) saturate(1.28);
-  --halo: 0 0 16px 3px color-mix(in srgb, var(--c) 70%, transparent);
+  --halo: 0 0 16px 3px color-mix(in srgb, var(--c) 30%, transparent);
 }
 .fc-block.is-settled .fc-face { box-shadow:
   inset 1.5px 1.5px 1px rgb(255 255 255 / var(--gloss)),
