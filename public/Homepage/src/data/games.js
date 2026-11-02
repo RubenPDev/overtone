@@ -4,7 +4,8 @@
  * Adding a game means appending an object here — nothing else in the app
  * needs to change. `glyph` picks which mark GameCard draws; `storageKey`
  * is the localStorage namespace that game writes its progress under, and
- * must match what the game itself uses.
+ * must match what the game itself uses. `morph` says the game has an element
+ * named mark-<id> for the card's mark to turn into on the way in.
  */
 
 export const GAMES = [
@@ -20,6 +21,7 @@ export const GAMES = [
     accent: '105 255 208',
     status: 'live',
     storageKey: 'cadence',
+    morph: true,
     launched: '2026-11-01',
   },
   {

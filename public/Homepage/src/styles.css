@@ -704,7 +704,7 @@ a.card:hover .card__cta svg { transform: translateX(3px); }
 
 /* ============================================================
    View Transitions
-   Supported browsers morph the card's ring into the game's pad,
+   Supported browsers morph the card's mark into the game's pad,
    because both carry view-transition-name: mark-cadence. Anything
    else falls back to the staggered rise in cadence.css, which is
    why that animation exists independently of this block.
@@ -732,13 +732,14 @@ a.card:hover .card__cta svg { transform: translateX(3px); }
   }
   ::view-transition-old(mark-cadence),
   ::view-transition-new(mark-cadence) {
-    /* Hold both at full opacity so the shape reads as one object moving,
-       rather than two circles dissolving through each other. */
-    animation: none;
     mix-blend-mode: normal;
     height: 100%;
     overflow: clip;
   }
+  /* The pad holds at full opacity so it reads as one object growing, while the
+     card's square mark fades out quickly rather than poking out round its edge. */
+  ::view-transition-new(mark-cadence) { animation: none; }
+  ::view-transition-old(mark-cadence) { animation: vt-out 160ms ease-out both; }
 }
 
 @keyframes vt-out {

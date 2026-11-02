@@ -64,6 +64,15 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
   const closeResult = useCallback(() => setShowResult(false), []);
   const [visual, setVisual] = useState(() => readVisualPrefs(NS, DEFAULT_VISUAL));
 
+  /* The homepage card's mark morphs into the pad on the way in. During a transition
+     a named element is drawn above the whole page, popups and drawer included, so
+     the pad keeps its name only for the arrival, never for a move between days. */
+  const [morphIn, setMorphIn] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setMorphIn(false), 700);
+    return () => clearTimeout(t);
+  }, []);
+
   /* Engine owns the canvas and the audio; it is created once for the lifetime
      of this component and told about new melodies, never torn down per puzzle. */
   useEffect(() => {
@@ -241,7 +250,11 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
         </div>
 
         <div className="cad__padwrap">
-          <div className="cad__pad" ref={padRef} style={{ viewTransitionName: 'mark-cadence' }}>
+          <div
+            className="cad__pad"
+            ref={padRef}
+            style={{ viewTransitionName: morphIn && !showResult && !showHelp ? 'mark-cadence' : 'none' }}
+          >
             <canvas ref={canvasRef} className="cad__scope" />
             <span className={`cad__padlabel${state.index > 0 && !state.finished ? ' is-quiet' : ''}`}>
               {state.finished || returning ? 'tap to try again' : state.index === 0 ? 'tap anywhere' : 'keep going'}

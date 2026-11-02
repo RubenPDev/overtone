@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import Glyph from './Glyph.jsx';
+import { helpSeen } from '../lib/progress.js';
 import { useGameStats } from '../lib/useGameStats.js';
 import { linkHandler, withBase } from '../router.js';
 
@@ -11,10 +12,22 @@ function Streak({ n }) {
 export default function GameCard({ game, featured = false, navigate }) {
   const stats = useGameStats(game.storageKey);
   const live = game.status === 'live';
+  const markRef = useRef(null);
+
+  /* The mark morphs into the game's pad. A named element whose partner never turns
+     up is still drawn above the whole page while it fades, so it's named only as
+     this card is followed, and only when the game will open uncovered: not on a
+     first visit (How to play) or once played today (the result). */
+  const follow = (e) => {
+    linkHandler(navigate, game.href)(e);
+    if (e.defaultPrevented && game.morph && helpSeen(game.storageKey) && !stats.played) {
+      markRef.current.style.viewTransitionName = `mark-${game.id}`;
+    }
+  };
 
   const Wrapper = live ? 'a' : 'div';
   const props = live
-    ? { href: withBase(game.href), onClick: linkHandler(navigate, game.href) }
+    ? { href: withBase(game.href), onClick: follow }
     : { 'aria-disabled': 'true' };
 
   return (
@@ -23,12 +36,7 @@ export default function GameCard({ game, featured = false, navigate }) {
       className={`card${featured ? ' card--featured' : ''}${live ? '' : ' card--soon'}`}
       style={{ '--accent': game.accent }}
     >
-      {/* Shares a view-transition-name with the game's pad, so the browser
-          morphs this ring into the oscilloscope on navigation. */}
-      <div
-        className="card__mark"
-        style={live ? { viewTransitionName: `mark-${game.id}` } : undefined}
-      >
+      <div className="card__mark" ref={markRef}>
         <Glyph kind={game.glyph} className="card__glyph" />
       </div>
 
