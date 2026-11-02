@@ -38,7 +38,6 @@ export default function Footer({ navigate }) {
             <li><a href="mailto:contact@overtone.games">Email</a></li>
             <li><a href="https://x.com/overtonegames" target="_blank" rel="noopener noreferrer">X</a></li>
             <li><a href={withBase('/privacy')} onClick={navigate ? linkHandler(navigate, '/privacy') : undefined}>Privacy</a></li>
-            <li><a href="/credits/">Credits</a></li>
           </ul>
         </div>
       </div>
