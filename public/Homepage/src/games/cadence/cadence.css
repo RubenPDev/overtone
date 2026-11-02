@@ -472,6 +472,7 @@
   color: var(--ink-3);
 }
 .arch__foot .likes { margin-top: 8px; }
+.arch__dev { margin-top: 8px; color: var(--warn-ink); font-weight: 700; }
 
 /* Wide: two columns, controls on the left and the pad as the hero on the right.
    The 1fr rows above and below centre the left column against it. */

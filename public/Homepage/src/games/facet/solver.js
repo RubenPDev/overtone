@@ -1,3 +1,5 @@
+import { devMode } from '../../lib/devMode.js';
+
 /* ============================================================
    Facet — the puzzle's maths, with no DOM and no React.
 
@@ -321,6 +323,15 @@ export const LAUNCH_UTC = Date.UTC(2026, 9, 26); // 26 Oct 2026
 export function todayNumber(now = new Date()) {
   const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   return Math.max(1, Math.floor((midnight - LAUNCH_UTC) / 86400000) + 1);
+}
+
+/* Boards are made from the puzzle number, so there's no end to them; developer
+   mode looks this far ahead. */
+const PREVIEW_DAYS = 30;
+
+/** The newest puzzle that can be played: today, or further ahead in developer mode. */
+export function lastNumber() {
+  return todayNumber() + (devMode() ? PREVIEW_DAYS : 0);
 }
 
 /** Today's puzzle lives at the plain URL. */

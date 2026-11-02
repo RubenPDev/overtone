@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import ArchiveList from './ArchiveList.jsx';
 import LikeCount from '../../components/LikeCount.jsx';
+import { devMode } from '../../lib/devMode.js';
 
 /* `finished` changes once a result has been saved, which re-reads the list. */
 export default function ArchiveDrawer({ open, onClose, current, onPick, finished, List = ArchiveList }) {
@@ -40,6 +41,7 @@ export default function ArchiveDrawer({ open, onClose, current, onPick, finished
 
         <div className="arch__foot">
           <p>This is where you can revisit past puzzles — scroll to see more.</p>
+          {devMode() && <p className="arch__dev">Developer mode: previews of future days are listed, and playing them sends no stats.</p>}
           <LikeCount />
         </div>
       </aside>

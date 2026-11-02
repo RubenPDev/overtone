@@ -14,7 +14,8 @@ function fmtDate(d) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
-/** Tune names stay hidden until that puzzle has been played. `refresh` re-reads the list when it changes. */
+/** Tune names stay hidden until that puzzle has been played, except ahead of their day in developer
+    mode, where knowing which tune it is is the point. `refresh` re-reads the list when it changes. */
 export default function ArchiveList({ current, onPick, activeRef, refresh }) {
   const puzzles = useMemo(() => archiveList(), [refresh]);
   const results = useMemo(() => readResults('cadence'), [refresh]);
@@ -26,6 +27,7 @@ export default function ArchiveList({ current, onPick, activeRef, refresh }) {
         const state = results[p.number];
         const isCurrent = p.number === current;
         const isToday = p.number === today;
+        const ahead = p.number > today;
         const path = puzzlePath(p.number);
         return (
           <li key={p.number}>
@@ -44,9 +46,9 @@ export default function ArchiveList({ current, onPick, activeRef, refresh }) {
               />
               <span className="arch__no">#{p.number}</span>
               <span className="arch__meta">
-                <span className="arch__date">{fmtDate(p.date)}{isToday ? ' · today' : ''}</span>
+                <span className="arch__date">{fmtDate(p.date)}{isToday ? ' · today' : ahead ? ' · preview' : ''}</span>
                 <span className="arch__tune">
-                  {state
+                  {state || ahead
                     ? p.melody.title
                     : `${difficultyOf(p.melody)} · ${characterOf(p.melody)}`}
                 </span>

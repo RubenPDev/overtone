@@ -437,7 +437,22 @@ main a:not(.card):hover { text-decoration-color: currentColor; }
 }
 @media (min-width: 900px) {
   .hero { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
-  .hero__art { display: grid; }
+  .hero__art { display: grid; position: relative; }
+}
+/* The one tile that answers taps, with no hint that it does. */
+.hero__art .is-secret { pointer-events: auto; cursor: default; }
+.hero__art .is-secret:hover { filter: none; }
+.hero__secret {
+  position: absolute; left: 50%; bottom: -44px;
+  transform: translateX(-50%);
+  width: max-content; max-width: 100%;
+  padding: 7px 14px;
+  font-size: 13px; font-weight: 700; text-align: center;
+  color: var(--ink-2);
+  background: var(--sheet);
+  border: 1px solid var(--card-edge);
+  border-radius: 100px;
+  box-shadow: 0 10px 20px -14px var(--shadow);
 }
 
 /* ---------- games ---------- */

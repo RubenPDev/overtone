@@ -19,7 +19,7 @@ export default function GameBar({ onNavigate, isDark, onToggleTheme, children })
 }
 
 /** The arrows walk day by day; the number in the middle opens the whole archive. */
-export function PuzzleStepper({ number, today, onPick, onOpenArchive }) {
+export function PuzzleStepper({ number, last, onPick, onOpenArchive }) {
   return (
     <div className="stepper">
       <button type="button" className="stepper__arrow" onClick={() => onPick(number - 1)} disabled={number <= 1} aria-label="Previous puzzle">
@@ -33,7 +33,7 @@ export function PuzzleStepper({ number, today, onPick, onOpenArchive }) {
           <path d="M2.5 4h11M2.5 8h11M2.5 12h11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       </button>
-      <button type="button" className="stepper__arrow" onClick={() => onPick(number + 1)} disabled={number >= today} aria-label="Next puzzle">
+      <button type="button" className="stepper__arrow" onClick={() => onPick(number + 1)} disabled={number >= last} aria-label="Next puzzle">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

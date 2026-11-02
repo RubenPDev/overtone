@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createCadenceEngine } from './engine.js';
-import { hueFor, puzzleForNumber, todayNumber } from './melodies.js';
+import { hueFor, lastNumber, puzzleForNumber, todayNumber } from './melodies.js';
 import {
   helpSeen, hintUsed, isSolved, markHelpSeen, markHintUsed, readResults, readTries, recordPlay, recordTry,
   readVisualPrefs, writeVisualPrefs,
@@ -39,11 +39,12 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
 
   const today = useMemo(() => todayNumber(), []);
   // A URL can name a puzzle whose day hasn't come yet (or never existed).
-  const invalidUrl = puzzleNumber != null && (puzzleNumber < 1 || puzzleNumber > todayNumber());
+  const invalidUrl = puzzleNumber != null && (puzzleNumber < 1 || puzzleNumber > lastNumber());
   const number = puzzleNumber == null || invalidUrl ? today : puzzleNumber;
   const puzzle = useMemo(() => puzzleForNumber(number), [number]);
   const melody = puzzle.melody;
   const isToday = number === today;
+  const ahead = number > today; // only reachable in developer mode, and never counted
 
   useEffect(() => {
     if (invalidUrl) onNavigate('/cadence', { replace: true });
@@ -128,13 +129,13 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
     setAttempts(Math.max(count, 1));
     setOutcome({ kind, firstTry: kind === 'solved' && firstSolve && count === 1 });
     recordPlay(NS, { puzzleNumber: number, outcome: kind, isToday });
-    reportResult(NS, number, kind, { tries: firstSolve ? count : null, isToday });
-  }, [state.result, number, isToday]);
+    if (!ahead) reportResult(NS, number, kind, { tries: firstSolve ? count : null, isToday });
+  }, [state.result, number, isToday, ahead]);
 
   // Only when the tap count changes: a switch of puzzle mustn't count as a start.
   useEffect(() => {
     if (state.index > 0) setReplaying(true);
-    if (state.index === 1) reportStart(NS, number);
+    if (state.index === 1 && !ahead) reportStart(NS, number);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.index]);
 
@@ -217,7 +218,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
         </GameBar>
 
         <div className="gamehead">
-          <PuzzleStepper number={number} today={today} onPick={pickPuzzle} onOpenArchive={() => setShowArchive(true)} />
+          <PuzzleStepper number={number} last={lastNumber()} onPick={pickPuzzle} onOpenArchive={() => setShowArchive(true)} />
           <h1 className="gamehead__title">Cadence</h1>
           <span className="gamehead__stamp">{dateLabel}</span>
         </div>

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { dateForNumber, parFor, puzzlePath, todayNumber } from './solver.js';
+import { dateForNumber, lastNumber, parFor, puzzlePath, todayNumber } from './solver.js';
 import { readBest, readResults } from '../../lib/progress.js';
 import { linkHandler, withBase } from '../../router.js';
 
@@ -13,7 +13,8 @@ export default function ArchiveList({ current, onPick, activeRef, refresh }) {
   const results = useMemo(() => readResults('facet'), [refresh]);
   const best = useMemo(() => readBest('facet'), [refresh]);
   const today = todayNumber();
-  const numbers = Array.from({ length: today }, (_, i) => today - i);
+  const last = lastNumber();
+  const numbers = Array.from({ length: last }, (_, i) => last - i);
 
   return (
     <ol className="arch__list">
@@ -35,7 +36,7 @@ export default function ArchiveList({ current, onPick, activeRef, refresh }) {
               <span className={`arch__dot arch__dot--${state || 'none'}`} aria-hidden="true" />
               <span className="arch__no">#{n}</span>
               <span className="arch__meta">
-                <span className="arch__date">{fmtDate(dateForNumber(n))}{n === today ? ' · today' : ''}</span>
+                <span className="arch__date">{fmtDate(dateForNumber(n))}{n === today ? ' · today' : n > today ? ' · preview' : ''}</span>
                 <span className="arch__tune">
                   {best[n] !== undefined ? `Best ${best[n]} · par ${par}` : `Par ${par}`}
                 </span>

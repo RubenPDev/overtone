@@ -15,6 +15,8 @@ export const NOTE = {
   G3: 196.00, A3: 220.00, B3: 246.94,
 };
 
+import { devMode } from '../../lib/devMode.js';
+
 const N = NOTE;
 
 /* The day the calendar starts. Puzzle 1 is this date, UTC. */
@@ -550,6 +552,13 @@ export function todayNumber(now = new Date()) {
   return Math.floor((utcMidnight - LAUNCH_UTC) / 86400000) + 1;
 }
 
+/** The newest puzzle that can be played: today, or in developer mode far enough
+    ahead that every tune in the list has had a day. */
+export function lastNumber() {
+  const today = todayNumber();
+  return devMode() ? Math.max(today, MELODIES.length) : today;
+}
+
 /** Today's puzzle lives at the plain URL. */
 export function puzzlePath(n) {
   return n === todayNumber() ? '/cadence' : `/cadence/${n}`;
@@ -575,11 +584,11 @@ export function puzzleForNumber(n) {
 
 /**
  * Newest first, capped — the archive drawer scrolls through these. Starts at
- * today's puzzle, so tunes whose calendar day hasn't come round stay hidden.
+ * the newest playable puzzle, so tunes whose day hasn't come stay hidden.
  */
 export function archiveList(limit = 120) {
   const out = [];
-  for (let n = todayNumber(); n >= 1 && out.length < limit; n--) out.push(puzzleForNumber(n));
+  for (let n = lastNumber(); n >= 1 && out.length < limit; n--) out.push(puzzleForNumber(n));
   return out;
 }
 

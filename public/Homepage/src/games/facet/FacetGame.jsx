@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import {
   N, PITCH, CENTRE, RC, SWAPS,
   FAR, applyPerm, buildTables, swapPerm, turnPerm, distanceOf, isBuilt,
-  scrambleFor, settledCells, solvedPosition, todayNumber, dateForNumber, puzzlePath,
+  scrambleFor, settledCells, solvedPosition, todayNumber, lastNumber, dateForNumber, puzzlePath,
 } from './solver.js';
 import { sound } from './sound.js';
 import {
@@ -145,9 +145,10 @@ const TUTORIAL = [
 export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTheme }) {
   const today = useMemo(() => todayNumber(), []);
   // A URL can name a puzzle whose day hasn't come yet (or never existed).
-  const invalidUrl = puzzleNumber != null && (puzzleNumber < 1 || puzzleNumber > todayNumber());
+  const invalidUrl = puzzleNumber != null && (puzzleNumber < 1 || puzzleNumber > lastNumber());
   const number = puzzleNumber == null || invalidUrl ? today : puzzleNumber;
   const isToday = number === today;
+  const ahead = number > today; // only reachable in developer mode, and never counted
 
   useEffect(() => {
     if (invalidUrl) onNavigate('/facet', { replace: true });
@@ -228,8 +229,8 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
     recordBest(NS, number, moves);
     const firstSolve = recordTry(NS, number, [], true);
     recordPlay(NS, { puzzleNumber: number, solved: true, isToday });
-    reportResult(NS, number, 'solved', { tries: firstSolve ? readTries(NS, number)?.count : null, isToday });
-  }, [distance, solved, colours, number, isToday, moves]);
+    if (!ahead) reportResult(NS, number, 'solved', { tries: firstSolve ? readTries(NS, number)?.count : null, isToday });
+  }, [distance, solved, colours, number, isToday, ahead, moves]);
 
   // Restarting during the delay clears `solved`, and with it this timer.
   useEffect(() => {
@@ -240,7 +241,7 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
 
   // Only when the count changes: a switch of puzzle mustn't count as a start.
   useEffect(() => {
-    if (moves === 1) reportStart(NS, number);
+    if (moves === 1 && !ahead) reportStart(NS, number);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moves]);
 
@@ -358,7 +359,7 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
         </GameBar>
 
         <div className="gamehead">
-          <PuzzleStepper number={number} today={today} onPick={pickPuzzle} onOpenArchive={() => setShowArchive(true)} />
+          <PuzzleStepper number={number} last={lastNumber()} onPick={pickPuzzle} onOpenArchive={() => setShowArchive(true)} />
           <h1 className="gamehead__title">Facet</h1>
           <span className="gamehead__stamp">{dateLabel}</span>
         </div>
