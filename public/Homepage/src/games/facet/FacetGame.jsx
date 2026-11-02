@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  N, PITCH, CENTRE, RC, SWAPS,
+  N, PITCH, RC, SWAPS,
   FAR, applyPerm, buildTables, swapPerm, turnPerm, distanceOf, isBuilt,
   scrambleFor, settledCells, solvedPosition, todayNumber, lastNumber, dateForNumber, puzzlePath,
 } from './solver.js';
@@ -20,27 +20,6 @@ import './facet.css';
 
 const NS = 'facet';
 const RESULT_DELAY_MS = 1350; // lets the win chime ring and the wave cross the board
-
-/* The rim: 24 lights set into the plate, walking its edge from the near corner. */
-const RING_HALF = 166;
-const RING_SIDE = RING_HALF * 2;
-const PIP_COUNT = 24;
-
-function pipPositions() {
-  const span = (RING_SIDE * 4) / PIP_COUNT;
-  const out = [];
-  for (let i = 0; i < PIP_COUNT; i++) {
-    const u = (i * span + RING_SIDE * 2) % (RING_SIDE * 4);
-    let x, y;
-    if (u < RING_SIDE) { x = CENTRE - RING_HALF + u; y = CENTRE - RING_HALF; }
-    else if (u < RING_SIDE * 2) { x = CENTRE + RING_HALF; y = CENTRE - RING_HALF + (u - RING_SIDE); }
-    else if (u < RING_SIDE * 3) { x = CENTRE + RING_HALF - (u - RING_SIDE * 2); y = CENTRE + RING_HALF; }
-    else { x = CENTRE - RING_HALF; y = CENTRE + RING_HALF - (u - RING_SIDE * 3); }
-    out.push([x - 5, y - 5]);
-  }
-  return out;
-}
-const PIPS = pipPositions();
 
 /* What the plate and blocks cover on screen at scale 1, once tilted. */
 const BOARD_W = 490; // the height depends on the tilt, so it's set in the CSS
@@ -137,8 +116,8 @@ const TUTORIAL = [
     highlight: 'turns',
   },
   {
-    text: 'To finish, fill the eight around the centre with its colour and make each outer row of three a single colour. Any colour can take any row, and whatever is already right glows. The lights around the rim show how far you are, two lit per move still needed.',
-    highlight: 'floor',
+    text: 'To finish, fill the eight around the centre with its colour and make each outer row of three a single colour. Any colour can take any row, and whatever is already right glows. The board glows a little warmer the closer you get, and each move sounds a lower note.',
+    highlight: 'glow',
   },
 ];
 
@@ -209,8 +188,6 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
     setRestored(done);
   }
 
-  useEffect(() => { sound.resetPhrase(); }, [number, puzzle]);
-
   // Coming back to a solved puzzle shows how it went, not a blank board.
   useEffect(() => {
     setShowResult(isSolved(readResults(NS)[number]));
@@ -253,6 +230,13 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
     sound.swap();
   }, [solved, colours]);
 
+  // Each move rings a note for how far is left, settling lower as the board comes
+  // right, so the win chord lands as its resolution.
+  useEffect(() => {
+    if (moves > 0 && distance > 0) sound.note(distance);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moves]);
+
   const doTurn = useCallback((k) => {
     if (solved || busy.current || !colours) return;
     busy.current = true;
@@ -284,7 +268,6 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
     setRestored(false);
     setHovered(null);
     setShowResult(false);
-    sound.resetPhrase();
   }, [identity, moves, solved, number]);
 
   const pickPuzzle = useCallback((n) => {
@@ -323,8 +306,8 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
   const tutorial = tutStep >= 0 && tutStep < TUTORIAL.length ? TUTORIAL[tutStep] : null;
   const highlight = tutorial ? tutorial.highlight : null;
 
-  const litPips = distance != null ? Math.min(PIP_COUNT, distance * 2) : 0;
-  const allLit = solved;
+  // How near the board is to solved, from 0 at the scramble to 1 once it's done.
+  const near = solved ? 1 : distance == null || !par ? 0 : Math.max(0, 1 - distance / par);
 
   const dateLabel = dateForNumber(number).toLocaleDateString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
@@ -377,16 +360,12 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
         </div>
 
         <div className="fc-stage" ref={stageRef}>
-          <div className={`fc-board${solved && !restored ? ' is-waving' : ''}`}>
+          <div
+            className={`fc-board${solved && !restored ? ' is-waving' : ''}`}
+            style={{ '--fc-near': highlight === 'glow' ? 0.7 : near }}
+          >
             <div className="fc-plate" />
-
-            {PIPS.map(([x, y], i) => (
-              <div
-                key={`pip-${i}`}
-                className={`fc-pip${allLit || i < litPips ? ' is-on' : ''}${highlight === 'floor' ? ' is-pulsing' : ''}`}
-                style={{ left: `${x}px`, top: `${y}px` }}
-              />
-            ))}
+            <div className={`fc-glow${highlight === 'glow' ? ' is-pulsing' : ''}`} />
 
             {ready && colours && pos.map((tileId, position) => {
               const [row, col] = RC[position];

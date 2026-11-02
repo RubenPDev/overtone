@@ -55,7 +55,7 @@
   --candy-tint-amt: 20%;
   --gloss: 0.1;
   --cast: 26%;
-  --pip-off: rgba(238, 251, 248, 0.12);
+  --glow-max: 1; /* how strongly Facet's board glows once it's nearly solved */
   --ctl-ink: #6f7c79;
 
   --display: 'Nunito', ui-rounded, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -117,7 +117,7 @@
     --candy-tint-amt: 13%;
     --gloss: 0.1;
     --cast: 22%;
-    --pip-off: rgba(247, 239, 228, 0.13);
+    --glow-max: 0.8;
     --ctl-ink: #eadfd2;
   }
 }
@@ -170,7 +170,7 @@
   --candy-tint-amt: 13%;
   --gloss: 0.1;
   --cast: 62%;
-  --pip-off: rgba(247, 239, 228, 0.13);
+  --glow-max: 0.8;
   --ctl-ink: #eadfd2;
 }
 
