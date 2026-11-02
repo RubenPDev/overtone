@@ -54,7 +54,7 @@ export const MELODIES = [
     title: 'La Cucaracha',
     composer: 'trad.',
     notes: [N.C4, N.C4, N.C4, N.F4, N.A4, N.C4, N.C4, N.C4, N.F4, N.A4],
-    gaps: [0.5, 0.5, 0.5, 1, 2, 0.5, 0.5, 0.5, 1],
+    gaps: [0.5, 0.5, 0.5, 1, 1, 0.5, 0.5, 0.5, 1],
     playback: 0.34,
     intro: 'A triplet of quick notes, then two that take their time. Said twice.',
     solved: 'Three short, two long, repeated. The pattern is the phrase.',
