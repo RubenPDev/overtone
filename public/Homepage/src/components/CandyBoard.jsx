@@ -40,7 +40,7 @@ export default function CandyBoard() {
     const on = !devMode();
     setDevMode(on);
     setNote(on
-      ? 'Developer mode on until you leave: every Cadence tune and 30 days of Facet are in the archives.'
+      ? 'Developer mode on until you reload: every Cadence tune and 30 days of Facet are in the archives.'
       : 'Developer mode off.');
   };
 
