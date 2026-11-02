@@ -52,10 +52,10 @@
 
   /* Candy: how much each cell is toned down, and how wet it looks. */
   --candy-tint: #f2f2f2;
-  --candy-tint-amt: 30%;
-  --gloss: 0.82;
-  --cast: 46%;
-  --pip-off: rgba(35, 46, 43, 0.12);
+  --candy-tint-amt: 20%;
+  --gloss: 0.1;
+  --cast: 26%;
+  --pip-off: rgba(238, 251, 248, 0.12);
   --ctl-ink: #6f7c79;
 
   --display: 'Nunito', ui-rounded, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
