@@ -47,7 +47,7 @@ export default function Footer({ navigate }) {
 
       <div className="footer__base">
         <p>© {year} Overtone. All melodies are in the public domain.</p>
-        <p className="footer__note">Made with more patience than sense.</p>
+        <p className="footer__note">Scroll up, you nosy bugger.</p>
       </div>
     </footer>
   );
