@@ -64,11 +64,31 @@ function Face() {
   );
 }
 
+/* Junctions: two streets crossing at a roundabout, with a car on its way in. */
+function Junction() {
+  const road = '#5d6b6d';
+  return (
+    <g transform="translate(32 34) scale(1 .62) rotate(45)">
+      <rect x="-27" y="-6.5" width="54" height="13" rx="3" fill="#c9962e" transform="translate(1.6 1.6)" />
+      <rect x="-6.5" y="-27" width="13" height="54" rx="3" fill="#c9962e" transform="translate(1.6 1.6)" />
+      <rect x="-27" y="-6.5" width="54" height="13" rx="3" fill="#fff8d6" />
+      <rect x="-6.5" y="-27" width="13" height="54" rx="3" fill="#fff8d6" />
+      <circle r="11" fill="#fff8d6" />
+      <circle r="11" fill="none" stroke={road} strokeOpacity=".22" strokeWidth="1.2" />
+      <circle r="4.6" fill="#2fc4a0" transform="translate(1 1)" />
+      <circle r="4.6" fill="#69ffd0" />
+      <rect x="-23" y="0.8" width="7" height="4" rx="1.6" fill="#ec6f78" transform="translate(.9 .9)" />
+      <rect x="-23" y="0.8" width="7" height="4" rx="1.6" fill="#ff9c9f" />
+    </g>
+  );
+}
+
 export default function Glyph({ kind, className }) {
   return (
     <svg className={className} viewBox="0 0 64 64" aria-hidden="true">
       {kind === 'pad' && <Pad />}
       {kind === 'facet' && <Face />}
+      {kind === 'junction' && <Junction />}
     </svg>
   );
 }

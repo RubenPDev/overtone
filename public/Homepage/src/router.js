@@ -63,7 +63,7 @@ export function parseRoute(path) {
   if (clean === '/privacy') return { view: 'privacy' };
   if (clean === '/archive') return { view: 'archive' };
 
-  const m = clean.match(/^\/(cadence|facet)(?:\/(\d+))?$/);
+  const m = clean.match(/^\/(cadence|facet|junctions)(?:\/(\d+))?$/);
   if (m) return { view: m[1], puzzle: m[2] ? parseInt(m[2], 10) : null };
 
   return { view: 'home' };

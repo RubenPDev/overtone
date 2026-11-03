@@ -475,8 +475,14 @@ main a:not(.card):hover { text-decoration-color: currentColor; }
   gap: 16px;
   margin-top: 16px;
 }
-/* The games that are out, side by side in full, each with its description. */
-.games__grid--live { grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); }
+/* The games that are out, each in full with its description: one per row until
+   there's room for all three side by side. */
+.games__grid--live { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1000px) {
+  .games__grid--live { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .games__grid--live .card--featured { flex-direction: column; gap: 18px; padding: 26px; }
+  .games__grid--live .card.card--featured .card__mark { width: 72px; height: 72px; border-radius: 22px; }
+}
 
 .card {
   position: relative;

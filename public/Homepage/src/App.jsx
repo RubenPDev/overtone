@@ -9,6 +9,7 @@ import LikeCount from './components/LikeCount.jsx';
 import Privacy from './components/Privacy.jsx';
 import CadenceGame from './games/cadence/CadenceGame.jsx';
 import FacetGame from './games/facet/FacetGame.jsx';
+import JunctionsGame from './games/junctions/JunctionsGame.jsx';
 import { resetForNewRules } from './lib/progress.js';
 import { reportVisit } from './lib/stats.js';
 import { useTheme } from './lib/useTheme.js';
@@ -33,7 +34,7 @@ function Home({ navigate }) {
           <h1 className="hero__title">Daily puzzles<br />for your ears.</h1>
           <p className="hero__lede">
             One minute a day. No account, no app, no price. Just a tune you half-remember,
-            or a scrambled block of colour and the shortest way back.
+            a scrambled block of colour and the shortest way back, or a town’s rush hour to untangle.
           </p>
         </div>
         <CandyBoard />
@@ -74,6 +75,9 @@ export default function App() {
   }
   if (route.view === 'facet') {
     return <FacetGame puzzleNumber={route.puzzle} onNavigate={navigate} isDark={isDark} onToggleTheme={toggle} />;
+  }
+  if (route.view === 'junctions') {
+    return <JunctionsGame puzzleNumber={route.puzzle} onNavigate={navigate} isDark={isDark} onToggleTheme={toggle} />;
   }
 
   return (

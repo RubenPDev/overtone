@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 
 const KEY = 'overtone:theme';
 
@@ -36,7 +36,8 @@ export function useTheme() {
 
   const resolved = override ?? (systemDark ? 'dark' : 'light');
 
-  useEffect(() => {
+  // Before any effect runs, so a canvas re-reading the theme's colours sees the new ones.
+  useLayoutEffect(() => {
     const root = document.documentElement;
     if (override) root.setAttribute('data-theme', override);
     else root.removeAttribute('data-theme');

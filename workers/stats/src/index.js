@@ -5,15 +5,18 @@
    is fine for gauging interest but rules out leaderboards. */
 
 // The site's own catalogues, so launch dates and puzzle order can't drift apart.
-// Changing melodies.js or Facet's launch date means redeploying this Worker too.
+// Changing melodies.js, or any game's launch date, means redeploying this Worker too.
 import * as cadence from '../../../public/Homepage/src/games/cadence/melodies.js';
 import * as facet from '../../../public/Homepage/src/games/facet/solver.js';
+import * as junctions from '../../../public/Homepage/src/games/junctions/puzzles.js';
 import { DASHBOARD_HTML } from './dashboard.js';
 
 const ALLOWED_ORIGINS = new Set(['https://overtone.games', 'https://www.overtone.games']);
 const GAMES = {
   cadence: { ...cadence, titleFor: (n) => cadence.melodyForNumber(n).title },
   facet: { ...facet, titleFor: () => undefined },
+  // "solved" is a perfect flow, "assisted" cleared with some street going red.
+  junctions: { ...junctions, titleFor: () => undefined },
 };
 const EVENTS = new Set([
   'started', 'played', 'solved', 'assisted',

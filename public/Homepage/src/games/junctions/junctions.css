@@ -1,0 +1,198 @@
+/* ============================================================
+   Junctions. Shares Facet's page layout and chrome; the city itself
+   is drawn on a canvas, and reads its colours from here.
+   ============================================================ */
+
+.junctions {
+  --jn-grass: #bfe8a6;
+  --jn-grass-2: #a9dd94;
+  --jn-grass-side: #8fcb78;
+  --jn-soil: #d8b48f;
+  --jn-soil-2: #c39d79;
+  --jn-road: #7f89b0;
+  --jn-road-side: #7f89b0;
+  --jn-mark: #ffffff;
+  --jn-walk: #f7f1e6;
+  --jn-walk-side: #e1d8c6;
+  --jn-bridge: #8991b3;
+  --jn-bridge-side: #6f7489;
+  --jn-glass: #cfe9f7;
+  --jn-window: #d9eefa;
+  --jn-frame: #ffffff;
+  --jn-trunk: #c49470;
+  --jn-unit: #e7e9f0;
+  --jn-cast: rgba(70, 80, 120, 0.17);
+  --jn-shade: #6a5a86;   /* what a colour's shaded sides are mixed towards */
+  --jn-dim: 0;           /* how much darker everything is in the evening */
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .junctions {
+    --jn-grass: #4f8f63;
+    --jn-grass-2: #478559;
+    --jn-grass-side: #3b7150;
+    --jn-soil: #7a5240;
+    --jn-soil-2: #5c3c31;
+    --jn-road: #3f4566;
+    --jn-road-side: #686c8e;
+    --jn-mark: rgba(235, 238, 255, 0.55);
+    --jn-walk: #8a86a6;
+    --jn-walk-side: #625e80;
+    --jn-bridge: #9da3da;
+    --jn-bridge-side: #4b5075;
+    --jn-glass: #7fa6d6;
+    --jn-window: #ffd98a;  /* lights on, for the evening */
+    --jn-frame: #b5aac6;
+    --jn-trunk: #9a6c52;
+    --jn-unit: #c3bfd6;
+    --jn-cast: rgba(14, 10, 40, 0.34);
+    --jn-shade: #1c1942;   /* evening shade is blue, not black */
+    --jn-dim: 0.3;
+  }
+}
+:root[data-theme='dark'] .junctions {
+  --jn-grass: #4f8f63;
+  --jn-grass-2: #478559;
+  --jn-grass-side: #3b7150;
+  --jn-soil: #7a5240;
+  --jn-soil-2: #5c3c31;
+  --jn-road: #3f4566;
+  --jn-road-side: #3f4566;
+  --jn-mark: rgba(158, 164, 202, 0.754);
+  --jn-walk: #a7a3c4;
+  --jn-walk-side: #625e80;
+  --jn-bridge: #4f587e;
+  --jn-bridge-side: #4f587e;
+  --jn-glass: #7fa6d6;
+  --jn-window: #ffd98a;  /* lights on, for the evening */
+  --jn-frame: #b5aac6;
+  --jn-trunk: #9a6c52;
+  --jn-unit: #c3bfd6;
+  --jn-cast: rgba(14, 10, 40, 0.34);
+  --jn-shade: #4268b3;   /* evening shade is blue, not black */
+  --jn-dim: 0.3;
+}
+
+/* ---------- the score line ---------- */
+
+.jn-score__run { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.jn-clock { font-size: 22px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ---------- tools ---------- */
+
+.jn-tools {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+  border-radius: 20px;
+}
+.jn-tool {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 10px 4px 9px;
+  font: inherit;
+  color: var(--ink-2);
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: 18px;
+  box-shadow: 0 2px 0 var(--rule-2);
+  cursor: pointer;
+  transition: background 160ms, color 160ms, transform 160ms, box-shadow 160ms;
+}
+.jn-tool:hover:not(:disabled) { background: var(--card-hover); color: var(--ink); }
+.jn-tool:disabled { opacity: 0.55; cursor: default; }
+.jn-tool.is-on {
+  color: var(--btn-ink);
+  background: var(--btn);
+  border-color: transparent;
+  box-shadow: 0 3px 0 var(--btn-side);
+  transform: translateY(-1px);
+}
+.jn-tool__name { font-size: 13px; font-weight: 800; line-height: 1.2; }
+.jn-tool__cost { font-size: 12px; font-weight: 700; opacity: 0.75; }
+
+.jn-icon {
+  width: 24px; height: 24px;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.jn-icon__fill { fill: currentColor; stroke: none; }
+
+/* ---------- the board ---------- */
+
+.jn-stage {
+  --fc-board-h: 340;
+  position: relative;
+  aspect-ratio: 1.5; /* the tilted plate's own shape, so there's no empty band */
+  display: block;
+  max-height: none;
+}
+.jn-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: manipulation;
+}
+.jn-spot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.jn-spot:disabled { cursor: default; }
+.jn-spot:focus { outline: none; }
+.jn-spot:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.jn-loading {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-size: 15px; font-weight: 700; color: var(--ink-3);
+}
+
+/* Said over the junction that the budget can't stretch to. */
+.jn-refusal {
+  position: absolute;
+  transform: translate(-50%, -150%);
+  padding: 5px 12px;
+  font-size: 13px; font-weight: 800; white-space: nowrap;
+  color: var(--bad-ink, var(--ink));
+  background: var(--sheet);
+  border: 1px solid var(--card-edge);
+  border-radius: 100px;
+  box-shadow: 0 10px 20px -14px var(--shadow);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .jn-refusal { animation: jn-nudge 360ms ease; }
+}
+@keyframes jn-nudge {
+  0%, 100% { translate: 0 0; }
+  25% { translate: -5px 0; }
+  75% { translate: 5px 0; }
+}
+
+.junctions .fc-actions .cad__btn--round svg rect { fill: currentColor; stroke: none; }
+
+/* ---------- wide screens ---------- */
+
+@media (min-width: 1024px) and (min-height: 560px) {
+  .junctions .facet__stage-wrap {
+    grid-template-rows: auto 1fr repeat(5, auto) 1fr;
+    grid-template-areas:
+      "bar     bar"
+      ".       board"
+      "mast    board"
+      "score   board"
+      "tools   board"
+      "msg     board"
+      "actions board"
+      ".       board";
+  }
+  .jn-tools { grid-area: tools; margin-bottom: 22px; }
+  .jn-stage { grid-area: board; aspect-ratio: auto; min-height: 0; }
+}

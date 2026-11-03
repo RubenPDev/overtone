@@ -120,6 +120,12 @@ footer a { color: inherit; }
     <div class="scroll"><table id="facet-puzzles"></table></div>
   </section>
 
+  <section>
+    <h2>Junctions puzzles</h2>
+    <p class="sub">One count per browser, per puzzle. Cleared is 90% of the traffic through; perfect is that with no street ever going red. Only finished runs count as tries.</p>
+    <div class="scroll"><table id="junctions-puzzles"></table></div>
+  </section>
+
   <div class="grid">
     <section><h2>Countries</h2><p class="sub">Players, all time.</p><div id="countries"></div></section>
     <section><h2>Where new visitors came from</h2><p class="sub">"Direct" includes apps that hide the link they came from.</p><div id="sources"></div></section>
@@ -397,6 +403,10 @@ function render(data) {
   });
   renderPuzzles('facet-puzzles', 'facet', ['#', 'Date', 'Started', 'Solved', 'First try', 'Finish rate'], function (p) {
     return [fmt(p.started), fmt(p.solved), firstTry(p), pct(p.solved, p.started)];
+  });
+  renderPuzzles('junctions-puzzles', 'junctions', ['#', 'Date', 'Started', 'Cleared', 'Perfect', 'First try', 'Clear rate'], function (p) {
+    var cleared = p.solved + p.assisted;
+    return [fmt(p.started), fmt(cleared), fmt(p.solved), firstTry(p), pct(cleared, p.started)];
   });
 
   renderBars(byId('countries'), Object.keys(data.players.countries).slice(0, 15).map(function (c) {

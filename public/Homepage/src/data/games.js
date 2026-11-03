@@ -39,6 +39,20 @@ export const GAMES = [
     storageKey: 'facet',
     launched: '2026-10-31',
   },
+  {
+    id: 'junctions',
+    name: 'Junctions',
+    tagline: 'Keep the rush hour moving',
+    description:
+      'A small town, a highway and a rush hour on its way. Spend a tight budget on lights, ' +
+      'roundabouts and flyovers, then watch the traffic run. Clear it, or clear it without a single street going red.',
+    href: '/junctions',
+    glyph: 'junction',
+    accent: '255 230 106',
+    status: 'live',
+    storageKey: 'junctions',
+    launched: '2026-11-02',
+  },
 ];
 
 export const LIVE_GAMES = GAMES.filter((g) => g.status === 'live');
