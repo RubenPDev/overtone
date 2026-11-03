@@ -732,7 +732,13 @@ export function createRenderer(canvas, day) {
         let a1 = Math.atan2(lane.y0 - node.y, lane.x0 - node.x);
         while (a1 > a0) a1 -= Math.PI * 2; // round anticlockwise
         const a = a0 + (a1 - a0) * t;
-        return { x: node.x + Math.cos(a) * ROUNDABOUT_R, y: node.y + Math.sin(a) * ROUNDABOUT_R, dx: Math.sin(a), dy: -Math.cos(a), node, type, from };
+        // Swing round from the street onto the ring and back off it, rather than turning on the spot.
+        const fu = [(from.x1 - from.x0) / from.len, (from.y1 - from.y0) / from.len];
+        const on = Math.min(1, t / 0.2);
+        const off = Math.max(0, (t - 0.8) / 0.2);
+        const dx = (fu[0] * (1 - on) + Math.sin(a) * on) * (1 - off) + ux * off;
+        const dy = (fu[1] * (1 - on) - Math.cos(a) * on) * (1 - off) + uy * off;
+        return { x: node.x + Math.cos(a) * ROUNDABOUT_R, y: node.y + Math.sin(a) * ROUNDABOUT_R, dx, dy, node, type, from };
       }
       const s = 1 - t;
       const cx = node.x + (from.x1 - node.x + lane.x0 - node.x) * 0.15;

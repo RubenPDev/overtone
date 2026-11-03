@@ -6,6 +6,9 @@
  *
  * Days already in the file are kept unless --redo is given; run it with --redo
  * after any change to the city or the traffic, since that changes every day.
+ * Or name just the days to redo, say the ones check-junctions flags:
+ *
+ *   node scripts/tune-junctions.mjs --days=4,10,13
  */
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
@@ -18,8 +21,10 @@ if (isMainThread) {
   const [from = 1, to = 60] = process.argv.slice(2).filter((a) => !a.startsWith('--')).map(Number);
   const redo = process.argv.includes('--redo');
   const days = new Map(JSON.parse(readFileSync(FILE, 'utf8')).map((d) => [d.n, d]));
+  const named = process.argv.find((a) => a.startsWith('--days='));
   const todo = [];
-  for (let n = from; n <= to; n++) if (redo || !days.has(n)) todo.push(n);
+  if (named) todo.push(...named.slice('--days='.length).split(',').map(Number));
+  else for (let n = from; n <= to; n++) if (redo || !days.has(n)) todo.push(n);
   console.log(`${todo.length} days to tune on ${availableParallelism()} cores`);
 
   const save = () => writeFileSync(FILE, `[\n${[...days.values()].sort((a, b) => a.n - b.n).map((d) => JSON.stringify(d)).join(',\n')}\n]\n`);

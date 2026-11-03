@@ -50,7 +50,10 @@ const STARTUP = 1; // the first car off a fresh green is slow to go
 const SENSOR = 25; // how far back from the stop line the lights see a car coming
 // Roundabout: arms are a quarter turn apart, and traffic goes round anticlockwise.
 const SECTOR = 0.85;
-const ROUNDABOUT_GAP = 1.25;
+const RING_FOLLOW = 0.6; // seconds behind the car ahead on the ring
+const RING_SLOW = 14;    // metres before the ring that cars ease off
+const RING_SPEED = 7;    // and how fast they roll on
+const ROUNDABOUT_GAP = 1.0;
 const ROUNDABOUT_HOLD = 6;
 // Flyover: one road passes over the other, so straight on is free; turning means
 // taking the ramps, which meet at ground level and give way to each other.
@@ -259,13 +262,26 @@ export function createRun(city, net, trips, junctions) {
     return !last || last.pos >= CAR_GAP;
   };
 
+  /* Room for one more on a roundabout: the car ahead only needs to be on its way
+     round, not off it, since cars follow each other round the ring. */
+  const ringRoom = (lane) => {
+    const last = lane.cars[lane.cars.length - 1];
+    return tailRoom(lane) || (last.hold > 0 && last.crossing.dur - last.hold >= RING_FOLLOW);
+  };
+
   const admit = (node, lane, car, nextLane, gap) => {
     lane.cars.shift();
     const turn = turnOf(lane.heading, nextLane.heading);
+    const ahead = nextLane.cars[nextLane.cars.length - 1];
     car.lane = nextLane.id;
     car.ri += 1;
     car.pos = 0;
-    car.hold = node.type === 'roundabout' ? 0.5 + SECTOR * sectorsFor(turn) : CROSS[turn];
+    car.hold = CROSS[turn];
+    if (node.type === 'roundabout') {
+      // Round the ring, easing off behind anyone ahead going the same way.
+      car.hold = 0.5 + SECTOR * sectorsFor(turn);
+      if (ahead && ahead.hold > 0) car.hold = Math.max(car.hold, ahead.hold + CAR_GAP / nextLane.speed);
+    }
     car.crossing = { from: lane.id, turn, dur: car.hold };
     car.waiting = 0;
     car.since = 0;
@@ -324,22 +340,21 @@ export function createRun(city, net, trips, junctions) {
     },
 
     roundabout(node, ready) {
-      node.circle = node.circle.filter((c) => run.t < c.at + c.sectors * SECTOR);
+      node.circle = node.circle.filter((c) => run.t < c.at + c.sectors * c.per);
       for (const r of ready) {
         if (run.t < node.nextFree.get(r.lane.id)) continue;
         if (node.circle.length >= ROUNDABOUT_HOLD) return;
         const arm = (r.lane.heading + 2) % 4;
         // Give way to anything about to come round past this arm.
         const blocked = node.circle.some((c) => {
-          const k = Math.floor((run.t - c.at) / SECTOR);
+          const k = Math.floor((run.t - c.at) / c.per);
           const nextArm = (c.arm - (k + 1) + 8) % 4;
-          const untilThere = c.at + (k + 1) * SECTOR - run.t;
+          const untilThere = c.at + (k + 1) * c.per - run.t;
           return nextArm === arm && nextArm !== c.exit && untilThere < 1.0;
         });
         if (blocked) continue;
-        const turn = turnOf(r.lane.heading, r.next.heading);
-        node.circle.push({ arm, exit: r.next.heading, at: run.t, sectors: sectorsFor(turn) });
-        admit(node, r.lane, r.car, r.next, ROUNDABOUT_GAP);
+        const sectors = sectorsFor(admit(node, r.lane, r.car, r.next, ROUNDABOUT_GAP));
+        node.circle.push({ arm, exit: r.next.heading, at: run.t, sectors, per: (r.car.hold - 0.5) / sectors });
       }
     },
 
@@ -401,6 +416,7 @@ export function createRun(city, net, trips, junctions) {
     // Move everyone along: the front car up to its stop line, the rest up to the car ahead.
     for (const lane of lanes) {
       const cars = lane.cars;
+      const ring = nodes.get(lane.to)?.type === 'roundabout';
       let stopped = 0;
       let moving = 0;
       for (let i = 0; i < cars.length; i++) {
@@ -408,9 +424,11 @@ export function createRun(city, net, trips, junctions) {
         if (car.hold > 0) { car.hold -= DT; moving++; continue; }
         const limit = i === 0 ? lane.len : cars[i - 1].pos - CAR_GAP;
         const before = car.pos;
-        car.pos = Math.max(car.pos, Math.min(car.pos + lane.speed * DT, limit));
+        // Coming up to a roundabout, cars ease off to roll on rather than stop.
+        const speed = ring && car.pos > lane.len - RING_SLOW ? RING_SPEED : lane.speed;
+        car.pos = Math.max(car.pos, Math.min(car.pos + speed * DT, limit));
         const moved = car.pos - before;
-        if (moved < lane.speed * DT * 0.25) { stopped++; car.waiting += DT; } else { moving++; car.waiting = 0; }
+        if (moved < speed * DT * 0.25) { stopped++; car.waiting += DT; } else { moving++; car.waiting = 0; }
       }
       // Heat is the share of the street taken up by a standing queue; cars that
       // can't even get onto the plate count too.
@@ -439,7 +457,7 @@ export function createRun(city, net, trips, junctions) {
         if (!car || car.hold > 0 || car.pos < lane.len - 0.01) continue;
         if (!car.since) car.since = t;
         const next = lanes[car.path[car.ri + 1]];
-        if (next && tailRoom(next)) ready.push({ lane, car, next });
+        if (next && (node.type === 'roundabout' ? ringRoom(next) : tailRoom(next))) ready.push({ lane, car, next });
       }
       // Lights keep their own time, so they're asked even when no one's ready.
       if (ready.length || node.type === 'lights') controllers[node.type](node, ready);
