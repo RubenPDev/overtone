@@ -150,11 +150,25 @@ export function createRenderer(canvas, day) {
     const h = canvas.clientHeight;
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
-    const across = SIZE * Math.SQRT2;
-    const tall = across * COS_T + (PLATE_DEPTH + TALLEST) * SIN_T;
-    k = Math.min((w * 0.97) / across, (h * 0.97) / tall);
-    ox = w / 2;
-    oy = h / 2 + ((TALLEST - PLATE_DEPTH) * SIN_T * k) / 2;
+    // On a wide screen the whole plate shows. On a narrow one the board fits to its
+    // streets instead, so they're as big as they can be; the plate's corners, with
+    // only houses and trees on them, can run off the edges.
+    const narrow = w < 600;
+    const focus = narrow
+      ? [
+        ...city.nodes.flatMap((n) => [[n.x - ROAD_W, n.y - ROAD_W], [n.x + ROAD_W, n.y + ROAD_W], [n.x + ROAD_W, n.y - ROAD_W], [n.x - ROAD_W, n.y + ROAD_W]]),
+        ...city.portals.map((p) => [p.x + DX[p.heading] * 14, p.y + DY[p.heading] * 14]),
+      ]
+      : [[0, 0], [SIZE, 0], [SIZE, SIZE], [0, SIZE]];
+    const us = focus.map(([x, y]) => (x - y) / Math.SQRT2);
+    const vs = focus.map(([x, y]) => ((x + y - SIZE) / Math.SQRT2) * COS_T);
+    const above = (narrow ? TALLEST * 0.6 : TALLEST) * SIN_T;
+    const below = (narrow ? 0 : PLATE_DEPTH) * SIN_T;
+    const across = Math.max(...us) - Math.min(...us);
+    const tall = Math.max(...vs) - Math.min(...vs) + above + below;
+    k = Math.min((w * (narrow ? 1 : 0.97)) / across, (h * 0.97) / tall);
+    ox = w / 2 - ((Math.max(...us) + Math.min(...us)) / 2) * k;
+    oy = h / 2 - ((Math.max(...vs) + Math.min(...vs)) / 2) * k + ((above - below) * k) / 2;
     ground = null;
     sprites.clear();
   }
@@ -373,13 +387,20 @@ export function createRenderer(canvas, day) {
 
   /* ---------- lanes, and what's built at each junction ---------- */
 
-  /** How high a flyover lifts a point on an east-west road near it. */
-  function rampZ(types, x, y) {
+  /* Which way a flyover's bridge runs: along the road that goes straight through
+     (1 east-west, 0 north-south), east-west where both do. */
+  const axisOf = (n) => (n.links[1] !== null && n.links[3] !== null ? 1 : 0);
+
+  /** How high a flyover lifts a point on the road it carries; `axis` limits it to roads one way. */
+  function rampZ(types, x, y, axis = null) {
     for (const n of city.nodes) {
-      if (types[n.id] !== 'flyover' || Math.abs(y - n.y) > ROAD_W / 2 + 0.5) continue;
-      const d = Math.abs(x - n.x);
-      if (d >= BRIDGE_REACH) continue;
-      return d <= BRIDGE_FLAT ? BRIDGE_H : BRIDGE_H * (1 - (d - BRIDGE_FLAT) / (BRIDGE_REACH - BRIDGE_FLAT));
+      if (types[n.id] !== 'flyover') continue;
+      const a = axisOf(n);
+      if (axis !== null && axis !== a) continue;
+      const along = a === 1 ? Math.abs(x - n.x) : Math.abs(y - n.y);
+      const across = a === 1 ? Math.abs(y - n.y) : Math.abs(x - n.x);
+      if (across > ROAD_W / 2 + 0.5 || along >= BRIDGE_REACH) continue;
+      return along <= BRIDGE_FLAT ? BRIDGE_H : BRIDGE_H * (1 - (along - BRIDGE_FLAT) / (BRIDGE_REACH - BRIDGE_FLAT));
     }
     return 0;
   }
@@ -399,7 +420,7 @@ export function createRenderer(canvas, day) {
       for (let s = lane.offPlate; ; s += 1) {
         const end = s >= lane.len;
         const [x, y] = laneAt(lane, Math.min(s, lane.len));
-        const onRamp = !end && lane.heading % 2 === 1 && rampZ(types, x, y) > 0;
+        const onRamp = !end && rampZ(types, x, y, lane.heading % 2) > 0;
         if (from === null && !onRamp && !end) from = s;
         if (from !== null && (onRamp || end)) {
           const [x0, y0] = laneAt(lane, from);
@@ -653,35 +674,43 @@ export function createRenderer(canvas, day) {
   function bridge(n) {
     const deck = theme.tint(theme.bridge);
     const side = theme.tint(theme.bridgeSide);
+    const a = axisOf(n);
+    const lift = (x, y) => Math.max(ROAD_TOP, rampZ({ [n.id]: 'flyover' }, x, y));
+    // A point `t` along the bridge and `s` across it, towards the viewer.
+    const at = (t, s) => (a === 1 ? [n.x + t, n.y + s] : [n.x + s, n.y + t]);
     for (const sx of [-1, 1]) {
-      const px = n.x + sx * (ROAD_W / 2 + 1.6);
-      box(px - 1, n.y - ROAD_W / 2 + 1.5, px + 1, n.y + ROAD_W / 2 - 1.5, ROAD_TOP, BRIDGE_H - 0.9, side);
+      const [cx, cy] = at(sx * (ROAD_W / 2 + 1.6), 0);
+      const [hx, hy] = a === 1 ? [1, ROAD_W / 2 - 1.5] : [ROAD_W / 2 - 1.5, 1];
+      box(cx - hx, cy - hy, cx + hx, cy + hy, ROAD_TOP, BRIDGE_H - 0.9, side);
     }
     const w = HIGHWAY_W / 2;
-    const xs = Array.from({ length: 33 }, (_, i) => n.x - BRIDGE_REACH + (i / 32) * BRIDGE_REACH * 2);
-    const z = (x) => Math.max(ROAD_TOP, rampZ({ [n.id]: 'flyover' }, x, n.y));
+    const ts = Array.from({ length: 33 }, (_, i) => -BRIDGE_REACH + (i / 32) * BRIDGE_REACH * 2);
+    const Q = (t, s, dz) => { const [x, y] = at(t, s); return P(x, y, lift(...at(t, 0)) + dz); };
     // The near side, as one shape under the deck's edge, then the deck.
-    fill([...xs.map((x) => P(x, n.y + w, z(x))), ...xs.slice().reverse().map((x) => P(x, n.y + w, Math.max(0, z(x) - 1)))], side.left);
-    fill([...xs.map((x) => P(x, n.y - w, z(x) + 0.01)), ...xs.slice().reverse().map((x) => P(x, n.y + w, z(x) + 0.01))], deck.top);
-    ctx.fillStyle = theme.mark;
-    for (let i = 2; i < xs.length - 3; i += 4) {
-      const a = xs[i];
-      const b = xs[i + 2];
-      fill(strip(a, n.y, b, n.y, 0.7).map(([x, y]) => P(x, y, z(x) + 0.02)), theme.mark);
+    fill([...ts.map((t) => Q(t, w, 0)), ...ts.slice().reverse().map((t) => { const [x, y] = at(t, w); return P(x, y, Math.max(0, lift(...at(t, 0)) - 1)); })], side.left);
+    fill([...ts.map((t) => Q(t, -w, 0.01)), ...ts.slice().reverse().map((t) => Q(t, w, 0.01))], deck.top);
+    for (let i = 2; i < ts.length - 3; i += 4) {
+      const [x0, y0] = at(ts[i], 0);
+      const [x1, y1] = at(ts[i + 2], 0);
+      fill(strip(x0, y0, x1, y1, 0.7).map(([x, y]) => P(x, y, lift(x, y) + 0.02)), theme.mark);
     }
   }
 
   /** The heat on a flyover's deck, which the stripes on the ground can't show. */
   function deckHeat(n, run, types, usePeak) {
+    const a = axisOf(n);
     for (const lane of run.lanes) {
-      if (lane.heading % 2 !== 1 || Math.abs(lane.y0 - n.y) > ROAD_W / 2) continue;
+      if (lane.heading % 2 !== a || Math.abs(a === 1 ? lane.y0 - n.y : lane.x0 - n.x) > ROAD_W / 2) continue;
       const along = [];
       for (let s = lane.offPlate; s <= lane.len; s += 1.5) {
         const [x, y] = laneAt(lane, Math.min(s, lane.len));
-        if (Math.abs(x - n.x) < BRIDGE_REACH + 1) along.push([x, y]);
+        if (Math.abs(a === 1 ? x - n.x : y - n.y) < BRIDGE_REACH + 1) along.push([x, y]);
       }
       if (along.length < 2) continue;
-      const lift = ([x, y], side) => P(x, y + side * (HEAT_W / 2), Math.max(ROAD_TOP, rampZ(types, x, y)) + 0.03);
+      const lift = ([x, y], side) => {
+        const [sx, sy] = a === 1 ? [x, y + side * (HEAT_W / 2)] : [x + side * (HEAT_W / 2), y];
+        return P(sx, sy, Math.max(ROAD_TOP, rampZ(types, x, y, a)) + 0.03);
+      };
       fill([...along.map((q) => lift(q, -1)), ...along.slice().reverse().map((q) => lift(q, 1))], heatColour(usePeak ? lane.peak : lane.heat));
     }
   }
@@ -785,13 +814,14 @@ export function createRenderer(canvas, day) {
           let depth = p.x + p.y;
           if (p.type === 'flyover') {
             // Straight across east-west goes over the deck; anything else, under it.
-            const over = p.from.heading % 2 === 1 && p.from.heading === lane.heading;
+            const over = p.from.heading % 2 === axisOf(p.node) && p.from.heading === lane.heading;
             if (over) { z += BRIDGE_H; depth = p.node.x + p.node.y + 1; } else depth = p.node.x + p.node.y - 1;
-          } else if (lane.heading % 2 === 1) {
-            const lift = rampZ(types, p.x, p.y);
+          } else {
+            const lift = rampZ(types, p.x, p.y, lane.heading % 2);
             if (lift > 0) {
               z += lift;
-              const n = city.nodes.find((q) => types[q.id] === 'flyover' && Math.abs(q.y - p.y) < ROAD_W);
+              const n = city.nodes.find((q) => types[q.id] === 'flyover' && axisOf(q) === lane.heading % 2
+                && Math.hypot(q.x - p.x, q.y - p.y) < BRIDGE_REACH + ROAD_W);
               if (n) depth = n.x + n.y + 1;
             }
           }

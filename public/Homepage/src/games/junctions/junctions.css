@@ -128,6 +128,11 @@
   display: block;
   max-height: none;
 }
+/* A phone shows the streets rather than the whole plate (see render.js), edge to
+   edge, which is a little taller than the plate's own shape. */
+@media (max-width: 599px) {
+  .jn-stage { aspect-ratio: 1.22; }
+}
 .jn-canvas {
   display: block;
   width: 100%;

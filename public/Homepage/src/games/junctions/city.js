@@ -220,13 +220,22 @@ function buildBlocks(nodes, live, links, rand) {
         const px1 = bx0 + (c + 1) * pw - 1.5;
         const py1 = by0 + (r + 1) * ph - 1.5;
         const roll = rand();
-        if (roll < 0.3) {
-          // A tower stands in the middle of its plot.
+        // Seen from the south-east, a tall building hides whatever is up and to its
+        // left on screen. From a block's west plot that's only the block itself, so
+        // towers go there; the north plot stands right in front of a junction, so it
+        // only gets something low.
+        const west = c === 0 && r === rows - 1;
+        const north = c === 0 && r === 0;
+        if (west && roll < 0.85) {
           const m = Math.min(px1 - px0, py1 - py0) * 0.18;
           place(px0 + m, py0 + m, px1 - m, py1 - m, 'tower', 16 + rand() * 10);
-        } else if (roll < 0.62) place(px0, py0, px1, py1, 'flats', 8 + rand() * 6);
-        else if (roll < 0.8) place(px0, py0, px1, py1, 'shop', 4.5 + rand());
-        else if (roll < 0.9) place(px0 + 2, py0 + 2, px1 - 2, py1 - 2, 'house', 4.5 + rand());
+        } else if (north) {
+          if (roll < 0.45) place(px0, py0, px1, py1, 'shop', 4.5 + rand());
+          else if (roll < 0.75) place(px0 + 2, py0 + 2, px1 - 2, py1 - 2, 'house', 4.5 + rand());
+          else grove(px0, py0, px1, py1, 2 + Math.floor(rand() * 2));
+        } else if (roll < 0.5) place(px0, py0, px1, py1, 'flats', 8 + rand() * 6);
+        else if (roll < 0.75) place(px0, py0, px1, py1, 'shop', 4.5 + rand());
+        else if (roll < 0.88) place(px0 + 2, py0 + 2, px1 - 2, py1 - 2, 'house', 4.5 + rand());
         else grove(px0, py0, px1, py1, 2 + Math.floor(rand() * 2));
       }
     }
