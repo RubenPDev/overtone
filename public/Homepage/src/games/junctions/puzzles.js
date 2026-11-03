@@ -121,7 +121,7 @@ export function worldFor(n, variant = 0) {
 
 function budgetFor(n, variant) {
   const rand = rng(n * 977 + variant);
-  return 8 + Math.floor(rand() * 3) * 2; // 8, 10 or 12
+  return 6 + Math.floor(rand() * 3) * 2; // 6, 8 or 10
 }
 
 /**
@@ -133,7 +133,7 @@ export function tune(n) {
   for (let variant = 0; variant < 24; variant++) {
     const world = worldFor(n, variant);
     const junctionCount = world.city.nodes.filter((x) => x.kind === 'junction').length;
-    if (junctionCount < 5) continue;
+    if (junctionCount < 4) continue;
     for (let budget = budgetFor(n, variant); budget <= 14; budget += 2) {
       // Search the demand: perfect is possible below it, not above.
       let lo = MIN_DEMAND;

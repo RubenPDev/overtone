@@ -805,12 +805,15 @@ export function createRenderer(canvas, day) {
 
   /* ---------- labels ---------- */
 
+  /* Sized with the board, so on a phone a tag stays a tag and doesn't cover the town. */
   function label(text, x, y, bg, ink) {
-    ctx.font = '800 18px Nunito, system-ui, sans-serif';
-    const w = ctx.measureText(text).width + 34;
+    const s = Math.max(0.55, Math.min(1, k / 2.6));
+    ctx.save();
+    ctx.font = `800 ${Math.round(18 * s)}px Nunito, system-ui, sans-serif`;
+    const w = ctx.measureText(text).width + 34 * s;
     ctx.fillStyle = bg;
     ctx.beginPath();
-    ctx.roundRect(x - w / 2, y - 15, w, 30, 10);
+    ctx.roundRect(x - w / 2, y - 15 * s, w, 30 * s, 10 * s);
     ctx.fill();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
     ctx.shadowBlur = 4;
@@ -820,6 +823,7 @@ export function createRenderer(canvas, day) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, x, y + 0.5);
+    ctx.restore();
   }
 
   function drawHighwayTags() {

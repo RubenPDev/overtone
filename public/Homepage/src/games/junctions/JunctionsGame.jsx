@@ -122,14 +122,18 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
   const [refusal, setRefusal] = useState(null);
   const closeResult = useCallback(() => setShowResult(false), []);
 
-  // A new day starts from the player's own layout, if they've played it before.
+  // A new day starts from the player's own layout, if they've played it before,
+  // keeping only junctions that this day's town really has.
   useEffect(() => {
-    setConfig(readLayouts()[number] ?? {});
+    if (!day) return;
+    const saved = readLayouts()[number] ?? {};
+    const real = new Set(day.city.nodes.filter((n) => n.kind === 'junction').map((n) => String(n.id)));
+    setConfig(Object.fromEntries(Object.entries(saved).filter(([id]) => real.has(id))));
     setRun(null);
     setPhase('plan');
     setScore(null);
     setShowResult(isSolved(readResults(NS)[number]));
-  }, [number]);
+  }, [number, day]);
 
   const budget = day?.budget ?? 0;
   const spent = costOf(config);

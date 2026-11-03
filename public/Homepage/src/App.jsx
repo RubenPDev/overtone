@@ -18,6 +18,8 @@ import { GAMES } from './data/games.js';
 
 // Outer rows became part of the goal, which replaced every Facet board.
 resetForNewRules('facet', 'full-colour');
+// Junctions moved to a smaller town, so every day's city is new.
+resetForNewRules('junctions', 'small-town');
 
 function formatToday() {
   return new Date().toLocaleDateString(undefined, {

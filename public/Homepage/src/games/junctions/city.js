@@ -20,8 +20,8 @@ export function rng(seed) {
   };
 }
 
-export const COLS = 4;
-export const ROWS = 4;
+export const COLS = 3; // junctions across: a two-by-two town, big enough to read on a phone
+export const ROWS = 3;
 export const SPACING = 64;   // between junctions
 export const MARGIN = 38;    // from the outer junctions to the plate's edge
 export const ROAD_W = 18;    // a two-way street; the highway is wider
@@ -73,7 +73,7 @@ export function buildCity(seed) {
     }
     return seen.size === nodes.length;
   };
-  const cuts = 3 + Math.floor(rand() * 3);
+  const cuts = 1 + Math.floor(rand() * 2);
   for (let tries = 0, done = 0; done < cuts && tries < 60; tries++) {
     const i = Math.floor(rand() * links.length);
     if (!live.has(i)) continue;
@@ -99,7 +99,7 @@ export function buildCity(seed) {
   const offRamp = pick(middle(outSide));
   const taken = new Set([onRamp, offRamp].map(([id, h]) => `${id}:${h}`));
   const streets = [];
-  const want = 3 + Math.floor(rand() * 3);
+  const want = 3 + Math.floor(rand() * 2);
   for (let tries = 0; streets.length < want && tries < 80; tries++) {
     const e = pick(exits);
     const key = `${e[0]}:${e[1]}`;
