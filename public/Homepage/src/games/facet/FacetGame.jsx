@@ -8,7 +8,7 @@ import { sound } from './sound.js';
 import {
   hasLiked, helpSeen, isSolved, markHelpSeen, markLiked, readBest, readResults, readTries, recordBest, recordPlay, recordTry,
 } from '../../lib/progress.js';
-import { reportLike, reportResult, reportStart } from '../../lib/stats.js';
+import { reportAbandon, reportFinish, reportLesson, reportLike, reportStart } from '../../lib/stats.js';
 import { countOwnLike } from '../../lib/useLikes.js';
 import { HEART_PATH } from '../../components/LikeCount.jsx';
 import GameBar, { PuzzleStepper, RestartIcon } from '../../components/GameBar.jsx';
@@ -201,6 +201,7 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
   const [showResult, setShowResult] = useState(() => isSolved(readResults(NS)[number]));
   const closeResult = useCallback(() => setShowResult(false), []);
   const busy = useRef(false);
+  const attemptAt = useRef(0); // when this attempt's first move was made
   const stageRef = useRef(null);
 
   // CSS can't turn a box's size into a plain scale factor, so measure it here.
@@ -248,10 +249,16 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
     setSolved(true);
     sound.win();
     recordBest(NS, number, moves);
-    const firstSolve = recordTry(NS, number, [], true);
+    const replay = isSolved(readResults(NS)[number]);
+    recordTry(NS, number, [], true);
     recordPlay(NS, { puzzleNumber: number, solved: true, isToday });
-    if (!ahead) reportResult(NS, number, 'solved', { tries: firstSolve ? readTries(NS, number)?.count : null, isToday });
-  }, [distance, solved, colours, number, isToday, ahead, moves]);
+    if (!ahead) {
+      reportFinish(NS, number, {
+        today: isToday, outcome: 'solved', replay, attempt: replay ? null : readTries(NS, number)?.count ?? null,
+        ms: attemptAt.current ? Date.now() - attemptAt.current : null, moves, par,
+      });
+    }
+  }, [distance, solved, colours, number, isToday, ahead, moves, par]);
 
   // Restarting during the delay clears `solved`, and with it this timer.
   useEffect(() => {
@@ -262,7 +269,9 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
 
   // Only when the count changes: a switch of puzzle mustn't count as a start.
   useEffect(() => {
-    if (moves === 1 && !ahead) reportStart(NS, number);
+    if (moves !== 1) return;
+    attemptAt.current = Date.now();
+    if (!ahead) reportStart(NS, number, { today: isToday });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moves]);
 
@@ -313,14 +322,17 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
 
   const restart = useCallback(() => {
     // An abandoned attempt counts as a try; replays after a solve don't change it.
-    if (moves > 0 && !solved) recordTry(NS, number, [], false);
+    if (moves > 0 && !solved) {
+      recordTry(NS, number, [], false);
+      if (!ahead) reportAbandon(NS, number, { moves, left: distance, ms: attemptAt.current ? Date.now() - attemptAt.current : null });
+    }
     setPos(identity);
     setMoves(0);
     setSolved(false);
     setRestored(false);
     setHovered(null);
     setShowResult(false);
-  }, [identity, moves, solved, number]);
+  }, [identity, moves, solved, number, ahead, distance]);
 
   const pickPuzzle = useCallback((n) => {
     setShowArchive(false);
@@ -343,13 +355,10 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
     reportLike(NS);
   }, []);
 
-  // A like that couldn't be sent at the time goes on the next visit.
-  useEffect(() => {
-    if (hasLiked(NS)) reportLike(NS);
-  }, []);
-
   const advanceTutorial = useCallback((skip) => {
     sound.tick();
+    if (skip) reportLesson(NS, 'skipped', tutStep + 1);
+    else if (tutStep + 1 >= TUTORIAL.length) reportLesson(NS, 'finished');
     const next = skip ? TUTORIAL.length : tutStep + 1;
     setTutStep(next);
     if (next >= TUTORIAL.length) markHelpSeen(NS);

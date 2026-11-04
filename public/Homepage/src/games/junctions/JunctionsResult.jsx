@@ -39,7 +39,7 @@ export default function JunctionsResult({ ns, number, budget, config, onClose, o
   }, [shareLabel]);
 
   const onShare = () => {
-    share(shareText(number, perfect, tries, config, budget))
+    share(shareText(number, perfect, tries, config, budget), 'junctions')
       .then(setShareLabel)
       .catch((e) => {
         // Closing the share sheet isn't a failure.

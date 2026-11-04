@@ -5,7 +5,7 @@ import {
   helpSeen, hintUsed, isSolved, markHelpSeen, markHintUsed, readResults, readTries, recordPlay, recordTry,
   readVisualPrefs, writeVisualPrefs,
 } from '../../lib/progress.js';
-import { reportResult, reportStart } from '../../lib/stats.js';
+import { reportAbandon, reportFinish, reportHint, reportStart } from '../../lib/stats.js';
 import GameBar, { PuzzleStepper, RestartIcon } from '../../components/GameBar.jsx';
 import ArchiveDrawer from './ArchiveDrawer.jsx';
 import CadenceHelp from './CadenceHelp.jsx';
@@ -117,6 +117,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
   // Switching puzzles re-runs this effect before the engine's reset lands, so
   // the previous puzzle's result would otherwise be recorded against the new one.
   const seenResultRef = useRef(null);
+  const attemptAt = useRef(0); // when this attempt's first note was tapped
 
   useEffect(() => {
     if (!state.result) { setOutcome(null); return; }
@@ -124,18 +125,28 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
     seenResultRef.current = state.result;
     const solved = state.result.correct === state.result.total;
     const kind = !solved ? 'missed' : heardRef.current ? 'assisted' : 'solved';
+    const replay = isSolved(readResults(NS)[number]);
     const firstSolve = recordTry(NS, number, state.result.marks, solved);
     const count = readTries(NS, number)?.count ?? 0;
     setAttempts(Math.max(count, 1));
     setOutcome({ kind, firstTry: kind === 'solved' && firstSolve && count === 1 });
     recordPlay(NS, { puzzleNumber: number, outcome: kind, isToday });
-    if (!ahead) reportResult(NS, number, kind, { tries: firstSolve ? count : null, isToday });
+    if (!ahead) {
+      reportFinish(NS, number, {
+        today: isToday, outcome: kind, replay, attempt: replay ? null : count,
+        ms: attemptAt.current ? Date.now() - attemptAt.current : null,
+        correct: state.result.correct, total: state.result.total, bpm: state.result.bpm, heard: heardRef.current,
+      });
+    }
   }, [state.result, number, isToday, ahead]);
 
   // Only when the tap count changes: a switch of puzzle mustn't count as a start.
   useEffect(() => {
     if (state.index > 0) setReplaying(true);
-    if (state.index === 1 && !ahead) reportStart(NS, number);
+    if (state.index === 1) {
+      attemptAt.current = Date.now();
+      if (!ahead) reportStart(NS, number, { today: isToday });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.index]);
 
@@ -147,10 +158,13 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
   }, [outcome]);
 
   const onReplay = useCallback(() => {
+    // Starting over part way through a run is giving up on it.
+    const live = engineRef.current?.getState();
+    if (live && live.index > 0 && !live.finished && !ahead) reportAbandon(NS, number, { at: live.index, of: live.total });
     setShowResult(false);
     setReplaying(true);
     engineRef.current?.reset();
-  }, []);
+  }, [ahead, number]);
 
   useEffect(() => {
     if (!armed) return undefined;
@@ -164,13 +178,14 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
   const onHear = useCallback(() => {
     if (!heard && !solvedClean && !armed) { setArmed(true); return; }
     setArmed(false);
+    if (!ahead) reportHint(NS, number);
     if (!heard) {
       markHintUsed(NS, number);
       heardRef.current = true;
       setHeard(true);
     }
     engineRef.current?.reveal();
-  }, [heard, solvedClean, armed, number]);
+  }, [heard, solvedClean, armed, number, ahead]);
 
   const onSlider = useCallback((key, value) => {
     setVisual((prev) => {

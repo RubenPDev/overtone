@@ -1,38 +1,90 @@
-import { readStreak, safeGet, safeSet, todayStamp } from './progress.js';
+import { safeGet, safeSet } from './progress.js';
 
-/* Anonymous totals, and nothing that could tell one person from another: each
-   browser only remembers what it has already reported, here and in localStorage.
-   A report only counts as sent once the server has accepted it, so one that fails
-   is tried again next time. The server decides the date and rejects anything not
-   on its lists. Nothing is sent from the dev server. */
+/* What happens on the site, sent to our own counter at stats.overtone.games.
+
+   Each browser gets a random ID the first time it visits, kept in localStorage.
+   It isn't tied to a name, an account or an IP address; it only lets the counter
+   tell one browser's visits and plays from another's, so returns and per-puzzle
+   numbers are real people rather than guesses.
+
+   Nothing is sent until someone actually touches the page, so link previews and
+   crawlers that run scripts never count. Each event has its own ID and waits in an
+   outbox in localStorage until the server says it has it; sending one twice is
+   harmless, since the server keeps only the first, so anything in doubt is resent.
+
+   Opening the site with ?nostats stops this browser sending anything (for our own
+   devices); ?stats turns it back on. Nothing is ever sent from the dev server. */
 
 export const STATS_URL = 'https://stats.overtone.games';
 
-function post(path, body) {
-  return fetch(`${STATS_URL}${path}`, {
-    method: 'POST',
-    // text/plain needs no CORS preflight, so each report is a single request.
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(body),
-    keepalive: true,
-  }).then((res) => res.ok)
-    .catch(() => false); // offline or blocked: never the player's problem
+const LIVE_HOSTS = new Set(['overtone.games', 'www.overtone.games']);
+const OUTBOX = 'overtone:outbox';
+const OUTBOX_MAX = 200;
+const SESSION_IDLE_MS = 30 * 60 * 1000; // a new visit after half an hour away
+const FLUSH_DELAY_MS = 1500;
+
+function enabled() {
+  if (import.meta.env.DEV || typeof window === 'undefined') return false;
+  if (!LIVE_HOSTS.has(window.location.hostname)) return false;
+  if (navigator.webdriver) return false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('nostats')) safeSet('overtone:noStats', '1');
+  if (params.has('stats')) safeSet('overtone:noStats', '');
+  return !safeGet('overtone:noStats');
 }
 
-const track = (metric, key) => post('/track', { metric, key });
+const ON = enabled();
 
-/** Runs a report unless `flag` is already set, and sets it once accepted. */
-function once(flag, send) {
-  if (safeGet(flag)) return;
-  send().then((ok) => { if (ok) safeSet(flag, '1'); });
+/** Whether this browser sends stats; the privacy page's switch. */
+export function statsEnabled() {
+  return !safeGet('overtone:noStats');
+}
+export function setStatsEnabled(on) {
+  safeSet('overtone:noStats', on ? '' : '1');
+  if (!on) safeSet(OUTBOX, ''); // and anything not yet sent stays unsent
+}
+/** This browser's ID, if it has one yet, so someone can ask for its records to go. */
+export function statsId() {
+  return safeGet('overtone:uid');
 }
 
-function daysBetween(fromStamp, toStamp) {
-  return Math.round((Date.parse(toStamp) - Date.parse(fromStamp)) / 86400000);
+function randomId() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
+function browserId() {
+  let id = safeGet('overtone:uid');
+  if (!id) { id = randomId(); safeSet('overtone:uid', id); }
+  return id;
+}
+
+/* A visit is one sitting: it carries on across reloads in the same tab, and ends
+   after half an hour with nothing happening. */
+function sessionId() {
+  const now = Date.now();
+  let id = null;
+  let last = 0;
+  try {
+    id = sessionStorage.getItem('overtone:sid');
+    last = Number(sessionStorage.getItem('overtone:sidAt')) || 0;
+  } catch { /* storage blocked: every page is its own visit */ }
+  if (!id || now - last > SESSION_IDLE_MS) id = randomId();
+  try {
+    sessionStorage.setItem('overtone:sid', id);
+    sessionStorage.setItem('overtone:sidAt', String(now));
+  } catch { /* as above */ }
+  return id;
 }
 
 const SOURCES = [
   [/(^|\.)google\./, 'google'],
+  [/(^|\.)bing\.com$/, 'bing'],
+  [/(^|\.)duckduckgo\.com$/, 'duckduckgo'],
   [/(^|\.)reddit\.com$/, 'reddit'],
   [/(^|\.)(twitter\.com|x\.com|t\.co)$/, 'x'],
   [/(^|\.)facebook\.com$/, 'facebook'],
@@ -41,120 +93,189 @@ const SOURCES = [
   [/(^|\.)discord(app)?\.com$/, 'discord'],
   [/(^|\.)(youtube\.com|youtu\.be)$/, 'youtube'],
   [/(^|\.)news\.ycombinator\.com$/, 'hackernews'],
+  [/(^|\.)bsky\.app$/, 'bluesky'],
+  [/(^|\.)threads\.net$/, 'threads'],
 ];
 
-/** One word from a fixed list. The page or link someone came from is never sent. */
-function sourceOf() {
-  if (new URLSearchParams(window.location.search).get('via') === 'share') return 'shared';
-  if (!document.referrer) return 'direct';
+/** How this visit arrived: a word for the kind of place, and the site it came from. */
+function arrival() {
+  const params = new URLSearchParams(window.location.search);
   let host = '';
-  try { host = new URL(document.referrer).hostname; } catch { return 'other'; }
-  if (host === window.location.hostname) return 'direct';
-  const match = SOURCES.find(([pattern]) => pattern.test(host));
-  return match ? match[1] : 'other';
+  try { host = document.referrer ? new URL(document.referrer).hostname : ''; } catch { host = ''; }
+  if (host === window.location.hostname) host = '';
+  let source = 'direct';
+  if (params.get('via') === 'share') source = 'shared';
+  else if (params.get('utm_source')) source = params.get('utm_source').toLowerCase().slice(0, 24);
+  else if (host) source = SOURCES.find(([pattern]) => pattern.test(host))?.[1] ?? 'other';
+  return { source, referrer: host.slice(0, 80) };
 }
 
-/** Once a day per browser. On the very first visit, also how they arrived. */
-export function reportVisit() {
-  if (import.meta.env.DEV) return;
-  const today = todayStamp();
-  if (safeGet('overtone:lastVisit') === today) return;
-
-  const isNew = safeGet('overtone:lastVisit') === null;
-  track('visitor', isNew ? 'new' : 'returning').then((ok) => {
-    if (!ok) return;
-    safeSet('overtone:lastVisit', today);
-    if (!isNew) return;
-    track('source', sourceOf());
-    const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-    track('device', coarse ? 'mobile' : 'desktop');
-  });
+function deviceKind() {
+  const coarse = window.matchMedia?.('(pointer: coarse)').matches;
+  const short = Math.min(window.screen.width, window.screen.height);
+  if (!coarse) return 'desktop';
+  return short >= 600 ? 'tablet' : 'phone';
 }
 
-function reportedList(ns) {
-  try { return JSON.parse(safeGet(`${ns}:reported`) || '[]'); } catch { return []; }
+/* What's the same for every event in a page load: the device, and how it arrived. */
+function context() {
+  const { source, referrer } = arrival();
+  let tz = '';
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? ''; } catch { tz = ''; }
+  return {
+    device: deviceKind(),
+    screen: `${window.screen.width}x${window.screen.height}`,
+    viewport: `${window.innerWidth}x${window.innerHeight}`,
+    tz,
+    lang: (navigator.language || '').slice(0, 16),
+    source,
+    referrer,
+    landing: window.location.pathname.slice(0, 64),
+    standalone: !!window.matchMedia?.('(display-mode: standalone)').matches,
+  };
 }
 
-function sendEvent(ns, puzzle, event) {
-  return post('/event', { game: ns, puzzle, event }).then((ok) => {
-    if (!ok) return;
-    // Read afresh: another report may have finished while this one was in flight.
-    const list = reportedList(ns);
-    const id = `${puzzle}:${event}`;
-    if (!list.includes(id)) safeSet(`${ns}:reported`, JSON.stringify([...list, id]));
-  });
+let ctx = null;
+let engaged = false;
+let flushTimer = 0;
+let sending = false;
+
+function readOutbox() {
+  try { return JSON.parse(safeGet(OUTBOX) || '[]'); } catch { return []; }
+}
+function writeOutbox(events) {
+  safeSet(OUTBOX, JSON.stringify(events.slice(-OUTBOX_MAX)));
 }
 
-/** The first tap on a puzzle. Compared with finishes, shows where people give up. */
-export function reportStart(ns, puzzle) {
-  if (import.meta.env.DEV) return;
-  once('overtone:startReported', () => track('funnel', 'started'));
-  if (!reportedList(ns).includes(`${puzzle}:started`)) sendEvent(ns, puzzle, 'started');
-}
-
-function triesEvent(count) {
-  if (count <= 3) return `tries${count}`;
-  return count <= 5 ? 'tries4-5' : 'tries6+';
-}
-
-/** Once a day per browser, by how long ago this browser first finished a puzzle. */
-function reportActive() {
-  const today = todayStamp();
-  if (safeGet('overtone:lastActive') === today) return;
-
-  const first = safeGet('overtone:firstFinish') ?? today;
-  const days = daysBetween(first, today);
-  const key = days === 0 ? 'new' : days === 1 ? 'd1' : days <= 6 ? 'd2-6' : days <= 29 ? 'd7-29' : 'd30+';
-  track('active', key).then((ok) => {
-    if (!ok) return;
-    safeSet('overtone:firstFinish', first);
-    safeSet('overtone:lastActive', today);
-  });
-}
-
-function streakKey(streak) {
-  if (streak <= 1) return '1';
-  if (streak <= 3) return '2-3';
-  if (streak <= 6) return '4-6';
-  if (streak <= 13) return '7-13';
-  return streak <= 29 ? '14-29' : '30+';
-}
-
-/** Pass `tries` only for the attempt that first solved the puzzle. Call after recordPlay. */
-export function reportResult(ns, puzzle, outcome, { tries = null, isToday = false } = {}) {
-  if (import.meta.env.DEV) return;
-
-  // Site-wide rather than per game: someone who plays three games is one player.
-  once('overtone:playerReported', () => post('/player', {}));
-  reportActive();
-
-  if (isToday) {
-    const flag = `${ns}:streakReported`;
-    const today = todayStamp();
-    if (safeGet(flag) !== today) {
-      track('streak', streakKey(readStreak(ns))).then((ok) => { if (ok) safeSet(flag, today); });
-    }
+function send(events, beacon = false) {
+  if (!events.length) return Promise.resolve(true);
+  const body = JSON.stringify({ uid: browserId(), engaged, ctx, events });
+  // text/plain needs no CORS preflight, so each batch is a single request.
+  if (beacon && navigator.sendBeacon) {
+    const ok = navigator.sendBeacon(`${STATS_URL}/e`, new Blob([body], { type: 'text/plain' }));
+    return Promise.resolve(ok);
   }
-
-  const sent = reportedList(ns);
-  if (!sent.includes(`${puzzle}:played`)) sendEvent(ns, puzzle, 'played');
-  if (outcome === 'missed') return;
-
-  once('overtone:solveReported', () => track('funnel', 'solved'));
-  if (!sent.includes(`${puzzle}:solved`) && !sent.includes(`${puzzle}:assisted`)) sendEvent(ns, puzzle, outcome);
-  if (tries) sendEvent(ns, puzzle, triesEvent(tries));
+  return fetch(`${STATS_URL}/e`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body,
+    keepalive: true,
+  }).then((res) => res.ok).catch(() => false); // offline or blocked: never the player's problem
 }
 
-export function reportShare(method) {
-  if (!import.meta.env.DEV) track('share', method);
+/* Sends what's waiting. Leaving the page uses a beacon, which can't say whether it
+   arrived, so those stay in the outbox and go again (harmlessly) next time. */
+function flush(beacon = false) {
+  clearTimeout(flushTimer);
+  if (!engaged && !beacon) return;
+  const batch = readOutbox().slice(0, 50);
+  if (!batch.length) return;
+  if (beacon) { send(batch, true); return; }
+  if (sending) { scheduleFlush(); return; }
+  sending = true;
+  send(batch).then((ok) => {
+    sending = false;
+    if (!ok) return;
+    const sent = new Set(batch.map((e) => e.id));
+    const left = readOutbox().filter((e) => !sent.has(e.id));
+    writeOutbox(left);
+    if (left.length) scheduleFlush();
+  });
 }
 
-/** Once per browser, per game. Call it on every visit too, to retry one that failed. */
-export function reportLike(ns) {
-  if (!import.meta.env.DEV) once(`${ns}:likeReported`, () => track('like', ns));
+function scheduleFlush() {
+  clearTimeout(flushTimer);
+  flushTimer = setTimeout(() => flush(), FLUSH_DELAY_MS);
 }
 
-/** Once per browser: did the lesson work, or did they just close it? */
-export function reportLesson(solved) {
-  if (!import.meta.env.DEV) once('overtone:lessonReported', () => track('lesson', solved ? 'solved' : 'skipped'));
+/** Records one thing that happened. `game` and `puzzle` say where, `data` the details. */
+export function track(type, { game = null, puzzle = null, today = null, data = null } = {}) {
+  if (!ON || !statsEnabled()) return;
+  const outbox = readOutbox();
+  outbox.push({ id: randomId(), sid: sessionId(), type, game, puzzle, today, data, at: Date.now() });
+  writeOutbox(outbox);
+  if (outbox.length >= 20) flush();
+  else scheduleFlush();
+}
+
+/* How long the page was on screen, sent as it's hidden, so a visit's length is
+   real time looked at rather than a tab left open in the background. */
+let shownAt = 0;
+function onVisibility() {
+  if (document.visibilityState === 'visible') { shownAt = Date.now(); return; }
+  if (shownAt) {
+    track('hide', { data: { ms: Date.now() - shownAt } });
+    shownAt = 0;
+  }
+  // A page that's never touched still says it was looked at, but marked as such.
+  flush(true);
+}
+
+function onEngage() {
+  if (engaged) return;
+  engaged = true;
+  ENGAGE_EVENTS.forEach((type) => window.removeEventListener(type, onEngage, true));
+  track('engage');
+  flush();
+}
+const ENGAGE_EVENTS = ['pointerdown', 'keydown', 'touchstart', 'wheel', 'scroll'];
+
+function init() {
+  browserId();
+  ctx = context();
+  shownAt = document.visibilityState === 'visible' ? Date.now() : 0;
+  ENGAGE_EVENTS.forEach((type) => window.addEventListener(type, onEngage, { capture: true, passive: true }));
+  document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('pagehide', () => flush(true));
+  // Anything left from last time goes as soon as this visit counts.
+  if (readOutbox().length) scheduleFlush();
+}
+if (ON) init();
+
+/* ---------- what the site reports ---------- */
+
+function theme() {
+  return document.documentElement.dataset.theme === 'dark'
+    || (!document.documentElement.dataset.theme && window.matchMedia?.('(prefers-color-scheme: dark)').matches)
+    ? 'dark' : 'light';
+}
+
+/** Each page shown, the first one included. */
+export function reportVisit(view, puzzle = null) {
+  track('view', { game: ['cadence', 'facet', 'junctions'].includes(view) ? view : null, puzzle, data: { view, theme: theme() } });
+}
+
+/** An attempt begins: the first tap, move or run. */
+export function reportStart(game, puzzle, { today = false, data = null } = {}) {
+  track('start', { game, puzzle, today, data });
+}
+
+/**
+ * An attempt ends. `outcome` is missed, solved or assisted; `attempt` counts this
+ * browser's tries on the puzzle up to its first solve, and `replay` marks one after it.
+ */
+export function reportFinish(game, puzzle, { today = false, outcome, attempt = null, replay = false, ms = null, ...details }) {
+  track('finish', { game, puzzle, today, data: { outcome, attempt, replay, ms, ...details } });
+}
+
+/** An attempt given up part way, by starting over. */
+export function reportAbandon(game, puzzle, data = null) {
+  track('abandon', { game, puzzle, data });
+}
+
+export function reportHint(game, puzzle) {
+  track('hint', { game, puzzle });
+}
+
+export function reportShare(game, method) {
+  track('share', { game, data: { method } });
+}
+
+export function reportLike(game) {
+  track('like', { game });
+}
+
+/** How a game's lesson went: finished, skipped (and at which step), or solved. */
+export function reportLesson(game, outcome, step = null) {
+  track('lesson', { game, data: { outcome, step } });
 }

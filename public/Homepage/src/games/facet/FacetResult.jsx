@@ -29,7 +29,7 @@ export default function FacetResult({ ns, number, onClose, onReplay }) {
   }, [shareLabel]);
 
   const onShare = () => {
-    share(shareText(number, best, par))
+    share(shareText(number, best, par), 'facet')
       .then(setShareLabel)
       .catch((e) => {
         // Closing the share sheet isn't a failure.

@@ -7,7 +7,7 @@ import { sound } from '../facet/sound.js';
 import {
   helpSeen, isSolved, markHelpSeen, readResults, readTries, recordPlay, recordTry, safeGet, safeSet,
 } from '../../lib/progress.js';
-import { reportResult, reportStart } from '../../lib/stats.js';
+import { reportFinish, reportLesson, reportStart } from '../../lib/stats.js';
 import GameBar, { PuzzleStepper, RestartIcon } from '../../components/GameBar.jsx';
 import ArchiveDrawer from '../cadence/ArchiveDrawer.jsx';
 import { ResultIcon } from '../cadence/CadenceResult.jsx';
@@ -63,6 +63,11 @@ function readLayouts() {
 }
 function saveLayout(n, config) {
   safeSet(`${NS}:layouts`, JSON.stringify({ ...readLayouts(), [n]: config }));
+}
+/** A layout as short text, for the stats: "5:flyover 7:roundabout". */
+function layoutKey(config) {
+  return Object.entries(config).filter(([, t]) => t !== 'giveway')
+    .sort(([a], [b]) => a - b).map(([id, t]) => `${id}:${t}`).join(' ');
 }
 
 /** The time on the rush-hour clock: seven till half past nine. */
@@ -121,6 +126,7 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
   const [showResult, setShowResult] = useState(() => isSolved(readResults(NS)[number]));
   const [refusal, setRefusal] = useState(null);
   const closeResult = useCallback(() => setShowResult(false), []);
+  const planSince = useRef(Date.now()); // when the player started thinking about this run
 
   // A new day starts from the player's own layout, if they've played it before,
   // keeping only junctions that this day's town really has.
@@ -133,6 +139,7 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
     setPhase('plan');
     setScore(null);
     setShowResult(isSolved(readResults(NS)[number]));
+    planSince.current = Date.now();
   }, [number, day]);
 
   const budget = day?.budget ?? 0;
@@ -210,14 +217,22 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
     setScore(s);
     setPhase('done');
     setFrame((f) => f + 1);
-    const firstSolve = recordTry(NS, number, [Math.round(s.cleared * 100)], s.solved);
+    const replay = isSolved(readResults(NS)[number]);
+    recordTry(NS, number, [Math.round(s.cleared * 100)], s.solved);
+    // Perfect flow is the full solve; cleared with some red is a solve with help.
+    const outcome = !s.solved ? 'missed' : s.perfect ? 'solved' : 'assisted';
+    if (!ahead) {
+      reportFinish(NS, number, {
+        today: isToday, outcome, replay,
+        attempt: replay ? null : readTries(NS, number)?.count ?? null,
+        cleared: Math.round(s.cleared * 100), peak: Math.round(s.peak * 100),
+        cost: costOf(config), budget, layout: layoutKey(config),
+      });
+    }
     if (s.solved) {
-      // Perfect flow is the full solve; cleared with some red is a solve with help.
-      const outcome = s.perfect ? 'solved' : 'assisted';
       // Keep the best layout: a later run that only clears doesn't replace a perfect one.
       if (s.perfect || readResults(NS)[number] !== 'solved') saveLayout(number, config);
       recordPlay(NS, { puzzleNumber: number, outcome, isToday });
-      if (!ahead) reportResult(NS, number, outcome, { tries: firstSolve ? readTries(NS, number)?.count : null, isToday });
       sound.win();
       setTimeout(() => setShowResult(true), RESULT_DELAY_MS);
     }
@@ -227,13 +242,16 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
     if (!day) return;
     sound.unlock();
     sound.tick();
-    if (!ahead) reportStart(NS, number);
+    if (!ahead) {
+      reportStart(NS, number, { today: isToday, data: { planMs: Date.now() - planSince.current, cost: costOf(config), layout: layoutKey(config) } });
+    }
     setRun(createRun(day.city, day.net, day.trips, config));
     setScore(null);
     setPhase('running');
   };
 
   const stop = () => {
+    planSince.current = Date.now();
     setRun(null);
     setPhase('plan');
     setScore(null);
@@ -255,7 +273,7 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
     sound.tick();
     setRefusal(null);
     setConfig(next);
-    if (phase === 'done') { setRun(null); setPhase('plan'); }
+    if (phase === 'done') { setRun(null); setPhase('plan'); planSince.current = Date.now(); }
   }, [phase, config, tool, budget]);
 
   useEffect(() => {
@@ -278,6 +296,8 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
   }, [onNavigate]);
 
   const advanceTutorial = useCallback((skip) => {
+    if (skip) reportLesson(NS, 'skipped', tutStep + 1);
+    else if (tutStep + 1 >= TUTORIAL.length) reportLesson(NS, 'finished');
     sound.tick();
     const next = skip ? TUTORIAL.length : tutStep + 1;
     setTutStep(next);

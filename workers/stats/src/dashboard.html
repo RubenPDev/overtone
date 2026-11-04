@@ -1,0 +1,1024 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Overtone Stats</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23f2f0e9'%3E%3Crect width='16' height='16' rx='3.5' fill='%230e0e0d' stroke='none'/%3E%3Ccircle cx='8' cy='8' r='6.5'/%3E%3Ccircle cx='8' cy='8' r='3.5' opacity='.75'/%3E%3Ccircle cx='8' cy='8' r='1' fill='%23f2f0e9' stroke='none' opacity='.85'/%3E%3C/svg%3E">
+<style>
+/* Colours are the validated default chart palette: three categorical slots
+   (blue, orange, aqua), and blue alone for anything measured on one scale. */
+:root {
+  color-scheme: light;
+  --surface: #fcfcfb; --panel: #f4f3ef; --panel-2: #ebe9e3;
+  --text: #0b0b0b; --text-2: #52514e; --text-3: #6f6e69;
+  --rule: rgba(11, 11, 11, 0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --seq: 42, 120, 214;
+  --good: #1a7f4b; --bad: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --surface: #1a1a19; --panel: #232322; --panel-2: #2c2c2a;
+    --text: #f0efec; --text-2: #c3c2b7; --text-3: #9a9990;
+    --rule: rgba(240, 239, 236, 0.13);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --seq: 57, 135, 229;
+    --good: #4ade80; --bad: #fb923c;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface); color: var(--text); font: 15px/1.5 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+main { max-width: 1120px; margin: 0 auto; padding: 28px 16px 64px; }
+h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
+h2 { margin: 0 0 2px; font-size: 17px; font-weight: 650; }
+h3 { margin: 0 0 2px; font-size: 15px; font-weight: 600; }
+.sub { margin: 0 0 12px; font-size: 13px; color: var(--text-2); max-width: 70ch; }
+.top { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; justify-content: space-between; margin-bottom: 22px; }
+.top p { margin: 2px 0 0; font-size: 13px; color: var(--text-3); }
+.range { display: inline-flex; padding: 3px; background: var(--panel); border-radius: 10px; }
+.range button { font: inherit; font-size: 13px; padding: 5px 12px; border: 0; border-radius: 7px; background: none; color: var(--text-2); cursor: pointer; }
+.range button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(136px, 1fr)); gap: 10px; margin-bottom: 30px; }
+.tile { padding: 14px 16px; background: var(--panel); border-radius: 10px; }
+.tile b { display: block; font-size: 28px; font-weight: 600; line-height: 1.2; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tile span { font-size: 13px; color: var(--text-2); }
+.tile small { display: block; font-size: 12px; color: var(--text-3); }
+section { margin-bottom: 34px; }
+.part { margin: 44px 0 14px; padding-top: 18px; border-top: 1px solid var(--rule); }
+.part h2 { font-size: 20px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px 34px; margin-bottom: 34px; }
+.grid section { margin: 0; min-width: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 6px; font-size: 12px; color: var(--text-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 2px; vertical-align: -1px; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { font-size: 11px; fill: var(--text-3); }
+.chart .grid-line { stroke: var(--rule); }
+.chart .hair { stroke: var(--text-3); stroke-dasharray: 3 3; }
+.chart .mark:focus { outline: none; }
+.chart .mark:hover path, .chart .mark:focus path { opacity: 0.82; }
+.tip { position: absolute; z-index: 2; pointer-events: none; min-width: 140px; padding: 7px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.14); }
+.tip div { display: flex; justify-content: space-between; gap: 14px; color: var(--text-2); }
+.tip i { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 2px; }
+.tip strong { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.tip .when { color: var(--text-3); margin-bottom: 2px; }
+.bars { margin: 0; padding: 0; list-style: none; }
+.bars li { display: grid; grid-template-columns: minmax(96px, 38%) 1fr; gap: 10px; align-items: center; padding: 3px 0; font-size: 13px; }
+.bars .label { color: var(--text-2); overflow-wrap: anywhere; }
+.bars .track { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.bars .bar { height: 14px; min-width: 2px; background: var(--s1); border-radius: 0 4px 4px 0; }
+.bars .val { flex: none; color: var(--text); font-variant-numeric: tabular-nums; }
+.bars .val small { color: var(--text-3); font-size: 12px; }
+.none { font-size: 13px; color: var(--text-3); }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th { font-weight: 500; color: var(--text-2); vertical-align: bottom; }
+th[title] { cursor: help; text-decoration: underline dotted var(--text-3); text-underline-offset: 3px; }
+.l { text-align: left; }
+td.wrap { white-space: normal; min-width: 140px; }
+tr.is-today td { background: var(--panel); }
+td.heat { color: var(--text); }
+.muted { color: var(--text-3); }
+details { margin-top: 8px; font-size: 13px; color: var(--text-2); }
+summary { cursor: pointer; }
+.feed td { font-size: 12.5px; }
+.tag { display: inline-block; padding: 0 6px; border-radius: 5px; background: var(--panel-2); font-size: 12px; }
+.lock { max-width: 360px; margin: 18vh auto 0; padding: 0 16px; }
+.lock form { display: flex; gap: 8px; margin-top: 14px; }
+.lock input { flex: 1; min-width: 0; font: inherit; padding: 9px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); color: var(--text); }
+.lock button { font: inherit; padding: 9px 16px; border: 0; border-radius: 8px; background: var(--s1); color: #fff; cursor: pointer; }
+.lock .err { color: var(--bad); font-size: 13px; min-height: 20px; margin-top: 8px; }
+footer { font-size: 12px; color: var(--text-3); }
+footer button { font: inherit; padding: 0; border: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="lock" id="lock" hidden>
+  <h1>Overtone stats</h1>
+  <p class="sub">Private. Enter the key set with <code>wrangler secret put STATS_KEY</code>.</p>
+  <form id="lock-form">
+    <input id="key" type="password" autocomplete="current-password" aria-label="Key" placeholder="Key">
+    <button type="submit">Open</button>
+  </form>
+  <div class="err" id="lock-err" role="alert"></div>
+</div>
+
+<main id="main" hidden>
+  <div class="top">
+    <div>
+      <h1>Overtone stats</h1>
+      <p id="updated">Loading…</p>
+    </div>
+    <div class="range" role="group" aria-label="Period">
+      <button type="button" data-days="7">7 days</button>
+      <button type="button" data-days="30">30 days</button>
+      <button type="button" data-days="90">90 days</button>
+    </div>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <section>
+    <h2>People per day</h2>
+    <p class="sub">Browsers that used the site each day (UTC, when puzzles change), split by whether they played. Only browsers that touched a page count, so crawlers and link previews are left out.</p>
+    <div id="daily"></div>
+  </section>
+
+  <section>
+    <h2>Players per game</h2>
+    <p class="sub">Browsers that started at least one attempt of each game, per day. Someone playing two games counts in both.</p>
+    <div id="per-game"></div>
+  </section>
+
+  <div class="part"><h2>Do they come back?</h2></div>
+  <div class="grid">
+    <section>
+      <h3>First-time funnel</h3>
+      <p class="sub">Browsers new in this period, and how far each got. The biggest drop is where to look.</p>
+      <div id="funnel"></div>
+    </section>
+    <section>
+      <h3>How often players play</h3>
+      <p class="sub">Days each player played in this period.</p>
+      <div id="frequency"></div>
+    </section>
+  </div>
+  <section>
+    <h3>Returns by first day</h3>
+    <p class="sub">New players grouped by the day they first played, and the share of them who came back on each later day. Blank where that day hasn't happened yet.</p>
+    <div class="scroll" id="cohorts"></div>
+  </section>
+
+  <div class="part"><h2>The games</h2></div>
+  <section>
+    <p class="sub">Attempts and solves in this period. Hover a heading for what it means.</p>
+    <div class="scroll" id="games"></div>
+  </section>
+  <section>
+    <h3>Cadence puzzles</h3>
+    <p class="sub">Per tune, newest first. Solves count each player's first solve; replays after it are left out.</p>
+    <div class="scroll" id="cadence"></div>
+  </section>
+  <section>
+    <h3>Facet puzzles</h3>
+    <p class="sub">Moves over par is the median for players who solved it. A restart part way through counts as giving up an attempt.</p>
+    <div class="scroll" id="facet"></div>
+  </section>
+  <section>
+    <h3>Junctions puzzles</h3>
+    <p class="sub">Cleared is 90% of the traffic through; perfect is that with no street going red. A run is one attempt.</p>
+    <div class="scroll" id="junctions"></div>
+  </section>
+  <div class="grid">
+    <section><h3>Lessons</h3><p class="sub">Browsers that finished or skipped each game's how-to-play, and at which step they skipped.</p><div class="scroll" id="lessons"></div></section>
+    <section><h3>Shares and likes</h3><p class="sub">Browsers that shared a result or liked a game.</p><div class="scroll" id="social"></div></section>
+  </div>
+
+  <div class="part"><h2>Who they are</h2></div>
+  <div class="grid">
+    <section>
+      <h3>Where, by device clock</h3>
+      <p class="sub">The time zone each device is set to. Usually right even on a VPN or iCloud Private Relay.</p>
+      <div id="tz"></div>
+    </section>
+    <section>
+      <h3>Where, by connection</h3>
+      <p class="sub">Country from the IP address. Wrong for VPNs and relays, so set beside the clock above.</p>
+      <div id="country"></div>
+      <p class="sub" id="mismatch" style="margin-top:10px"></p>
+    </section>
+    <section>
+      <h3>Networks</h3>
+      <p class="sub">Who runs the connection. "Apple" or "Cloudflare" here usually means iCloud Private Relay.</p>
+      <div id="network"></div>
+    </section>
+    <section><h3>How they arrived</h3><p class="sub">First visit. "Direct" includes apps that hide where a link came from.</p><div id="source"></div></section>
+    <section><h3>Sites that sent them</h3><p class="sub">The referring site on a first visit.</p><div id="referrer"></div></section>
+    <section><h3>First page</h3><p class="sub">Where each browser landed first.</p><div id="landing"></div></section>
+    <section><h3>Devices</h3><div id="device"></div></section>
+    <section><h3>Systems</h3><div id="os"></div></section>
+    <section><h3>Browsers</h3><p class="sub">In-app browsers are named after their app.</p><div id="browser"></div></section>
+    <section><h3>Screens</h3><p class="sub">Most common screen sizes, in CSS pixels.</p><div id="screen"></div></section>
+    <section><h3>Languages</h3><div id="lang"></div></section>
+    <section><h3>Theme</h3><p class="sub">Light or dark, as last seen.</p><div id="theme"></div></section>
+  </div>
+
+  <div class="part"><h2>Visits</h2></div>
+  <div class="grid">
+    <section><h3>Visit length</h3><p class="sub">Time each visit was on screen. A visit ends after half an hour away.</p><div id="lengths"></div></section>
+    <section><h3>Visits per player</h3><p class="sub">Separate visits by each player in this period.</p><div id="visits"></div></section>
+  </div>
+  <section>
+    <h3>Latest activity</h3>
+    <p class="sub">The last 80 things that happened. Each browser has a short tag, so one person's steps can be followed.</p>
+    <div class="scroll" id="feed"></div>
+  </section>
+
+  <footer>
+    Dates and days are UTC. To keep your own devices out, open
+    <code>overtone.games/?nostats</code> once on each (and <code>?stats</code> to undo).
+    · <button type="button" id="forget">Forget the key on this browser</button>
+  </footer>
+</main>
+<script>
+'use strict';
+const KEY = 'overtone-stats-key';
+const RANGE = 'overtone-stats-days';
+const GAMES = { cadence: 'Cadence', facet: 'Facet', junctions: 'Junctions' };
+const COLORS = { cadence: 'var(--s1)', facet: 'var(--s2)', junctions: 'var(--s3)' };
+const DAY_MS = 86400000;
+
+/* ---------- small helpers ---------- */
+
+const $ = (id) => document.getElementById(id);
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined && text !== null) e.textContent = text;
+  return e;
+}
+function svgEl(tag, attrs) {
+  const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+const fmt = (n) => (n === null || n === undefined || Number.isNaN(n) ? '–' : Number(n).toLocaleString());
+const pct = (a, b) => (b ? Math.round((100 * a) / b) + '%' : '–');
+const dayOf = (ts) => new Date(ts).toISOString().slice(0, 10);
+const shortDay = (day) => new Date(day + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+function median(xs) {
+  const v = xs.filter((x) => x !== null && x !== undefined && !Number.isNaN(x)).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const m = v.length >> 1;
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+}
+function duration(ms) {
+  if (ms === null || ms === undefined) return '–';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + 'm ' + String(s % 60).padStart(2, '0') + 's';
+  return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm';
+}
+function ago(ts) {
+  const s = Math.round((Date.now() - ts) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.round(s / 60) + 'm ago';
+  if (s < 86400) return Math.round(s / 3600) + 'h ago';
+  return Math.round(s / 86400) + 'd ago';
+}
+function countBy(items, keyOf) {
+  const m = new Map();
+  for (const it of items) {
+    const k = keyOf(it);
+    if (k === null || k === undefined || k === '') continue;
+    m.set(k, (m.get(k) || 0) + 1);
+  }
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+function countryName(code) {
+  if (!code || code === 'XX') return 'Unknown';
+  if (code === 'T1') return 'Tor';
+  try { return new Intl.DisplayNames(undefined, { type: 'region' }).of(code); } catch (e) { return code; }
+}
+function tzName(tz) {
+  if (!tz) return null;
+  const parts = tz.split('/');
+  const city = parts[parts.length - 1].replace(/_/g, ' ');
+  return parts.length > 1 ? city + ' (' + parts[0] + ')' : city;
+}
+const offsets = new Map();
+function offsetOf(tz) {
+  if (!tz) return null;
+  if (!offsets.has(tz)) {
+    let off = null;
+    try {
+      off = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' })
+        .formatToParts(new Date()).find((p) => p.type === 'timeZoneName').value;
+    } catch (e) { off = null; }
+    offsets.set(tz, off);
+  }
+  return offsets.get(tz);
+}
+function th(text, title, cls) {
+  const e = el('th', cls, text);
+  if (title) e.title = title;
+  return e;
+}
+
+/* ---------- charts ---------- */
+
+function niceMax(v) {
+  if (v <= 4) return 4;
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / mag;
+  return [1, 1.2, 1.6, 2, 2.4, 3, 4, 5, 6, 8, 10].find((s) => n <= s) * mag;
+}
+
+function legend(target, series) {
+  const lg = el('div', 'legend');
+  for (const s of series) {
+    const item = el('span');
+    const sw = el('i');
+    sw.style.background = s.color;
+    item.append(sw, document.createTextNode(s.name));
+    lg.appendChild(item);
+  }
+  target.appendChild(lg);
+}
+
+function tableView(target, days, series) {
+  const d = el('details');
+  d.appendChild(el('summary', null, 'Show as a table'));
+  const wrap = el('div', 'scroll');
+  const t = el('table');
+  const head = el('tr');
+  head.appendChild(th('Day', null, 'l'));
+  for (const s of series) head.appendChild(th(s.name));
+  t.appendChild(head);
+  for (const day of days.slice().reverse()) {
+    const tr = el('tr');
+    tr.appendChild(el('td', 'l', shortDay(day.day)));
+    for (const s of series) tr.appendChild(el('td', null, fmt(s.get(day))));
+    t.appendChild(tr);
+  }
+  wrap.appendChild(t);
+  d.appendChild(wrap);
+  target.appendChild(d);
+}
+
+function axes(svg, W, H, L, B, T, top, days, band) {
+  const plot = H - B - T;
+  const y = (v) => T + plot - (v / top) * plot;
+  for (const f of [0, 0.5, 1]) {
+    const v = top * f;
+    svg.appendChild(svgEl('line', { class: 'grid-line', x1: L, x2: W, y1: y(v), y2: y(v) }));
+    const label = svgEl('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end' });
+    label.textContent = v >= 1000 ? v / 1000 + 'K' : v;
+    svg.appendChild(label);
+  }
+  const every = Math.ceil(days.length / Math.max(2, Math.floor((W - L) / 64)));
+  days.forEach((d, i) => {
+    if ((days.length - 1 - i) % every) return;
+    const label = svgEl('text', { x: L + band * i + band / 2, y: H - 6, 'text-anchor': 'middle' });
+    label.textContent = shortDay(d.day);
+    svg.appendChild(label);
+  });
+  return y;
+}
+
+function showTip(tip, W, x, day, series) {
+  tip.textContent = '';
+  tip.appendChild(el('div', 'when', shortDay(day.day)));
+  for (const s of series) {
+    const row = el('div');
+    const name = el('span');
+    const sw = el('i');
+    sw.style.background = s.color;
+    name.append(sw, document.createTextNode(s.name));
+    row.append(name, el('strong', null, fmt(s.get(day))));
+    tip.appendChild(row);
+  }
+  tip.hidden = false;
+  let left = x + 10;
+  if (left + 170 > W) left = Math.max(0, x - 180);
+  tip.style.left = left + 'px';
+  tip.style.top = '4px';
+}
+
+/* Stacked columns, a 2px gap between segments and a rounded top on each stack. */
+function columns(target, days, series) {
+  target.textContent = '';
+  if (!days.some((d) => series.some((s) => s.get(d) > 0))) { target.appendChild(el('p', 'none', 'Nothing yet')); return; }
+  legend(target, series);
+  const wrap = el('div', 'chart');
+  target.appendChild(wrap);
+  const W = Math.max(280, target.clientWidth), H = 200, L = 30, B = 22, T = 8;
+  const svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, height: H, role: 'img', 'aria-label': 'Chart, also shown as a table below' });
+  const top = niceMax(Math.max(...days.map((d) => series.reduce((t, s) => t + s.get(d), 0))));
+  const band = (W - L) / days.length;
+  const y = axes(svg, W, H, L, B, T, top, days, band);
+  const barW = Math.min(26, Math.max(3, band - 3));
+  const tip = el('div', 'tip');
+  tip.hidden = true;
+  days.forEach((d, i) => {
+    const x = L + band * i + (band - barW) / 2;
+    const g = svgEl('g', { class: 'mark', tabindex: 0 });
+    const parts = series.filter((s) => s.get(d) > 0);
+    let base = 0;
+    parts.forEach((s, j) => {
+      const v = s.get(d);
+      let y0 = y(base), y1 = y(base + v);
+      if (j > 0) y0 -= 2;
+      y1 = Math.min(y1, y0 - 1);
+      const r = j === parts.length - 1 ? Math.min(4, barW / 2, y0 - y1) : 0;
+      g.appendChild(svgEl('path', {
+        fill: s.color,
+        d: 'M' + x + ' ' + y0 + 'V' + (y1 + r) + 'Q' + x + ' ' + y1 + ' ' + (x + r) + ' ' + y1 +
+           'H' + (x + barW - r) + 'Q' + (x + barW) + ' ' + y1 + ' ' + (x + barW) + ' ' + (y1 + r) + 'V' + y0 + 'Z',
+      }));
+      base += v;
+    });
+    g.appendChild(svgEl('rect', { x: L + band * i, y: T, width: band, height: H - B - T, fill: 'transparent' }));
+    const show = () => showTip(tip, W, L + band * i + band / 2, d, series);
+    g.addEventListener('pointerenter', show);
+    g.addEventListener('focus', show);
+    g.addEventListener('pointerleave', () => { tip.hidden = true; });
+    g.addEventListener('blur', () => { tip.hidden = true; });
+    svg.appendChild(g);
+  });
+  wrap.append(svg, tip);
+  tableView(target, days, series);
+}
+
+/* Lines, 2px, with a crosshair and every series' value in one tip. */
+function lines(target, days, series) {
+  target.textContent = '';
+  if (!days.some((d) => series.some((s) => s.get(d) > 0))) { target.appendChild(el('p', 'none', 'Nothing yet')); return; }
+  legend(target, series);
+  const wrap = el('div', 'chart');
+  target.appendChild(wrap);
+  const W = Math.max(280, target.clientWidth), H = 190, L = 30, B = 22, T = 8;
+  const svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, height: H, role: 'img', 'aria-label': 'Chart, also shown as a table below' });
+  const top = niceMax(Math.max(...days.map((d) => Math.max(...series.map((s) => s.get(d))))));
+  const band = (W - L) / days.length;
+  const y = axes(svg, W, H, L, B, T, top, days, band);
+  const cx = (i) => L + band * i + band / 2;
+  for (const s of series) {
+    const d = days.map((day, i) => (i ? 'L' : 'M') + cx(i) + ' ' + y(s.get(day))).join('');
+    svg.appendChild(svgEl('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    if (days.length <= 31) {
+      days.forEach((day, i) => {
+        if (s.get(day) > 0) svg.appendChild(svgEl('circle', { cx: cx(i), cy: y(s.get(day)), r: 3, fill: s.color, stroke: 'var(--surface)', 'stroke-width': 1.5 }));
+      });
+    }
+  }
+  const hair = svgEl('line', { class: 'hair', y1: T, y2: H - B, x1: 0, x2: 0, visibility: 'hidden' });
+  svg.appendChild(hair);
+  const tip = el('div', 'tip');
+  tip.hidden = true;
+  const hit = svgEl('rect', { x: L, y: T, width: W - L, height: H - B - T, fill: 'transparent' });
+  hit.addEventListener('pointermove', (e) => {
+    const box = svg.getBoundingClientRect();
+    const px = ((e.clientX - box.left) / box.width) * W;
+    const i = Math.max(0, Math.min(days.length - 1, Math.floor((px - L) / band)));
+    hair.setAttribute('x1', cx(i));
+    hair.setAttribute('x2', cx(i));
+    hair.setAttribute('visibility', 'visible');
+    showTip(tip, W, cx(i), days[i], series);
+  });
+  hit.addEventListener('pointerleave', () => { tip.hidden = true; hair.setAttribute('visibility', 'hidden'); });
+  svg.appendChild(hit);
+  wrap.append(svg, tip);
+  tableView(target, days, series);
+}
+
+function bars(target, rows, base, limit) {
+  target.textContent = '';
+  rows = rows.filter((r) => r[1] > 0);
+  const all = rows.reduce((t, r) => t + r[1], 0);
+  if (!all) { target.appendChild(el('p', 'none', 'Nothing yet')); return; }
+  if (limit && rows.length > limit) {
+    const rest = rows.slice(limit).reduce((t, r) => t + r[1], 0);
+    rows = rows.slice(0, limit).concat([['Other (' + (rows.length - limit) + ')', rest]]);
+  }
+  const max = Math.max(...rows.map((r) => r[1]));
+  const ul = el('ul', 'bars');
+  for (const r of rows) {
+    const li = el('li');
+    li.appendChild(el('span', 'label', r[0]));
+    const track = el('span', 'track');
+    const bar = el('span', 'bar');
+    bar.style.width = 'calc((100% - 78px) * ' + r[1] / max + ')';
+    const val = el('span', 'val', fmt(r[1]) + ' ');
+    val.appendChild(el('small', null, pct(r[1], base === undefined ? all : base)));
+    track.append(bar, val);
+    li.appendChild(track);
+    ul.appendChild(li);
+  }
+  target.appendChild(ul);
+}
+
+function table(target, heads, rows, rowClass) {
+  target.textContent = '';
+  if (!rows.length) { target.appendChild(el('p', 'none', 'Nothing yet')); return; }
+  const t = el('table');
+  const head = el('tr');
+  for (const h of heads) head.appendChild(th(h[0], h[1], h[2]));
+  t.appendChild(head);
+  rows.forEach((r, i) => {
+    const tr = el('tr', rowClass ? rowClass(i) : null);
+    r.forEach((c, j) => {
+      const td = el('td', heads[j][2] || null);
+      if (c instanceof Node) td.appendChild(c); else td.textContent = c === null || c === undefined ? '–' : c;
+      tr.appendChild(td);
+    });
+    t.appendChild(tr);
+  });
+  target.appendChild(t);
+}
+
+/* ---------- the numbers ---------- */
+
+function prepare(raw) {
+  const V = raw.visitors.map((v) => ({
+    first: v[0], last: v[1], engaged: !!v[2], country: v[3], region: v[4], ipTz: v[5], network: v[6], tz: v[7],
+    device: v[8], os: v[9], browser: v[10], lang: v[11], screen: v[12], source: v[13], referrer: v[14], landing: v[15],
+    firstDay: dayOf(v[0]),
+  }));
+  const all = raw.events.map((e) => ({
+    ts: e[0], v: e[1], type: e[2], game: e[3], puzzle: e[4], today: !!e[5], data: e[6] || {}, visit: e[7], day: dayOf(e[0]),
+  }));
+  const E = all.filter((e) => V[e.v].engaged);
+  const passive = new Set(all.filter((e) => !V[e.v].engaged).map((e) => e.v));
+  const days = [];
+  for (let t = raw.since; t <= Date.now(); t += DAY_MS) days.push(dayOf(t));
+  return { raw, V, E, passive, days, today: days[days.length - 1] };
+}
+
+/* Each player's own story of a puzzle: when they started, every attempt, and the first solve. */
+function puzzleRecords(E, game) {
+  const recs = new Map();
+  for (const e of E) {
+    if (e.game !== game || !e.puzzle) continue;
+    if (!['start', 'finish', 'abandon', 'hint'].includes(e.type)) continue;
+    const key = e.puzzle + ':' + e.v;
+    let r = recs.get(key);
+    if (!r) {
+      r = { puzzle: e.puzzle, v: e.v, started: false, finishes: [], abandons: [], hint: false, solve: null, best: null, today: false };
+      recs.set(key, r);
+    }
+    if (e.type === 'start') { r.started = true; if (e.today) r.today = true; }
+    if (e.type === 'hint') r.hint = true;
+    if (e.type === 'abandon') r.abandons.push(e);
+    if (e.type === 'finish') {
+      r.started = true;
+      if (e.today) r.today = true;
+      if (e.data.replay) continue;
+      r.finishes.push(e);
+      const o = e.data.outcome;
+      if (o === 'solved' || o === 'assisted') {
+        if (!r.solve) r.solve = e;
+        if (!r.best || (r.best === 'assisted' && o === 'solved')) r.best = o;
+      }
+    }
+  }
+  return [...recs.values()];
+}
+
+function attemptsToSolve(r) {
+  if (!r.solve) return null;
+  if (r.solve.data.attempt) return r.solve.data.attempt;
+  return r.finishes.indexOf(r.solve) + 1 + r.abandons.filter((a) => a.ts < r.solve.ts).length;
+}
+
+/* ---------- rendering ---------- */
+
+function render(state) {
+  const { raw, V, E, passive, days, today } = state;
+  const gen = new Date(raw.generated);
+  $('updated').textContent = 'Last ' + raw.days + ' days · updated ' + gen.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) +
+    ' · ' + fmt(passive.size) + ' browsers that never touched a page are left out';
+
+  // Who did what on which day.
+  const activeByDay = new Map(days.map((d) => [d, new Set()]));
+  const playedByDay = new Map(days.map((d) => [d, new Set()]));
+  const gameByDay = new Map(days.map((d) => [d, { cadence: new Set(), facet: new Set(), junctions: new Set() }]));
+  const playDays = new Map();
+  for (const e of E) {
+    activeByDay.get(e.day)?.add(e.v);
+    if (e.type === 'start' || e.type === 'finish') {
+      playedByDay.get(e.day)?.add(e.v);
+      if (e.game) gameByDay.get(e.day)?.[e.game].add(e.v);
+      if (!playDays.has(e.v)) playDays.set(e.v, new Set());
+      playDays.get(e.v).add(e.day);
+    }
+  }
+  const visitors = new Set(E.map((e) => e.v));
+  const players = new Set(playDays.keys());
+  const rangeStart = days[0];
+  const isNew = (v) => V[v].firstDay >= rangeStart;
+
+  /* Tiles */
+  const last7 = new Set();
+  days.slice(-7).forEach((d) => playedByDay.get(d).forEach((v) => last7.add(v)));
+  const newPlayers = [...players].filter(isNew);
+  // Came back: new players who've had at least a day since, and played on a later day.
+  const eligible = newPlayers.filter((v) => V[v].firstDay < today);
+  const cameBack = eligible.filter((v) => [...playDays.get(v)].some((d) => d > V[v].firstDay));
+  const visitsMs = visitLengths(E);
+  const playerDays = [...playDays.values()].reduce((t, s) => t + s.size, 0);
+  const finishes = E.filter((e) => e.type === 'finish' && !e.data.replay).length;
+  const tiles = [
+    [fmt(playedByDay.get(today).size), 'Players today', fmt(activeByDay.get(today).size) + ' visitors in all'],
+    [fmt(last7.size), 'Players, last 7 days', 'different browsers that played'],
+    [fmt(players.size), 'Players, this period', fmt(visitors.size) + ' visitors in all'],
+    [fmt(newPlayers.length), 'New players', 'first seen in this period'],
+    [pct(cameBack.length, eligible.length), 'New players who came back', fmt(cameBack.length) + ' of ' + fmt(eligible.length) + ', on a later day'],
+    [duration(median(visitsMs)), 'Typical visit', 'median time on screen'],
+    [playerDays ? (finishes / playerDays).toFixed(1) : '–', 'Attempts per player-day', 'finished attempts each day someone plays'],
+  ];
+  const tl = $('tiles');
+  tl.textContent = '';
+  for (const t of tiles) {
+    const tile = el('div', 'tile');
+    tile.append(el('b', null, t[0]), el('span', null, t[1]), el('small', null, t[2]));
+    tl.appendChild(tile);
+  }
+
+  /* Daily, from the first day there's anything (but at least a week) */
+  const firstUsed = days.findIndex((d) => activeByDay.get(d).size > 0);
+  const dayRows = days.slice(firstUsed < 0 ? -7 : Math.min(firstUsed, days.length - 7)).map((d) => ({ day: d }));
+  columns($('daily'), dayRows, [
+    { name: 'Returning players', color: 'var(--s1)', get: (r) => [...playedByDay.get(r.day)].filter((v) => V[v].firstDay < r.day).length },
+    { name: 'New players', color: 'var(--s2)', get: (r) => [...playedByDay.get(r.day)].filter((v) => V[v].firstDay === r.day).length },
+    { name: 'Visited, didn’t play', color: 'var(--s3)', get: (r) => activeByDay.get(r.day).size - playedByDay.get(r.day).size },
+  ]);
+  lines($('per-game'), dayRows, Object.keys(GAMES).map((g) => ({
+    name: GAMES[g], color: COLORS[g], get: (r) => gameByDay.get(r.day)[g].size,
+  })));
+
+  /* Funnel: browsers new in this period */
+  const newcomers = [...visitors].filter(isNew);
+  const started = new Set(E.filter((e) => e.type === 'start').map((e) => e.v));
+  const finished = new Set(E.filter((e) => e.type === 'finish').map((e) => e.v));
+  const solved = new Set(E.filter((e) => e.type === 'finish' && (e.data.outcome === 'solved' || e.data.outcome === 'assisted')).map((e) => e.v));
+  const returned = new Set(E.filter((e) => e.day > V[e.v].firstDay).map((e) => e.v));
+  bars($('funnel'), [
+    ['Visited', newcomers.length],
+    ['Started a puzzle', newcomers.filter((v) => started.has(v)).length],
+    ['Finished an attempt', newcomers.filter((v) => finished.has(v)).length],
+    ['Solved one', newcomers.filter((v) => solved.has(v)).length],
+    ['Came back another day', newcomers.filter((v) => returned.has(v)).length],
+  ], newcomers.length);
+
+  const freq = countBy([...playDays.values()], (s) => s.size);
+  const buckets = [['1 day', 1, 1], ['2 days', 2, 2], ['3–4 days', 3, 4], ['5–7 days', 5, 7], ['8–14 days', 8, 14], ['15+ days', 15, 1e9]];
+  bars($('frequency'), buckets.map((b) => [b[0], freq.filter((f) => f[0] >= b[1] && f[0] <= b[2]).reduce((t, f) => t + f[1], 0)]));
+
+  renderCohorts(state, playDays, newPlayers);
+  renderGames(state);
+  renderWho(state, visitors);
+  renderVisits(state, visitsMs, players);
+  renderFeed(state);
+}
+
+function visitLengths(E) {
+  const visits = new Map();
+  for (const e of E) {
+    if (e.visit === null || e.visit === undefined) continue;
+    let s = visits.get(e.visit);
+    if (!s) visits.set(e.visit, s = { first: e.ts, last: e.ts, shown: 0, hid: false });
+    s.first = Math.min(s.first, e.ts);
+    s.last = Math.max(s.last, e.ts);
+    if (e.type === 'hide') { s.shown += e.data.ms || 0; s.hid = true; }
+  }
+  // Time on screen where the page said so; otherwise first to last event, as a floor.
+  return [...visits.values()].map((s) => (s.hid ? s.shown : s.last - s.first));
+}
+
+function renderCohorts(state, playDays, newPlayers) {
+  const { V, days, today } = state;
+  const marks = [1, 2, 3, 7, 14];
+  const groups = new Map();
+  for (const v of newPlayers) {
+    const d = V[v].firstDay;
+    if (!groups.has(d)) groups.set(d, []);
+    groups.get(d).push(v);
+  }
+  const target = $('cohorts');
+  target.textContent = '';
+  if (!groups.size) { target.appendChild(el('p', 'none', 'Nothing yet')); return; }
+  const t = el('table');
+  const head = el('tr');
+  head.append(th('First day', null, 'l'), th('Players', 'New players who first played that day'));
+  for (const m of marks) head.appendChild(th('Day ' + m, 'Share who played again ' + m + ' day' + (m > 1 ? 's' : '') + ' later'));
+  head.appendChild(th('Any later day', 'Share who played again on any later day so far'));
+  t.appendChild(head);
+  const totals = marks.map(() => [0, 0]);
+  const later = [0, 0];
+  const shift = (d, n) => dayOf(Date.parse(d + 'T00:00:00Z') + n * DAY_MS);
+  for (const d of days.slice().reverse()) {
+    const g = groups.get(d);
+    if (!g) continue;
+    const tr = el('tr');
+    tr.append(el('td', 'l', shortDay(d)), el('td', null, fmt(g.length)));
+    const cell = (n, of) => {
+      const td = el('td', 'heat', pct(n, of));
+      const a = of ? n / of : 0;
+      td.style.background = 'rgba(var(--seq), ' + (0.08 + a * 0.55).toFixed(2) + ')';
+      return td;
+    };
+    marks.forEach((m, i) => {
+      const at = shift(d, m);
+      if (at > today) { tr.appendChild(el('td', 'muted', '')); return; }
+      const n = g.filter((v) => playDays.get(v).has(at)).length;
+      totals[i][0] += n;
+      totals[i][1] += g.length;
+      tr.appendChild(cell(n, g.length));
+    });
+    if (d >= today) tr.appendChild(el('td', 'muted', ''));
+    else {
+      const n = g.filter((v) => [...playDays.get(v)].some((x) => x > d)).length;
+      later[0] += n;
+      later[1] += g.length;
+      tr.appendChild(cell(n, g.length));
+    }
+    t.appendChild(tr);
+  }
+  const foot = el('tr');
+  foot.append(el('td', 'l', 'All'), el('td', null, fmt(newPlayers.length)));
+  for (const [n, of] of totals) foot.appendChild(el('td', null, pct(n, of)));
+  foot.appendChild(el('td', null, pct(later[0], later[1])));
+  t.appendChild(foot);
+  target.appendChild(t);
+}
+
+function renderGames(state) {
+  const { E, raw } = state;
+  const rows = [];
+  for (const g of Object.keys(GAMES)) {
+    const recs = puzzleRecords(E, g);
+    const players = new Set(recs.filter((r) => r.started).map((r) => r.v));
+    const starts = E.filter((e) => e.game === g && e.type === 'start').length;
+    const fin = recs.reduce((t, r) => t + r.finishes.length, 0);
+    const solves = recs.filter((r) => r.solve);
+    const clean = solves.filter((r) => r.best === 'solved');
+    const gaveUp = recs.filter((r) => r.started && !r.solve).length;
+    const todayShare = recs.filter((r) => r.today).length;
+    rows.push([
+      GAMES[g], fmt(players.size), fmt(recs.filter((r) => r.started).length), fmt(starts), fmt(fin),
+      fmt(solves.length), pct(solves.length, recs.filter((r) => r.started).length), pct(clean.length, solves.length),
+      fmt(median(solves.map(attemptsToSolve))), pct(solves.filter((r) => attemptsToSolve(r) === 1).length, solves.length),
+      duration(median(solves.map((r) => r.solve.data.ms))), fmt(gaveUp), pct(todayShare, recs.length),
+    ]);
+  }
+  table($('games'), [
+    ['Game', null, 'l'],
+    ['Players', 'Different browsers that started at least one attempt'],
+    ['Puzzles played', 'Player and puzzle pairs: one player on three puzzles is three'],
+    ['Attempts', 'Every attempt started, replays included'],
+    ['Finished', 'Attempts finished before a first solve'],
+    ['Solves', 'Puzzles solved, counting each player once per puzzle'],
+    ['Solve rate', 'Solved, out of puzzles played'],
+    ['Clean', 'Solves without help: by ear in Cadence, a perfect flow in Junctions'],
+    ['Tries to solve', 'Median attempts up to the first solve'],
+    ['First try', 'Share of solves on the very first attempt'],
+    ['Solve time', 'Median time of the solving attempt'],
+    ['Unsolved', 'Puzzles played and not (yet) solved'],
+    ['Same day', 'Share of puzzles played on their own day, not from the archive'],
+  ], rows);
+
+  const cat = raw.catalog;
+  puzzleTable(state, 'cadence', {
+    label: [['Tune', null, 'l wrap'], (p) => cat.cadence.puzzles[p]?.title || ''],
+    heads: [['Hints', 'Players who heard the answer'], ['Gaps right', 'Median share of gaps right on a first attempt']],
+    cells: (recs) => {
+      const firsts = recs.map((x) => x.finishes[0]).filter(Boolean);
+      return [
+        fmt(recs.filter((x) => x.hint).length),
+        firsts.length ? Math.round(100 * median(firsts.map((f) => f.data.correct / f.data.total))) + '%' : '–',
+      ];
+    },
+  });
+  puzzleTable(state, 'facet', {
+    heads: [['Over par', 'Median moves over par, for players who solved it'], ['At par', 'Share of solves in exactly par moves'], ['Restarts', 'Attempts given up part way']],
+    cells: (recs) => {
+      const over = recs.filter((x) => x.solve).map((x) => x.solve.data.moves - x.solve.data.par);
+      const m = median(over);
+      return [m === null ? '–' : '+' + m, pct(over.filter((o) => o === 0).length, over.length), fmt(recs.reduce((t, x) => t + x.abandons.length, 0))];
+    },
+  });
+  puzzleTable(state, 'junctions', {
+    label: [['Budget'], (p) => (cat.junctions.puzzles[p]?.budget ? '$' + cat.junctions.puzzles[p].budget : '–')],
+    heads: [
+      ['First run', 'Median share of traffic cleared on each player’s first run'],
+      ['Spent', 'Median spend on the solving run'],
+      ['Winning layout', 'The most common solving layout: junction and what was built there', 'l'],
+    ],
+    cells: (recs) => {
+      const firsts = recs.map((x) => x.finishes[0]).filter(Boolean);
+      const solves = recs.filter((x) => x.solve);
+      const layouts = countBy(solves, (x) => x.solve.data.layout || 'nothing built');
+      const m = median(firsts.map((f) => f.data.cleared));
+      return [
+        m === null ? '–' : m + '%',
+        solves.length ? '$' + median(solves.map((x) => x.solve.data.cost)) : '–',
+        layouts.length ? layouts[0][0] + (solves.length > 1 ? ' (' + layouts[0][1] + ' of ' + solves.length + ')' : '') : '–',
+      ];
+    },
+  });
+
+  /* Lessons, shares, likes */
+  const lessonRows = [];
+  for (const g of Object.keys(GAMES)) {
+    const latest = new Map();
+    for (const e of E) if (e.type === 'lesson' && e.game === g) latest.set(e.v, e.data);
+    const all = [...latest.values()];
+    if (!all.length) continue;
+    const done = all.filter((d) => d.outcome === 'finished' || d.outcome === 'solved').length;
+    const steps = countBy(all.filter((d) => d.outcome === 'skipped'), (d) => (d.step ? 'step ' + d.step : 'closed')).map((s) => s[0] + ': ' + s[1]).join(', ');
+    lessonRows.push([GAMES[g], fmt(all.length), fmt(done), pct(done, all.length), steps || '–']);
+  }
+  table($('lessons'), [['Game', null, 'l'], ['Browsers'], ['Finished', 'Went through it, or solved the practice tune in Cadence'], ['Rate'], ['Skipped at', null, 'l wrap']], lessonRows);
+
+  const socialRows = [];
+  for (const g of Object.keys(GAMES)) {
+    const sharers = new Set(E.filter((e) => e.type === 'share' && e.game === g).map((e) => e.v));
+    const shares = E.filter((e) => e.type === 'share' && e.game === g);
+    const likers = new Set(E.filter((e) => e.type === 'like' && e.game === g).map((e) => e.v));
+    const solvers = new Set(puzzleRecords(E, g).filter((r) => r.solve).map((r) => r.v));
+    socialRows.push([GAMES[g], fmt(sharers.size), pct(sharers.size, solvers.size), countBy(shares, (e) => e.data.method).map((m) => m[0] + ' ' + m[1]).join(', ') || '–', fmt(likers.size)]);
+  }
+  table($('social'), [['Game', null, 'l'], ['Sharers'], ['Of solvers', 'Share of browsers that solved a puzzle and then shared'], ['How', 'Share sheet, or copied to the clipboard', 'l'], ['Likes']], socialRows);
+}
+
+/* One row per puzzle played in the period, newest first. Every game has the same
+   core columns; `label` adds one after the date, and `heads`/`cells` add their own. */
+function puzzleTable(state, game, { label = null, heads, cells }) {
+  const { E, raw } = state;
+  const byPuzzle = new Map();
+  for (const r of puzzleRecords(E, game)) {
+    if (!r.started) continue;
+    if (!byPuzzle.has(r.puzzle)) byPuzzle.set(r.puzzle, []);
+    byPuzzle.get(r.puzzle).push(r);
+  }
+  const hasClean = game !== 'facet';
+  const columns = [['#', null, 'l'], ['Date', null, 'l']];
+  if (label) columns.push(label[0]);
+  columns.push(
+    ['Players', 'Browsers that started it'],
+    [game === 'junctions' ? 'Cleared' : 'Solved', 'Players who solved it'],
+    ['Rate', 'Solved, out of players'],
+  );
+  if (hasClean) columns.push(game === 'cadence' ? ['By ear', 'Solves without hearing the answer'] : ['Perfect', 'Solves with no street going red']);
+  columns.push(['Tries', 'Median attempts to the first solve'], ['First try', 'Share of solves on the first attempt'], ['Time', 'Median time of the solving attempt'], ...heads);
+
+  const nums = [...byPuzzle.keys()].sort((a, b) => b - a);
+  const rows = nums.map((p) => {
+    const rs = byPuzzle.get(p);
+    const solves = rs.filter((x) => x.solve);
+    const date = raw.catalog[game].puzzles[p]?.date;
+    const row = [String(p), date ? shortDay(date) : '–'];
+    if (label) row.push(label[1](p));
+    row.push(fmt(rs.length), fmt(solves.length), pct(solves.length, rs.length));
+    if (hasClean) row.push(pct(solves.filter((x) => x.best === 'solved').length, solves.length));
+    row.push(
+      fmt(median(solves.map(attemptsToSolve))),
+      pct(solves.filter((x) => attemptsToSolve(x) === 1).length, solves.length),
+      duration(median(solves.map((x) => x.solve.data.ms))),
+      ...cells(rs),
+    );
+    return row;
+  });
+  const todayN = raw.catalog[game].today;
+  table($(game), columns, rows, (i) => (nums[i] === todayN ? 'is-today' : null));
+}
+
+function renderWho(state, visitors) {
+  const { V } = state;
+  const vs = [...visitors].map((v) => V[v]);
+  bars($('tz'), countBy(vs, (v) => tzName(v.tz) || 'Unknown'), undefined, 12);
+  bars($('country'), countBy(vs, (v) => countryName(v.country)), undefined, 12);
+  const both = vs.filter((v) => v.tz && v.ipTz);
+  const off = both.filter((v) => offsetOf(v.tz) !== offsetOf(v.ipTz));
+  $('mismatch').textContent = both.length
+    ? fmt(off.length) + ' of ' + fmt(both.length) + ' (' + pct(off.length, both.length) + ') have a connection in a different time zone from their device, most likely a VPN or relay.'
+    : '';
+  bars($('network'), countBy(vs, (v) => v.network || 'Unknown'), undefined, 10);
+  const SOURCE = { direct: 'Direct', shared: 'Shared result', google: 'Google', bing: 'Bing', duckduckgo: 'DuckDuckGo', reddit: 'Reddit', x: 'X / Twitter', facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', discord: 'Discord', youtube: 'YouTube', hackernews: 'Hacker News', bluesky: 'Bluesky', threads: 'Threads', other: 'Other site' };
+  bars($('source'), countBy(vs, (v) => SOURCE[v.source] || v.source || 'Unknown'));
+  bars($('referrer'), countBy(vs, (v) => v.referrer || null), undefined, 10);
+  bars($('landing'), countBy(vs, (v) => (v.landing || '/').replace(/\/\d+$/, '/#')), undefined, 10);
+  const DEVICE = { phone: 'Phone', tablet: 'Tablet', desktop: 'Desktop' };
+  bars($('device'), countBy(vs, (v) => DEVICE[v.device] || v.device));
+  bars($('os'), countBy(vs, (v) => v.os));
+  bars($('browser'), countBy(vs, (v) => v.browser), undefined, 10);
+  bars($('screen'), countBy(vs, (v) => v.screen), undefined, 8);
+  bars($('lang'), countBy(vs, (v) => {
+    if (!v.lang) return null;
+    try { return new Intl.DisplayNames(undefined, { type: 'language' }).of(v.lang); } catch (e) { return v.lang; }
+  }), undefined, 10);
+  const themes = new Map();
+  for (const e of state.E) if (e.type === 'view' && e.data.theme) themes.set(e.v, e.data.theme);
+  bars($('theme'), countBy([...themes.values()], (t) => (t === 'dark' ? 'Dark' : 'Light')));
+}
+
+function renderVisits(state, lengths, players) {
+  const B = [['Under 30s', 0, 30e3], ['30s–2m', 30e3, 120e3], ['2–5m', 120e3, 300e3], ['5–15m', 300e3, 900e3], ['15m+', 900e3, Infinity]];
+  bars($('lengths'), B.map((b) => [b[0], lengths.filter((l) => l >= b[1] && l < b[2]).length]));
+  const perPlayer = new Map();
+  for (const e of state.E) {
+    if (!players.has(e.v) || e.visit === null) continue;
+    if (!perPlayer.has(e.v)) perPlayer.set(e.v, new Set());
+    perPlayer.get(e.v).add(e.visit);
+  }
+  const counts = [...perPlayer.values()].map((s) => s.size);
+  const VB = [['1 visit', 1, 1], ['2', 2, 2], ['3–5', 3, 5], ['6–10', 6, 10], ['11+', 11, Infinity]];
+  bars($('visits'), VB.map((b) => [b[0], counts.filter((c) => c >= b[1] && c <= b[2]).length]));
+}
+
+function describe(e) {
+  const d = e.data;
+  const where = e.game ? GAMES[e.game] + (e.puzzle ? ' #' + e.puzzle : '') : '';
+  switch (e.type) {
+    case 'view': return ['Opened', where || (d.view === 'home' ? 'Home' : d.view)];
+    case 'engage': return ['Touched the page', ''];
+    case 'hide': return ['Left the page', duration(d.ms) + ' on screen'];
+    case 'start': return ['Started', where + (e.game === 'junctions' && d.layout !== undefined ? ' · ' + (d.layout || 'nothing built') : '')];
+    case 'finish': {
+      let how = d.outcome === 'missed' ? 'missed' : d.outcome === 'assisted' ? (e.game === 'junctions' ? 'cleared' : 'solved with help') : (e.game === 'junctions' ? 'perfect' : 'solved');
+      if (e.game === 'cadence') how += ' · ' + d.correct + '/' + d.total + ' gaps';
+      if (e.game === 'facet') how += ' · ' + d.moves + ' moves, par ' + d.par;
+      if (e.game === 'junctions') how += ' · ' + d.cleared + '% · $' + d.cost;
+      if (d.attempt) how += ' · try ' + d.attempt;
+      if (d.replay) how += ' · replay';
+      return ['Finished', where + ' · ' + how];
+    }
+    case 'abandon': return ['Started over', where];
+    case 'hint': return ['Heard the answer', where];
+    case 'share': return ['Shared', GAMES[e.game] + ' · ' + d.method];
+    case 'like': return ['Liked', GAMES[e.game] || ''];
+    case 'lesson': return ['Lesson', GAMES[e.game] + ' · ' + d.outcome + (d.step ? ' at step ' + d.step : '')];
+    default: return [e.type, where];
+  }
+}
+
+function renderFeed(state) {
+  const { E, V } = state;
+  const tagOf = (v) => {
+    const h = ((v + 1) * 2654435761 >>> 0).toString(36).slice(-4);
+    return h;
+  };
+  const latest = E.filter((e) => e.type !== 'engage').slice(-80).reverse();
+  table($('feed'), [['When', null, 'l'], ['Who', 'A short tag per browser', 'l'], ['What', null, 'l'], ['', null, 'l wrap'], ['Where', 'Device time zone', 'l'], ['Device', null, 'l']],
+    latest.map((e) => {
+      const [what, detail] = describe(e);
+      const tag = el('span', 'tag', tagOf(e.v));
+      const v = V[e.v];
+      return [ago(e.ts), tag, what, detail, tzName(v.tz) || countryName(v.country), [v.device, v.os, v.browser].filter(Boolean).join(' · ')];
+    }));
+  $('feed').querySelector('table')?.classList.add('feed');
+}
+
+/* ---------- loading ---------- */
+
+let state = null;
+let resizeTimer = 0;
+
+function readKey() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+function writeKey(k) { try { if (k) localStorage.setItem(KEY, k); else localStorage.removeItem(KEY); } catch (e) { /* private window */ } }
+function readDays() { try { return Number(localStorage.getItem(RANGE)) || 30; } catch (e) { return 30; } }
+
+function lock(message) {
+  $('main').hidden = true;
+  $('lock').hidden = false;
+  $('lock-err').textContent = message || '';
+  $('key').focus();
+}
+
+async function load(days) {
+  const key = readKey();
+  if (!key) { lock(); return; }
+  document.querySelectorAll('.range button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.days) === days)));
+  $('updated').textContent = 'Loading…';
+  let res;
+  try {
+    res = await fetch('/stats?days=' + days, { headers: { Authorization: 'Bearer ' + key }, cache: 'no-store' });
+  } catch (e) {
+    $('updated').textContent = 'Couldn’t reach the stats. Try reloading.';
+    return;
+  }
+  if (res.status === 401) { writeKey(null); lock('That key didn’t work.'); return; }
+  if (!res.ok) { $('updated').textContent = 'The stats failed to load (' + res.status + ').'; return; }
+  $('lock').hidden = true;
+  $('main').hidden = false;
+  state = prepare(await res.json());
+  render(state);
+}
+
+$('lock-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const k = $('key').value.trim();
+  if (!k) return;
+  writeKey(k);
+  load(readDays());
+});
+document.querySelectorAll('.range button').forEach((b) => b.addEventListener('click', () => {
+  const d = Number(b.dataset.days);
+  try { localStorage.setItem(RANGE, String(d)); } catch (e) { /* fine */ }
+  load(d);
+}));
+$('forget').addEventListener('click', () => { writeKey(null); lock(); });
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (state) render(state); }, 150);
+});
+load(readDays());
+</script>
+</body>
+</html>

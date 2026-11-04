@@ -32,7 +32,7 @@ export default function CadenceHelp({ visual, onClose, openedByTap }) {
   const engineRef = useRef(null);
   const solvedRef = useRef(false);
   const close = useCallback(() => {
-    reportLesson(solvedRef.current);
+    reportLesson('cadence', solvedRef.current ? 'solved' : 'skipped');
     onClose();
   }, [onClose]);
   const panelRef = useDialog(close);

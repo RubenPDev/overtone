@@ -17,9 +17,10 @@ export default function About() {
           <p>
             There is no account, no app to install, and nothing to subscribe to. Your streak
             lives in your own browser, which means clearing your data loses it — a trade we
-            made deliberately. The only data we collect is anonymous totals, such as how many
-            people visited, played and solved each puzzle, and which countries they’re in.
-            Nothing in them identifies you.
+            made deliberately. We do keep count of how the games are played, under a random ID
+            that isn’t tied to your name or address, so we can see which puzzles are too hard
+            and whether people come back. The privacy page has the details, and a switch to
+            turn it off.
           </p>
         </div>
 

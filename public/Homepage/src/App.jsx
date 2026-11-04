@@ -69,8 +69,12 @@ export default function App() {
   useEffect(() => {
     const { hash } = window.location;
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
-    reportVisit();
   }, []);
+
+  // Each page shown, including moving between puzzles.
+  useEffect(() => {
+    reportVisit(route.view, route.puzzle ?? null);
+  }, [route.view, route.puzzle]);
 
   if (route.view === 'cadence') {
     return <CadenceGame puzzleNumber={route.puzzle} onNavigate={navigate} isDark={isDark} onToggleTheme={toggle} />;

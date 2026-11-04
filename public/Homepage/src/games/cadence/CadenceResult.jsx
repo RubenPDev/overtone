@@ -36,16 +36,16 @@ function shareText(number, outcome, tries) {
   ].join('\n');
 }
 
-export async function share(text) {
+export async function share(text, game) {
   // Phones get the system share sheet; on a desktop, copying is what people expect.
   const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   if (touch && navigator.share) {
     await navigator.share({ text });
-    reportShare('sheet');
+    reportShare(game, 'sheet');
     return null;
   }
   await navigator.clipboard.writeText(text);
-  reportShare('copy');
+  reportShare(game, 'copy');
   return 'Copied!';
 }
 
@@ -66,7 +66,7 @@ export default function CadenceResult({ ns, puzzle, onClose, onReplay }) {
   }, [shareLabel]);
 
   const onShare = () => {
-    share(shareText(number, outcome, tries))
+    share(shareText(number, outcome, tries), 'cadence')
       .then(setShareLabel)
       .catch((e) => {
         // Closing the share sheet isn't a failure.

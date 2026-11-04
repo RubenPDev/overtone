@@ -5,7 +5,8 @@ export const HEART_PATH = 'M26 38.5C14.5 30.5 11 25 11 20.2 11 15.8 14.4 13 18 1
 
 export default function LikeCount() {
   const likes = useLikes();
-  if (likes === null) return null;
+  // Nothing rather than a bare zero, before anyone has liked anything.
+  if (!likes) return null;
   return (
     <span className="likes">
       <svg viewBox="8 10 36 32" aria-hidden="true"><path d={HEART_PATH} fill="currentColor" /></svg>

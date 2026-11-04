@@ -650,6 +650,11 @@ a.card:hover .card__cta svg { transform: translateX(3px); }
 .page__section ul { margin-top: 10px; padding-left: 20px; list-style: disc; font-size: 15.5px; color: var(--ink-2); }
 .page__section li + li { margin-top: 4px; }
 .page__section strong { font-weight: 800; }
+.page__section ul + p, .page__section p + p { margin-top: 12px; }
+.page__switch { margin-top: 12px; padding: 16px 18px; border: 1px solid var(--card-edge); border-radius: 18px; background: var(--card); }
+.page__switch p { margin: 0 0 12px; }
+.page__switch .cad__btn { min-height: 44px; padding: 10px 18px; }
+.page__id { margin: 12px 0 0 !important; font-size: 13px !important; color: var(--ink-3) !important; overflow-wrap: anywhere; }
 .page__updated { margin-top: 12px; font-size: 13px !important; color: var(--ink-3) !important; }
 
 .page__game { margin-top: 36px; }
