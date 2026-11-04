@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createCadenceEngine } from './engine.js';
 import { hueFor, lastNumber, puzzleForNumber, todayNumber } from './melodies.js';
 import {
-  helpSeen, hintUsed, isSolved, markHelpSeen, markHintUsed, readResults, readTries, recordPlay, recordTry,
+  freeListenUsed, helpSeen, hintUsed, isSolved, markFreeListen, markHelpSeen, markHintUsed, readResults, readTries, recordPlay, recordTry,
   readVisualPrefs, writeVisualPrefs,
 } from '../../lib/progress.js';
 import { reportAbandon, reportFinish, reportHint, reportStart } from '../../lib/stats.js';
@@ -24,6 +24,16 @@ const SLIDERS = [
   { key: 'uneven', label: tx('Uneven'), min: 0, max: 0.6, step: 0.01, fmt: (v) => v.toFixed(2) },
   { key: 'steady', label: tx('Steady'), min: 0.05, max: 0.6, step: 0.01, fmt: (v) => v.toFixed(2) },
 ];
+
+function HeadphonesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="cad__btnicon">
+      <path d="M4 15v-3a8 8 0 0 1 16 0v3" />
+      <rect x="3" y="14" width="4.5" height="6.5" rx="1.6" />
+      <rect x="16.5" y="14" width="4.5" height="6.5" rx="1.6" />
+    </svg>
+  );
+}
 
 function GearIcon() {
   return (
@@ -93,11 +103,13 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
   useEffect(() => { engineRef.current?.loadMelody(melody); }, [melody]);
   useEffect(() => { engineRef.current?.setVisual(visual); }, [visual]);
 
-  /* "Hear answer" is a hint with a price. It unlocks only after one blind
-     attempt, asks once before playing, and from then on any solve of this
-     puzzle is recorded as assisted rather than solved. Once you've solved it
-     cleanly there's nothing left to lose, so it plays straight away. */
+  /* "Hear answer" unlocks after one blind attempt. The first listen is free; hearing
+     it again asks once before playing, and from then on any solve of this puzzle is
+     recorded as with help. Once you've solved it cleanly there's nothing left to lose,
+     so it plays straight away. It can't be started again while it's playing. */
   const [heard, setHeard] = useState(() => hintUsed(NS, number));
+  const [freeUsed, setFreeUsed] = useState(() => freeListenUsed(NS, number));
+  const [playing, setPlaying] = useState(false);
   const [attempts, setAttempts] = useState(() => readTries(NS, number)?.count ?? 0);
   const [armed, setArmed] = useState(false);
   const [outcome, setOutcome] = useState(null);
@@ -108,6 +120,8 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
     const h = hintUsed(NS, number);
     setHeard(h);
     heardRef.current = h;
+    setFreeUsed(freeListenUsed(NS, number));
+    setPlaying(false);
     setAttempts(readTries(NS, number)?.count ?? 0);
     setArmed(false);
     setOutcome(null);
@@ -160,6 +174,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
   }, [outcome]);
 
   const onReplay = useCallback(() => {
+    setPlaying(false);
     // Starting over part way through a run is giving up on it.
     const live = engineRef.current?.getState();
     if (live && live.index > 0 && !live.finished && !ahead) reportAbandon(NS, number, { at: live.index, of: live.total });
@@ -178,16 +193,31 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
   const hintLocked = attempts === 0 && !heard && !solvedClean;
 
   const onHear = useCallback(() => {
-    if (!heard && !solvedClean && !armed) { setArmed(true); return; }
+    if (playing) return;
+    const free = !heard && !solvedClean && !freeUsed;
+    if (!heard && !solvedClean && !free && !armed) { setArmed(true); return; }
     setArmed(false);
+    const seconds = engineRef.current?.reveal() ?? 0;
+    if (!seconds) return;
+    setPlaying(true);
     if (!ahead) reportHint(NS, number);
-    if (!heard) {
+    if (free) {
+      markFreeListen(NS, number);
+      setFreeUsed(true);
+    } else if (!heard) {
       markHintUsed(NS, number);
       heardRef.current = true;
       setHeard(true);
     }
-    engineRef.current?.reveal();
-  }, [heard, solvedClean, armed, number, ahead]);
+  }, [heard, solvedClean, freeUsed, armed, number, ahead, playing]);
+
+  useEffect(() => {
+    if (!playing) return undefined;
+    // Long enough for the tune and its last note to ring out.
+    const seconds = melody.gaps.reduce((s, g) => s + g * melody.playback, 0) + 1.2;
+    const t = setTimeout(() => setPlaying(false), seconds * 1000);
+    return () => clearTimeout(t);
+  }, [playing, melody]);
 
   const onSlider = useCallback((key, value) => {
     setVisual((prev) => {
@@ -284,6 +314,42 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
           </div>
         </div>
 
+        <div className="cad__actions">
+          {over && (
+            <button type="button" className="cad__btn cad__btn--primary" onClick={onReplay}>
+              <RestartIcon /> {t('Try again')}
+            </button>
+          )}
+          <button
+            type="button"
+            className={`cad__btn cad__btn--hear${armed ? ' is-armed' : ''}`}
+            onClick={onHear}
+            disabled={hintLocked || playing}
+            title={hintLocked ? t('Have one go first') : undefined}
+          >
+            <HeadphonesIcon />
+            {hintLocked ? t('Hear answer')
+              : playing ? t('Playing…')
+              : armed ? t('Sure? Counts as with help')
+              : heard || solvedClean ? t('Hear it again')
+              : freeUsed ? t('Hear it again') : t('Hear it free')}
+          </button>
+          {!over && (
+            <button type="button" className="cad__btn cad__btn--round" onClick={onReplay} aria-label={t('Reset')} title={t('Reset')}>
+              <RestartIcon />
+            </button>
+          )}
+          <button
+            type="button"
+            className="cad__btn cad__btn--round"
+            onClick={() => setShowSettings((v) => !v)}
+            aria-expanded={showSettings}
+            aria-label={t('Visualizer settings')}
+          >
+            <GearIcon />
+          </button>
+        </div>
+
         <div className="cad__readouts">
           <span>{state.lastGapMs ? t('gap {ms} ms', { ms: state.lastGapMs }) : t('gap —')}</span>
           <span>{state.fastestMs ? t('fastest {ms} ms', { ms: state.fastestMs }) : t('fastest —')}</span>
@@ -309,46 +375,13 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
               <>
                 <b className="is-bad">{t('{n} of {total} gaps right.', { n: result.correct, total: result.total })}</b>{' '}
                 {t('Amber means you held too short, red too long.')}{' '}
-                {heard
-                  ? t('You’ve heard it now. Try again.')
-                  : t('Try again, or hear the answer first, though a solve after that counts as assisted.')}
+                {heard || freeUsed
+                  ? (heard ? t('You’ve heard it now. Try again.') : t('You’ve had your free listen. Hearing it again counts as with help.'))
+                  : t('Try again, or hear the answer: the first listen is free.')}
               </>
             )
           ) : tune.intro}
         </p>
-
-        <div className="cad__actions">
-          {over && (
-            <button type="button" className="cad__btn cad__btn--primary" onClick={onReplay}>
-              <RestartIcon /> {t('Try again')}
-            </button>
-          )}
-          <button
-            type="button"
-            className={`cad__btn${armed ? ' is-armed' : ''}`}
-            onClick={onHear}
-            disabled={hintLocked}
-            title={hintLocked ? t('Have one go first') : undefined}
-          >
-            {hintLocked ? t('Hear answer')
-              : armed ? t('Sure? Counts as assisted')
-              : heard || solvedClean ? t('Hear it again') : t('Hear answer')}
-          </button>
-          {!over && (
-            <button type="button" className="cad__btn cad__btn--round" onClick={onReplay} aria-label={t('Reset')} title={t('Reset')}>
-              <RestartIcon />
-            </button>
-          )}
-          <button
-            type="button"
-            className="cad__btn cad__btn--round"
-            onClick={() => setShowSettings((v) => !v)}
-            aria-expanded={showSettings}
-            aria-label={t('Visualizer settings')}
-          >
-            <GearIcon />
-          </button>
-        </div>
 
         <div className={`cad__settings${showSettings ? ' is-open' : ''}`}>
           <div className="cad__panel">

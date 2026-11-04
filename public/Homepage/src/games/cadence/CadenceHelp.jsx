@@ -112,7 +112,7 @@ export default function CadenceHelp({ visual, onClose, openedByTap }) {
         <ul className="cad-help__list">
           <li>{t('There’s one new tune a day, with a small clue under the pad.')}</li>
           <li>{t('Try as many times as you like. A wrong try costs nothing.')}</li>
-          <li>{t('Stuck? After one try you can hear the answer, but solving it after that counts as assisted.')}</li>
+          <li>{t('Stuck? After one try you can hear the answer once for free. Hearing it again means a solve counts as with help.')}</li>
         </ul>
 
         <div className="cad-help__actions">

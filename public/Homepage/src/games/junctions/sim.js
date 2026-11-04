@@ -42,23 +42,33 @@ const GIVEWAY_GAP = { [STRAIGHT]: 1.9, [RIGHT]: 1.6, [LEFT]: 2.5 };
 // Lights: green for each pair of opposite approaches in turn, with an all-red
 // between. They sense traffic, so green stays while it's used and changes once
 // the other way has someone waiting.
-const MIN_GREEN = 5;
+const MIN_GREEN = 3;
 const MAX_GREEN = 14;
-const ALL_RED = 2;
-const LIGHTS_GAP = { [STRAIGHT]: 1.0, [RIGHT]: 1.2, [LEFT]: 1.3 };
-const STARTUP = 1; // the first car off a fresh green is slow to go
+const ALL_RED = 1;
+// Both opposite approaches go at once, a car a lane at a time: strong where two
+// busy streams cross, but anyone arriving on red waits, however quiet it is.
+const LIGHTS_GAP = { [STRAIGHT]: 0.8, [RIGHT]: 1.0, [LEFT]: 1.2 };
+const STARTUP = 0.6; // the first car off a fresh green is slow to go
+// Each green opens with a left-turn arrow: left turners go first while the
+// traffic facing them waits, so one car turning left can't block a lane all green.
+const LEAD = 2.2;
 const SENSOR = 25; // how far back from the stop line the lights see a car coming
 // Roundabout: arms are a quarter turn apart, and traffic goes round anticlockwise.
+// Entering means waiting for a gap in what's already going round, so traffic that
+// turns every which way flows, but one heavy stream starves the entrance after it.
 const SECTOR = 0.85;
+const ENTRY_GAP = 1.6; // seconds clear of anyone coming round past an entrance
 const RING_FOLLOW = 0.6; // seconds behind the car ahead on the ring
 const RING_SLOW = 14;    // metres before the ring that cars ease off
 const RING_SPEED = 7;    // and how fast they roll on
-const ROUNDABOUT_GAP = 1.0;
-const ROUNDABOUT_HOLD = 6;
-// Flyover: one road passes over the other, so straight on is free; turning means
-// taking the ramps, which meet at ground level and give way to each other.
+const ROUNDABOUT_GAP = 1.6;
+const ROUNDABOUT_HOLD = 3;
+// Flyover: the through road's straight traffic goes over the top, free. Right turns
+// peel off on slip ramps round the corners. Everything else (the cross road going
+// straight, and left turns) meets at ground level under the deck and gives way.
 const FLYOVER_STRAIGHT_GAP = 0.9;
-const RAMP_GAP = { [RIGHT]: 1.3, [LEFT]: 1.9 };
+const SLIP_GAP = 1.0;
+const UNDER_GAP = { [STRAIGHT]: 1.7, [LEFT]: 2.3 };
 
 /* Town vehicles that never come or go: they drive round and round inside, queueing
    and giving way like everyone else. They're traffic, but not part of the rush,
@@ -169,26 +179,65 @@ function route(net, fromLane, toLane, rand) {
 export const RUSH = 150;   // seconds of cars setting off
 export const DRAIN = 30;   // and this long after for the last of them to get through
 
+/* Each day's traffic has a character, so a different junction is the crux each day:
+   most cars heading into town, or out of it, one busy route across town, a stream
+   passing straight through on the highway, or a bit of everything. One street also
+   pulls more than the rest, the way a stadium or a market would. */
+const CHARACTERS = {
+  in: () => ({ inbound: [0.55, 0.7], outbound: [0.08, 0.15], through: [0.03, 0.08] }),
+  out: () => ({ inbound: [0.1, 0.18], outbound: [0.5, 0.65], through: [0.03, 0.08] }),
+  across: () => ({ inbound: [0.12, 0.2], outbound: [0.1, 0.18], through: [0.03, 0.08] }),
+  through: () => ({ inbound: [0.2, 0.3], outbound: [0.12, 0.2], through: [0.3, 0.42] }),
+  mixed: () => ({ inbound: [0.35, 0.45], outbound: [0.22, 0.32], through: [0.08, 0.15] }),
+};
+export const CHARACTER_NAMES = Object.keys(CHARACTERS);
+
+/** The day's character, from its seed: the same for everyone, every time. */
+export function characterOf(seed) {
+  const rand = rng(seed * 6151 + 29);
+  return CHARACTER_NAMES[Math.floor(rand() * CHARACTER_NAMES.length)];
+}
+
 /**
  * Trips for the day. Most come off the highway into town or leave town for it,
- * some cross town from street to street, a few pass straight through. `demand`
+ * some cross town from street to street, some pass straight through. `demand`
  * scales how many there are; the day's mix and timing come from the seed.
+ * `gen` 1 is the first generator, kept so the days played with it never change.
  */
-export function buildTrips(city, net, seed, demand) {
+export function buildTrips(city, net, seed, demand, gen = 1) {
   const rand = rng(seed * 104729 + 3);
   const inLane = (portal) => net.lanes.find((l) => l.from === portal.id && l.portal === 'in');
   const outLane = (portal) => net.lanes.find((l) => l.to === portal.id && l.portal === 'out');
   const streets = city.streetPortals;
-  const weight = streets.map(() => 0.5 + rand());
   const pairs = [];
-  const share = { inbound: 0.4 + rand() * 0.15, outbound: 0.25 + rand() * 0.1, through: 0.08 + rand() * 0.07 };
+  let weight;
+  let share;
+  let busyRoute = null; // the one busy street-to-street route, on a day across town
+  if (gen === 1) {
+    weight = streets.map(() => 0.5 + rand());
+    share = { inbound: 0.4 + rand() * 0.15, outbound: 0.25 + rand() * 0.1, through: 0.08 + rand() * 0.07 };
+  } else {
+    const between = ([a, b]) => a + rand() * (b - a);
+    const ranges = CHARACTERS[characterOf(seed)]();
+    share = { inbound: between(ranges.inbound), outbound: between(ranges.outbound), through: between(ranges.through) };
+    weight = streets.map(() => 0.3 + rand() * rand() * 1.6);
+    weight[Math.floor(rand() * streets.length)] *= 2.6; // the street everyone's going to
+    if (characterOf(seed) === 'across' && streets.length > 1) {
+      const a = Math.floor(rand() * streets.length);
+      busyRoute = [a, (a + 1 + Math.floor(rand() * (streets.length - 1))) % streets.length];
+    }
+  }
   share.cross = Math.max(0.08, 1 - share.inbound - share.outbound - share.through);
   const total = weight.reduce((a, b) => a + b, 0);
   streets.forEach((s, i) => {
     pairs.push({ from: city.entrance, to: s, w: share.inbound * weight[i] / total });
     pairs.push({ from: s, to: city.exit, w: share.outbound * weight[i] / total });
     streets.forEach((t, j) => {
-      if (i !== j) pairs.push({ from: s, to: t, w: share.cross * weight[i] * weight[j] / (total * total) });
+      if (i === j) return;
+      // Across town, most of the street-to-street traffic takes the one route.
+      const w = busyRoute ? (busyRoute[0] === i && busyRoute[1] === j ? share.cross * 0.6 : share.cross * 0.4 / (streets.length * (streets.length - 1)))
+        : share.cross * weight[i] * weight[j] / (total * total);
+      pairs.push({ from: s, to: t, w });
     });
   });
   pairs.push({ from: city.entrance, to: city.exit, w: share.through });
@@ -239,6 +288,8 @@ export function createRun(city, net, trips, junctions) {
     const incoming = lanes.filter((l) => l.to === n.id);
     nodes.set(n.id, {
       id: n.id,
+      // A flyover's deck runs along the road that carries on both sides (render.js agrees).
+      axis: n.links && n.links[1] !== null && n.links[3] !== null ? 1 : 0,
       type: n.kind === 'junction' ? junctions[n.id] ?? 'giveway' : 'bend',
       incoming,
       busyUntil: 0,
@@ -345,7 +396,9 @@ export function createRun(city, net, trips, junctions) {
           r.car.sneaked = true;
         } else {
           if (sideOf(r.lane.heading) !== green || sinceGreen < STARTUP) continue;
-          if (turn === LEFT && opposingComing(node, r.lane, ready)) continue;
+          const arrow = sinceGreen < STARTUP + LEAD;
+          if (turn === LEFT && !arrow && opposingComing(node, r.lane, ready)) continue;
+          if (turn !== LEFT && arrow && opposingTurnsLeft(node, r.lane)) continue;
         }
         admit(node, r.lane, r.car, r.next, LIGHTS_GAP[turn]);
       }
@@ -362,7 +415,7 @@ export function createRun(city, net, trips, junctions) {
           const k = Math.floor((run.t - c.at) / c.per);
           const nextArm = (c.arm - (k + 1) + 8) % 4;
           const untilThere = c.at + (k + 1) * c.per - run.t;
-          return nextArm === arm && nextArm !== c.exit && untilThere < 1.0;
+          return nextArm === arm && nextArm !== c.exit && untilThere < ENTRY_GAP;
         });
         if (blocked) continue;
         const sectors = sectorsFor(admit(node, r.lane, r.car, r.next, ROUNDABOUT_GAP));
@@ -371,17 +424,18 @@ export function createRun(city, net, trips, junctions) {
     },
 
     flyover(node, ready) {
-      let ramp = null;
+      let under = null;
       for (const r of ready) {
         if (run.t < node.nextFree.get(r.lane.id)) continue;
         const turn = turnOf(r.lane.heading, r.next.heading);
-        if (turn === STRAIGHT) admit(node, r.lane, r.car, r.next, FLYOVER_STRAIGHT_GAP);
-        else if (!ramp || r.car.since < ramp.car.since) ramp = r;
+        if (turn === STRAIGHT && sideOf(r.lane.heading) === node.axis) admit(node, r.lane, r.car, r.next, FLYOVER_STRAIGHT_GAP);
+        else if (turn === RIGHT) admit(node, r.lane, r.car, r.next, SLIP_GAP);
+        else if (!under || r.car.since < under.car.since) under = r;
       }
-      // The ramps take one car at a time, first come first served.
-      if (ramp && run.t >= node.busyUntil) {
-        const turn = admit(node, ramp.lane, ramp.car, ramp.next, 0);
-        node.busyUntil = run.t + RAMP_GAP[turn];
+      // Under the deck it's a give-way: one at a time, first come first served.
+      if (under && run.t >= node.busyUntil) {
+        const turn = admit(node, under.lane, under.car, under.next, 0);
+        node.busyUntil = run.t + UNDER_GAP[turn];
       }
     },
 
@@ -392,6 +446,15 @@ export function createRun(city, net, trips, junctions) {
       }
     },
   };
+
+  /* Whether the car at the front facing this lane is waiting to turn left across it. */
+  function opposingTurnsLeft(node, lane) {
+    const opposite = node.incoming.find((l) => l.heading === (lane.heading + 2) % 4);
+    const head = opposite?.cars[0];
+    if (!head || head.hold > 0 || head.pos < opposite.len - 0.01) return false;
+    const next = lanes[head.path[head.ri + 1]];
+    return !!next && turnOf(opposite.heading, next.heading) === LEFT;
+  }
 
   /* A left turn waits for oncoming traffic: a car on its way to the line, or one
      at it that's free to go. One stuck behind a full street isn't coming. */

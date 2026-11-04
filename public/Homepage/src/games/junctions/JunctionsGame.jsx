@@ -81,6 +81,35 @@ function layoutKey(config) {
     .sort(([a], [b]) => a - b).map(([id, type]) => `${id}:${type}`).join(' ');
 }
 
+/* What each tool is for, shown under the tools for the one picked. */
+const TOOL_HINT = {
+  giveway: tx('Cars take turns, one at a time. Fine where it’s quiet.'),
+  lights: tx('Each direction takes a turn, with a left-turn arrow first. Best where two busy streams cross straight over.'),
+  roundabout: tx('Cars join when there’s a gap. Best where traffic turns every which way, but one heavy stream can block the next entrance.'),
+  flyover: tx('The through road’s straight traffic goes over the top. Turns use the slip lanes, and the cross road gives way underneath.'),
+};
+
+/** Where the day's cars will go: how many use each lane, and where they turn at each junction. */
+function forecastFor(day) {
+  const volume = new Map();
+  const turns = new Map();
+  for (const trip of day.trips) {
+    trip.path.forEach((id, i) => {
+      volume.set(id, (volume.get(id) ?? 0) + 1);
+      const next = trip.path[i + 1];
+      if (next === undefined) return;
+      const a = day.net.lanes[id];
+      const node = day.city.nodes[a.to];
+      if (!node || node.kind !== 'junction') return;
+      const turn = (day.net.lanes[next].heading - a.heading + 4) % 4;
+      const m = turns.get(id) ?? { straight: 0, left: 0, right: 0 };
+      m[turn === 0 ? 'straight' : turn === 1 ? 'right' : 'left'] += 1;
+      turns.set(id, m);
+    });
+  }
+  return { volume, turns, most: Math.max(1, ...volume.values()) };
+}
+
 /** The junctions whose queues got worst in a run, worst first, if they went red. */
 function worstJunctions(run, city) {
   const peaks = new Map();
@@ -99,11 +128,11 @@ const TUTORIAL = [
     focus: 'highway',
   },
   {
-    text: tx('Every crossing is a junction. Right now they’re all give-ways: cars take turns, one at a time, so a busy one backs up fast.'),
+    text: tx('Every crossing is a junction, and today they’re all give-ways. The blue bands are the traffic to come, wider where it’s busier, and the arrows show where cars at each junction want to go.'),
     focus: 'junctions',
   },
   {
-    text: tx('Pick a tool to upgrade them. Lights take turns by direction, a roundabout keeps cars rolling, and a flyover lets straight-on traffic cross over the top. Each costs part of today’s budget.'),
+    text: tx('Each tool suits a different kind of junction: the line under the tools says what the one you’ve picked is for. Each costs part of today’s budget, and only a few ways of spending it work perfectly.'),
     focus: 'tools',
   },
   {
@@ -171,6 +200,7 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
     planSince.current = Date.now();
   }, [number, day]);
 
+  const forecast = useMemo(() => (day ? forecastFor(day) : null), [day]);
   const budget = day?.budget ?? 0;
   const spent = costOf(config);
   const left = budget - spent;
@@ -182,7 +212,10 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
   const [spots, setSpots] = useState([]); // where each junction sits over the canvas
   const [tags, setTags] = useState([]);   // and the highway's tags
   const drawState = useRef({});
-  drawState.current = { run, types: config, hover: phase === 'running' ? null : hover, showPeak: phase === 'done' };
+  drawState.current = {
+    run, types: config, hover: phase === 'running' ? null : hover, showPeak: phase === 'done',
+    forecast: phase === 'plan' && !run ? forecast : null,
+  };
 
   useLayoutEffect(() => {
     if (!day) return undefined;
@@ -375,6 +408,21 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
   const progress = run ? Math.min(1, run.t / (RUSH + DRAIN)) : 0;
   const refusedAt = refusal && rendererRef.current ? rendererRef.current.at(refusal.id) : null;
   const spotLit = focus === 'junctions' || focus === 'build';
+  // Hovering a junction while planning says what its traffic does.
+  const hoverInfo = useMemo(() => {
+    if (hover === null || phase !== 'plan' || !forecast || !day) return null;
+    const m = { straight: 0, left: 0, right: 0 };
+    for (const lane of day.net.lanes) {
+      if (lane.to !== hover) continue;
+      const t = forecast.turns.get(lane.id);
+      if (t) { m.straight += t.straight; m.left += t.left; m.right += t.right; }
+    }
+    const total = m.straight + m.left + m.right;
+    if (!total) return null;
+    const pct = (n) => Math.round((100 * n) / total);
+    return t('{n} cars · {s}% straight, {l}% left, {r}% right', { n: total, s: pct(m.straight), l: pct(m.left), r: pct(m.right) });
+  }, [hover, phase, forecast, day, lang]);
+  const hoverSpot = hoverInfo ? spots.find((s) => s.id === hover) : null;
   const showJams = !tutorial && phase !== 'running' && jams.length > 0;
   // A bubble that would run off the board slides back on, its point staying on what it means.
   const stageRef = useRef(null);
@@ -453,6 +501,7 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
           </div>
         </div>
 
+        <div className="jn-toolbox">
         <div className={`jn-tools${lit('tools')}`} role="radiogroup" aria-label={t('Junction to build')}>
           {TYPES.map((type) => (
             <button
@@ -469,6 +518,8 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
               <span className="jn-tool__cost">{type === 'giveway' ? t('free') : `$${COST[type]}`}</span>
             </button>
           ))}
+        </div>
+        <p className="jn-hint">{t(TOOL_HINT[tool])}</p>
         </div>
 
         <div className={`fc-stage jn-stage${focus ? ' is-teaching' : ''}`} ref={stageRef}>
@@ -502,6 +553,12 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
           {focus === 'build' && spots[0] && (
             <span className="jn-hand" style={{ left: `${spots[0].at[0]}px`, top: `${spots[0].at[1]}px` }} aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1.5a1.5 1.5 0 0 1 3 0V10m0-.5a1.5 1.5 0 0 1 3 0v4.5a6 6 0 0 1-6 6h-.6a5 5 0 0 1-4.1-2.2L4.6 14a1.5 1.5 0 0 1 2.3-1.9L9 14" /></svg>
+            </span>
+          )}
+
+          {hoverSpot && (
+            <span className="jn-callout jn-callout--info" style={{ left: `${hoverSpot.at[0]}px`, top: `${hoverSpot.at[1] - hoverSpot.size / 2}px` }}>
+              {hoverInfo}
             </span>
           )}
 

@@ -23,6 +23,13 @@ const ROUNDABOUT_R = ROAD_W * 0.58;
 const BRIDGE_H = 4.4;              // the deck's height over the road it crosses
 const BRIDGE_REACH = ROAD_W * 1.9; // from the junction's centre to where each ramp meets the road
 const BRIDGE_FLAT = ROAD_W / 2 + 2;
+/* The deck runs down the middle of the road, carrying the through traffic of both
+   directions, drawn in towards the centre as it climbs. Anyone turning keeps to the
+   ground on the slip lane beside it, out towards the kerb, and turns under the deck
+   or round the corner. */
+const DECK_HALF = 4.2;
+const THROUGH_AT = 2.1; // how far off the road's centre a car on the deck drives
+const SLIP_AT = 6.6;    // and one on the slip lane
 const HEAT_W = 2.8;                // the coloured stripe down the middle of each lane
 const SUN = [0.5, 0.2];            // which way shadows fall, per metre of height
 
@@ -105,6 +112,7 @@ function readTheme(el) {
   };
   return {
     tint,
+    dark: dim > 0,
     grass: v('--jn-grass'), grass2: v('--jn-grass-2'), grassSide: v('--jn-grass-side'),
     soil: v('--jn-soil'), soil2: v('--jn-soil-2'),
     road: v('--jn-road'), roadSide: v('--jn-road-side'), mark: v('--jn-mark'),
@@ -414,6 +422,56 @@ export function createRenderer(canvas, day) {
 
   /* Each lane's colour, as a stripe down its middle; where it climbs a flyover,
      the deck draws it instead. Each stretch is one strip, so it has no seams. */
+  /* The forecast, while planning: a soft band down each lane, wider the more cars
+     will use it, and arrows painted before each stop line for where those cars go,
+     bolder the more of them go that way. */
+  function drawForecast(forecast) {
+    const { volume, turns, most } = forecast;
+    const tint = theme.dark ? 'rgba(150, 170, 255, 0.4)' : 'rgba(70, 95, 225, 0.36)';
+    for (const lane of net.lanes) {
+      const v = volume.get(lane.id) ?? 0;
+      if (!v) continue;
+      const [x0, y0] = laneAt(lane, lane.offPlate);
+      const [x1, y1] = laneAt(lane, lane.len);
+      flat(strip(x0, y0, x1, y1, 1 + 4 * (v / most)), ROAD_TOP + 0.02, tint);
+    }
+    for (const [laneId, moves] of turns) {
+      const lane = net.lanes[laneId];
+      const total = moves.straight + moves.left + moves.right;
+      if (!total || lane.len < 16) continue;
+      const ux = (lane.x1 - lane.x0) / lane.len;
+      const uy = (lane.y1 - lane.y0) / lane.len;
+      const [rx, ry] = rightOf(lane.heading);
+      // A point `a` metres back from the stop line and `b` to the right of the lane.
+      const at = (a, b) => [lane.x1 - ux * a + rx * b, lane.y1 - uy * a + ry * b];
+      const ink = (share) => `rgba(255, 255, 255, ${(0.45 + 0.5 * share).toFixed(2)})`;
+      const width = (share) => (share >= 0.5 ? 1.3 : 0.8);
+      const head = (tip, dir, w) => {
+        const [dx, dy] = dir;
+        const [px, py] = [-dy, dx];
+        const s = 1.5 + w;
+        return [[tip[0] + dx * s, tip[1] + dy * s], [tip[0] + px * s, tip[1] + py * s], [tip[0] - px * s, tip[1] - py * s]];
+      };
+      const stemFrom = at(13, 0);
+      const stemTo = at(7, 0);
+      const anyShare = Math.max(moves.straight, moves.left, moves.right) / total;
+      flat(strip(...stemFrom, ...stemTo, width(anyShare)), ROAD_TOP + 0.04, ink(anyShare));
+      if (moves.straight / total >= 0.12) {
+        const share = moves.straight / total;
+        const tip = at(4.0, 0);
+        flat(strip(...stemTo, ...tip, width(share)), ROAD_TOP + 0.04, ink(share));
+        flat(head(tip, [ux, uy], width(share)), ROAD_TOP + 0.04, ink(share));
+      }
+      for (const [side, n] of [[-1, moves.left], [1, moves.right]]) {
+        if (n / total < 0.12) continue;
+        const share = n / total;
+        const tip = at(5.2, side * 2.6);
+        flat(strip(...stemTo, ...tip, width(share)), ROAD_TOP + 0.04, ink(share));
+        flat(head(tip, [rx * side, ry * side], width(share)), ROAD_TOP + 0.04, ink(share));
+      }
+    }
+  }
+
   function drawHeat(run, types, usePeak) {
     for (const lane of run.lanes) {
       const colour = heatColour(usePeak ? lane.peak : lane.heat);
@@ -679,12 +737,14 @@ export function createRenderer(canvas, day) {
     const lift = (x, y) => Math.max(ROAD_TOP, rampZ({ [n.id]: 'flyover' }, x, y));
     // A point `t` along the bridge and `s` across it, towards the viewer.
     const at = (t, s) => (a === 1 ? [n.x + t, n.y + s] : [n.x + s, n.y + t]);
-    for (const sx of [-1, 1]) {
-      const [cx, cy] = at(sx * (ROAD_W / 2 + 1.6), 0);
-      const [hx, hy] = a === 1 ? [1, ROAD_W / 2 - 1.5] : [ROAD_W / 2 - 1.5, 1];
-      box(cx - hx, cy - hy, cx + hx, cy + hy, ROAD_TOP, BRIDGE_H - 0.9, side);
+    // Four slim pillars where the deck leaves the junction, so the road under it stays open.
+    for (const st of [-1, 1]) {
+      for (const ss of [-1, 1]) {
+        const [cx, cy] = at(st * (ROAD_W / 2 + 1.2), ss * (DECK_HALF - 0.9));
+        box(cx - 0.6, cy - 0.6, cx + 0.6, cy + 0.6, ROAD_TOP, BRIDGE_H - 0.9, side);
+      }
     }
-    const w = HIGHWAY_W / 2;
+    const w = DECK_HALF;
     const ts = Array.from({ length: 33 }, (_, i) => -BRIDGE_REACH + (i / 32) * BRIDGE_REACH * 2);
     const Q = (t, s, dz) => { const [x, y] = at(t, s); return P(x, y, lift(...at(t, 0)) + dz); };
     // The near side, as one shape under the deck's edge, then the deck.
@@ -703,9 +763,15 @@ export function createRenderer(canvas, day) {
     for (const lane of run.lanes) {
       if (lane.heading % 2 !== a || Math.abs(a === 1 ? lane.y0 - n.y : lane.x0 - n.x) > ROAD_W / 2) continue;
       const along = [];
+      const [rx, ry] = rightOf(lane.heading);
       for (let s = lane.offPlate; s <= lane.len; s += 1.5) {
         const [x, y] = laneAt(lane, Math.min(s, lane.len));
-        if (Math.abs(a === 1 ? x - n.x : y - n.y) < BRIDGE_REACH + 1) along.push([x, y]);
+        const d = Math.abs(a === 1 ? x - n.x : y - n.y);
+        if (d >= BRIDGE_REACH + 1) continue;
+        // On the deck, the traffic keeps in towards the middle, so its colour does too.
+        const k = Math.max(0, Math.min(1, (BRIDGE_REACH + 6 - d) / 10));
+        const shift = (THROUGH_AT - ROAD_W / 4) * k * k * (3 - 2 * k);
+        along.push([x + rx * shift, y + ry * shift]);
       }
       if (along.length < 2) continue;
       const lift = ([x, y], side) => {
@@ -718,6 +784,31 @@ export function createRenderer(canvas, day) {
 
   /* ---------- cars ---------- */
 
+  /* Near a flyover, a car on the road under the deck's line keeps to the deck if
+     it's going straight through, or to the slip lane if it's turning. This is how
+     far to move it sideways (to its right), and whether it's up on the deck. */
+  function slipShift(run, c, lane, x, y) {
+    for (const id of [lane.to, lane.from]) {
+      const node = city.nodes[id];
+      if (!node || node.kind !== 'junction' || run.nodes.get(id)?.type !== 'flyover') continue;
+      if (lane.heading % 2 !== axisOf(node)) continue;
+      const along = axisOf(node) === 1 ? Math.abs(x - node.x) : Math.abs(y - node.y);
+      if (along > BRIDGE_REACH + 6) continue;
+      let through;
+      if (id === lane.to) {
+        const next = run.lanes[c.path[c.ri + 1]];
+        through = !!next && next.heading === lane.heading;
+      } else {
+        through = !!c.crossing && run.lanes[c.crossing.from].heading === lane.heading;
+      }
+      const k = Math.max(0, Math.min(1, (BRIDGE_REACH + 6 - along) / 10));
+      const blend = k * k * (3 - 2 * k);
+      return { shift: ((through ? THROUGH_AT : SLIP_AT) - ROAD_W / 4) * blend, through };
+    }
+    return null;
+  }
+  const rightOf = (h) => [-DY[h], DX[h]];
+
   function carPoint(run, c) {
     const lane = run.lanes[c.lane];
     const ux = (lane.x1 - lane.x0) / lane.len;
@@ -728,6 +819,27 @@ export function createRenderer(canvas, day) {
       const t = 1 - c.hold / c.crossing.dur;
       const node = city.nodes[lane.from];
       const type = run.nodes.get(node.id)?.type;
+      if (type === 'flyover') {
+        // From the deck or the slip lane it came off, to the one it's going onto.
+        const a = axisOf(node);
+        const through = from.heading === lane.heading && from.heading % 2 === a;
+        const end = (l, x, y) => {
+          if (l.heading % 2 !== a) return [x, y];
+          const [rx, ry] = rightOf(l.heading);
+          const s = (through ? THROUGH_AT : SLIP_AT) - ROAD_W / 4;
+          return [x + rx * s, y + ry * s];
+        };
+        const [sx0, sy0] = end(from, from.x1, from.y1);
+        const [sx1, sy1] = end(lane, lane.x0, lane.y0);
+        const s = 1 - t;
+        const cx = node.x + (sx0 - node.x + sx1 - node.x) * (through ? 0.5 : 0.15);
+        const cy = node.y + (sy0 - node.y + sy1 - node.y) * (through ? 0.5 : 0.15);
+        const x = s * s * sx0 + 2 * s * t * cx + t * t * sx1;
+        const y = s * s * sy0 + 2 * s * t * cy + t * t * sy1;
+        const dx = 2 * s * (cx - sx0) + 2 * t * (sx1 - cx) || ux;
+        const dy = 2 * s * (cy - sy0) + 2 * t * (sy1 - cy) || uy;
+        return { x, y, dx, dy, node, type, from };
+      }
       if (type === 'roundabout') {
         const a0 = Math.atan2(from.y1 - node.y, from.x1 - node.x);
         let a1 = Math.atan2(lane.y0 - node.y, lane.x0 - node.x);
@@ -750,7 +862,15 @@ export function createRenderer(canvas, day) {
       const dy = 2 * s * (cy - from.y1) + 2 * t * (lane.y0 - cy) || uy;
       return { x, y, dx, dy, node, type, from };
     }
-    return { x: lane.x0 + ux * c.pos, y: lane.y0 + uy * c.pos, dx: ux, dy: uy };
+    let x = lane.x0 + ux * c.pos;
+    let y = lane.y0 + uy * c.pos;
+    const slip = slipShift(run, c, lane, x, y);
+    if (slip) {
+      const [rx, ry] = rightOf(lane.heading);
+      x += rx * slip.shift;
+      y += ry * slip.shift;
+    }
+    return { x, y, dx: ux, dy: uy, slip };
   }
 
   function footprint(p, len, wide, ahead = 0) {
@@ -892,7 +1012,7 @@ export function createRenderer(canvas, day) {
             // Straight across east-west goes over the deck; anything else, under it.
             const over = p.from.heading % 2 === axisOf(p.node) && p.from.heading === lane.heading;
             if (over) { z += BRIDGE_H; depth = p.node.x + p.node.y + 1; } else depth = p.node.x + p.node.y - 1;
-          } else {
+          } else if (!p.slip || p.slip.through) {
             const lift = rampZ(types, p.x, p.y, lane.heading % 2);
             if (lift > 0) {
               z += lift;
@@ -971,13 +1091,14 @@ export function createRenderer(canvas, day) {
     }
   }
 
-  function draw({ run, types, hover, showPeak }) {
+  function draw({ run, types, hover, showPeak, forecast }) {
     if (!ground) drawGround();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(ground, 0, 0);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (run) drawHeat(run, types, showPeak);
+    else if (forecast) drawForecast(forecast);
     drawJunctions(run, types, hover);
     drawStanding(run, types, showPeak);
     drawHighwayTags();

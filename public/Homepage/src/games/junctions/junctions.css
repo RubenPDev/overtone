@@ -162,6 +162,11 @@
   border-top-color: var(--jn-spot);
 }
 .jn-callout--jam { background: #e2485a; }
+.jn-callout--info { background: var(--ink); color: var(--sheet); font-weight: 700; animation: none !important; }
+.jn-callout--info::after { border-top-color: var(--ink); }
+
+/* What the picked tool is for. */
+.jn-hint { margin: -6px 0 12px; min-height: 2.6em; font-size: 13px; line-height: 1.4; color: var(--ink-3); }
 .jn-callout--jam::after { border-top-color: #e2485a; }
 
 /* A hand tapping the first junction. */
@@ -327,6 +332,6 @@
       "actions board"
       ".       board";
   }
-  .jn-tools { grid-area: tools; margin-bottom: 22px; }
+  .jn-toolbox { grid-area: tools; margin-bottom: 14px; }
   .jn-stage { grid-area: board; aspect-ratio: auto; min-height: 0; }
 }

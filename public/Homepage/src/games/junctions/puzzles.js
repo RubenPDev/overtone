@@ -47,6 +47,10 @@ export function puzzlePath(n) {
 const MIN_DEMAND = 24;
 const MAX_DEMAND = 150;
 const BEAM = 3; // how many of the best sets the search carries forward each round
+export const GEN = 2;        // the traffic generator new days are made with
+const BUDGETS = [6, 8, 10];
+const MAX_PERFECT = 3;       // a day may have a small family of perfect layouts, no more
+const VARIANTS = 40;
 
 /** How good a run is, for the search: perfect first, then how much got through. */
 function value(score, cost) {
@@ -59,9 +63,9 @@ function value(score, cost) {
  * than only the best, since the upgrade that helps most alone isn't always
  * part of the best set; then it tries giving up each upgrade to build again.
  */
-export function improve(world, demand, budget, start = {}) {
+export function improve(world, demand, budget, start = {}, gen = GEN) {
   const { city, net } = world;
-  const trips = buildTrips(city, net, city.seed, demand);
+  const trips = buildTrips(city, net, city.seed, demand, gen);
   const ids = city.nodes.filter((n) => n.kind === 'junction').map((n) => n.id);
   const seen = new Map();
   const judge = (config) => {
@@ -124,32 +128,95 @@ function budgetFor(n, variant) {
   return 6 + Math.floor(rand() * 3) * 2; // 6, 8 or 10
 }
 
+/** Every layout the budget allows, as {junction: type} with give-ways left out. */
+export function layoutsWithin(ids, budget) {
+  const out = [];
+  const config = {};
+  (function place(i, cost) {
+    if (cost > budget) return;
+    if (i === ids.length) { out.push({ ...config }); return; }
+    for (const type of TYPES) {
+      if (type === 'giveway') delete config[ids[i]]; else config[ids[i]] = type;
+      place(i + 1, cost + COST[type]);
+    }
+    delete config[ids[i]];
+  })(0, 0);
+  return out;
+}
+
+/* What someone might build without reading this town at all: one kind of junction
+   on the busiest crossings, or roundabouts at the highway first. A day that any of
+   these wins isn't a puzzle. */
+function recipes(world, trips, budget) {
+  const { city, net } = world;
+  const ids = city.nodes.filter((x) => x.kind === 'junction').map((x) => x.id);
+  const through = new Map(ids.map((id) => [id, 0]));
+  for (const trip of trips) for (const laneId of trip.path) { const to = net.lanes[laneId].to; if (through.has(to)) through.set(to, through.get(to) + 1); }
+  const busiest = [...ids].sort((a, b) => through.get(b) - through.get(a));
+  const nearest = (p) => [...ids].sort((a, b) => Math.hypot(city.nodes[a].x - p.x, city.nodes[a].y - p.y) - Math.hypot(city.nodes[b].x - p.x, city.nodes[b].y - p.y))[0];
+  const highwayFirst = [...new Set([nearest(city.entrance), nearest(city.exit), ...busiest])];
+  const fill = (order, type) => {
+    const config = {};
+    let cost = 0;
+    for (const id of order) if (cost + COST[type] <= budget) { config[id] = type; cost += COST[type]; }
+    return config;
+  };
+  return [fill(busiest, 'roundabout'), fill(busiest, 'lights'), fill(busiest, 'flyover'), fill(highwayFirst, 'roundabout')];
+}
+
 /**
- * Works out a day from scratch: the city, its budget, and the heaviest rush
- * hour that some junctions within the budget run perfectly. Returns a solution
- * too, which is the proof.
+ * Every perfect layout for a town at a given rush hour, by trying them all. It's a
+ * few thousand runs at most, which is what makes a day provable.
+ */
+export function perfectLayouts(world, demand, budget, gen = GEN) {
+  const { city, net } = world;
+  const trips = buildTrips(city, net, city.seed, demand, gen);
+  const ids = city.nodes.filter((x) => x.kind === 'junction').map((x) => x.id);
+  const perfect = layoutsWithin(ids, budget).filter((config) => simulate(city, net, trips, config).perfect);
+  return { perfect, trips };
+}
+
+const kinds = (config) => new Set(Object.values(config)).size;
+
+/**
+ * Works out a day from scratch, and proves it's a puzzle: a town, a budget, and
+ * the heaviest rush hour that some layout runs perfectly, where trying every
+ * layout finds no more than a few that do, none of them a recipe, and doing
+ * nothing leaves cars stuck. The first pass also insists that the answer mixes
+ * kinds of junction; only a town where nothing does is let off that.
  */
 export function tune(n) {
-  for (let variant = 0; variant < 24; variant++) {
-    const world = worldFor(n, variant);
-    const junctionCount = world.city.nodes.filter((x) => x.kind === 'junction').length;
-    if (junctionCount < 4) continue;
-    for (let budget = budgetFor(n, variant); budget <= 14; budget += 2) {
-      // Search the demand: perfect is possible below it, not above.
-      let lo = MIN_DEMAND;
-      let hi = MAX_DEMAND;
-      let found = null;
-      let start = {};
-      for (let i = 0; i < 6; i++) {
-        const mid = Math.round((lo + hi) / 2);
-        const { config, score } = improve(world, mid, budget, start);
-        if (score.perfect) { lo = mid; found = { demand: mid, config }; start = config; } else hi = mid;
+  for (const mixed of [true, false]) {
+    for (let variant = 0; variant < VARIANTS; variant++) {
+      const world = worldFor(n, variant);
+      const junctionCount = world.city.nodes.filter((x) => x.kind === 'junction').length;
+      if (junctionCount < 4) continue;
+      const first = budgetFor(n, variant);
+      for (const budget of [first, ...BUDGETS.filter((b) => b !== first)]) {
+        // Search the demand: perfect is possible below it, not above.
+        let lo = MIN_DEMAND;
+        let hi = MAX_DEMAND;
+        let edge = null;
+        let start = {};
+        for (let i = 0; i < 6; i++) {
+          const mid = Math.round((lo + hi) / 2);
+          const { config, score } = improve(world, mid, budget, start);
+          if (score.perfect) { lo = mid; edge = mid; start = config; } else hi = mid;
+        }
+        if (!edge) continue;
+        // At the edge only a few layouts work; nudge the rush up until no more than a few do.
+        for (let demand = edge; demand <= edge + 8; demand += 2) {
+          const { perfect, trips } = perfectLayouts(world, demand, budget);
+          if (!perfect.length) break;
+          if (perfect.length > MAX_PERFECT) continue;
+          if (mixed && perfect.some((c) => kinds(c) < 2)) break;
+          const nothing = simulate(world.city, world.net, trips, {});
+          if (nothing.cleared >= CLEAR_SHARE) break; // doing nothing would nearly do
+          if (recipes(world, trips, budget).some((c) => simulate(world.city, world.net, trips, c).perfect)) break;
+          const cheapest = [...perfect].sort((a, b) => costOf(a) - costOf(b))[0];
+          return { n, variant, budget, demand, gen: GEN, solution: cheapest, answers: perfect.length };
+        }
       }
-      if (!found) continue;
-      const trips = buildTrips(world.city, world.net, world.city.seed, found.demand);
-      const nothing = simulate(world.city, world.net, trips, {});
-      if (nothing.cleared >= CLEAR_SHARE) continue; // doing nothing would do: give more to spend
-      return { n, variant, budget, demand: found.demand, solution: found.config };
     }
   }
   return null;
@@ -158,7 +225,7 @@ export function tune(n) {
 /** Everything the game needs for day n, given its tuning. */
 export function dayFrom(t) {
   const world = worldFor(t.n, t.variant);
-  const trips = buildTrips(world.city, world.net, world.city.seed, t.demand);
+  const trips = buildTrips(world.city, world.net, world.city.seed, t.demand, t.gen ?? 1);
   return { ...t, ...world, trips };
 }
 

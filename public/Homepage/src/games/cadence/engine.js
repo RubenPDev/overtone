@@ -71,6 +71,7 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
   let lastTapTime = 0, fastestGap = Infinity, lastFreq = 330;
   let flash = 0, ripple = null, result = null;
   let revealTimers = [], revealLit = -1;
+  let revealSources = [], revealUntil = 0; // the tune being played back, and when it ends
 
   let visual = { lobes: 3, spike: 1.9, uneven: 0.30, steady: 0.18 };
 
@@ -430,6 +431,10 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
     revealTimers.forEach(clearTimeout);
     revealTimers = [];
     revealLit = -1;
+    // Starting over silences the tune rather than letting it play on under the next go.
+    revealSources.forEach((s) => { try { s.stop(); } catch { /* already ended */ } });
+    revealSources = [];
+    revealUntil = 0;
   }
 
   function reset() {
@@ -490,8 +495,11 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
     if (index === melody.notes.length) setTimeout(finish, 10);
   }
 
+  /* Plays the tune through, unless it's already playing. Returns how many
+     seconds it takes, or 0 if it didn't start. */
   function reveal() {
-    if (!melody) return;
+    if (!melody) return 0;
+    if (performance.now() < revealUntil) return 0;
     ensureAudio();
     clearReveal();
     let t = ac.currentTime + 0.08;
@@ -507,6 +515,7 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
       s.buffer = bufferFor(freq);
       s.connect(analyser);
       s.start(t);
+      revealSources.push(s);
       lastFreq = freq;
       if (k < melody.gaps.length) {
         t += melody.gaps[k] * melody.playback;
@@ -514,6 +523,9 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
       }
     }
     revealTimers.push(setTimeout(() => { revealLit = -1; }, (offset + 1.2) * 1000));
+    const seconds = offset + 1.2;
+    revealUntil = performance.now() + seconds * 1000;
+    return seconds;
   }
 
   /* ---------------- wiring ---------------- */

@@ -30,6 +30,16 @@ export function markHintUsed(ns, puzzleNumber) {
   if (!list.includes(puzzleNumber)) safeSet(`${ns}:hinted`, JSON.stringify([...list, puzzleNumber]));
 }
 
+/** Whether the one free listen to a puzzle's answer has been used. */
+export function freeListenUsed(ns, puzzleNumber) {
+  try { return JSON.parse(safeGet(`${ns}:freeListen`) || '[]').includes(puzzleNumber); } catch { return false; }
+}
+export function markFreeListen(ns, puzzleNumber) {
+  let list = [];
+  try { list = JSON.parse(safeGet(`${ns}:freeListen`) || '[]'); } catch { /* start fresh */ }
+  if (!list.includes(puzzleNumber)) safeSet(`${ns}:freeListen`, JSON.stringify([...list, puzzleNumber]));
+}
+
 /** Anyone with a result already knows how to play, even if they predate the lesson. */
 export function helpSeen(ns) {
   return safeGet(`${ns}:helpSeen`) !== null || Object.keys(readResults(ns)).length > 0;

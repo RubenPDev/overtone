@@ -174,11 +174,13 @@ export default {
   '{n} of {total} gaps right.': '{n} de {total} espacios bien.',
   'Amber means you held too short, red too long.': 'Ámbar es que la soltaste muy pronto; rojo, que la sostuviste de más.',
   'You’ve heard it now. Try again.': 'Ya la escuchaste. Inténtalo otra vez.',
-  'Try again, or hear the answer first, though a solve after that counts as assisted.':
-    'Inténtalo otra vez, o escucha antes la respuesta, aunque si la resuelves después cuenta como con ayuda.',
+  'Try again, or hear the answer: the first listen is free.': 'Inténtalo otra vez, o escucha la respuesta: la primera vez es gratis.',
+  'You’ve had your free listen. Hearing it again counts as with help.': 'Ya usaste tu escucha gratis. Si la escuchas otra vez, cuenta como con ayuda.',
+  'Hear it free': 'Escucharla gratis',
+  'Playing…': 'Sonando…',
+  'Sure? Counts as with help': '¿Seguro? Cuenta como con ayuda',
   'Have one go first': 'Primero haz un intento',
   'Hear answer': 'Escuchar respuesta',
-  'Sure? Counts as assisted': '¿Seguro? Cuenta como con ayuda',
   'Hear it again': 'Escucharla otra vez',
   'Reset': 'Reiniciar',
   'Visualizer settings': 'Ajustes del visualizador',
@@ -194,8 +196,8 @@ export default {
   'Try again below.': 'Inténtalo otra vez abajo.',
   'There’s one new tune a day, with a small clue under the pad.': 'Hay una melodía nueva cada día, con una pequeña pista debajo del círculo.',
   'Try as many times as you like. A wrong try costs nothing.': 'Inténtalo las veces que quieras. Un intento fallido no cuesta nada.',
-  'Stuck? After one try you can hear the answer, but solving it after that counts as assisted.':
-    '¿Atorado? Después de un intento puedes escuchar la respuesta, pero si la resuelves después cuenta como con ayuda.',
+  'Stuck? After one try you can hear the answer once for free. Hearing it again means a solve counts as with help.':
+    '¿Atorado? Después de un intento puedes escuchar la respuesta una vez gratis. Si la escuchas otra vez, resolverla cuenta como con ayuda.',
   'Hear it': 'Escucharla',
   'Got it': 'Entendido',
   '{n} tries': '{n} intentos',
@@ -266,10 +268,18 @@ export default {
   'Flyover': 'Puente',
   'Rush hour is on its way. Cars come in on the highway and leave town by it too; the side streets at the edges add a few more.':
     'Ya viene la hora pico. Los carros entran por la autopista y también salen del pueblo por ella; las calles de las orillas traen unos cuantos más.',
-  'Every crossing is a junction. Right now they’re all give-ways: cars take turns, one at a time, so a busy one backs up fast.':
-    'Cada cruce es una intersección. Ahora todas son de ceda el paso: los carros pasan por turnos, de uno en uno, así que una muy transitada se llena rápido.',
-  'Pick a tool to upgrade them. Lights take turns by direction, a roundabout keeps cars rolling, and a flyover lets straight-on traffic cross over the top. Each costs part of today’s budget.':
-    'Elige una herramienta para mejorarlas. El semáforo da turnos por dirección, la glorieta mantiene a los carros en movimiento y el puente deja que el tráfico que sigue derecho cruce por arriba. Cada una cuesta parte del presupuesto de hoy.',
+  'Every crossing is a junction, and today they’re all give-ways. The blue bands are the traffic to come, wider where it’s busier, and the arrows show where cars at each junction want to go.':
+    'Cada cruce es una intersección, y hoy todas son de ceda el paso. Las franjas azules son el tráfico que viene, más anchas donde hay más, y las flechas muestran a dónde quieren ir los carros en cada intersección.',
+  'Each tool suits a different kind of junction: the line under the tools says what the one you’ve picked is for. Each costs part of today’s budget, and only a few ways of spending it work perfectly.':
+    'Cada herramienta sirve para un tipo distinto de intersección: la línea bajo las herramientas dice para qué es la que elegiste. Cada una cuesta parte del presupuesto de hoy, y solo unas pocas formas de gastarlo funcionan a la perfección.',
+  'Cars take turns, one at a time. Fine where it’s quiet.': 'Los carros pasan por turnos, de uno en uno. Bien donde hay poco tráfico.',
+  'Each direction takes a turn, with a left-turn arrow first. Best where two busy streams cross straight over.':
+    'Cada dirección tiene su turno, con flecha para dar vuelta a la izquierda primero. Ideal donde dos flujos fuertes se cruzan de frente.',
+  'Cars join when there’s a gap. Best where traffic turns every which way, but one heavy stream can block the next entrance.':
+    'Los carros entran cuando hay un hueco. Ideal donde el tráfico da vuelta para todos lados, pero un flujo muy fuerte puede bloquear la siguiente entrada.',
+  'The through road’s straight traffic goes over the top. Turns use the slip lanes, and the cross road gives way underneath.':
+    'El tráfico que sigue derecho por la vía principal pasa por arriba. Las vueltas usan los carriles laterales, y la calle que cruza cede el paso por debajo.',
+  '{n} cars · {s}% straight, {l}% left, {r}% right': '{n} carros · {s}% derecho, {l}% izquierda, {r}% derecha',
   'Then tap a junction to build it there. Tap it again to take it back out.':
     'Luego toca una intersección para construirla ahí. Tócala otra vez para quitarla.',
   'Press Run to play the rush hour. Green streets are flowing, red ones are jammed. Get every car through to clear the day, and keep every street out of the red for a perfect flow.':

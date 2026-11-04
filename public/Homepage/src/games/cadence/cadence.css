@@ -65,7 +65,7 @@
 
 /* ---------- the pad ---------- */
 
-.cad__padwrap { display: flex; justify-content: center; align-items: center; margin: 24px 0 44px; }
+.cad__padwrap { display: flex; justify-content: center; align-items: center; margin: 24px 0 22px; }
 
 /* The board's candy, turned round: a glossy dome on a ring of the same pearl, whose
    thickness shows below it. The note glow, rim dots and trace are on the canvas. */
@@ -126,7 +126,15 @@
 
 /* ---------- actions ---------- */
 
-.cad__actions { display: flex; align-items: center; gap: 10px; }
+.cad__actions { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+/* Hearing the answer is the main help on offer, so it stands out from the plain buttons. */
+.cad__btn--hear {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  color: var(--ink);
+  border: 2px solid var(--btn-side);
+}
+.cad__btn--hear:disabled { border-color: var(--card-edge); }
+.cad__btnicon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .cad__actions .cad__btn:first-child { flex: 1; }
 .cad__actions .cad__btn--primary { min-height: 48px; }
 
@@ -525,9 +533,9 @@
       "mast      pad"
       "stripwrap pad"
       "strip     pad"
+      "actions   pad"
       "readouts  pad"
       "hint      pad"
-      "actions   pad"
       "settings  pad"
       ".         pad";
     column-gap: clamp(32px, 5vw, 88px);
