@@ -13,6 +13,7 @@ import { safeGet, safeSet } from '../../lib/progress.js';
 const STUCK_MS = 1500;
 const POP_GAP = [0.16, 0.3]; // seconds between pops: watching, and fast forward
 const PASS_EVERY = [4, 8];   // seconds between cars passing close by, at normal speed
+const HONK_EVERY = [3.5, 9]; // seconds between horns, and only while a street is jammed
 
 let ctx = null;
 let resumeAskedAt = 0;
@@ -21,6 +22,7 @@ let enabled = safeGet('junctions:sound') !== 'off';
 let bed = null;     // the traffic: { src, gain, filter }
 let lastPop = 0;
 let nextPass = 0;
+let nextHonk = 0;
 
 function ac() {
   if (!ctx) {
@@ -181,11 +183,48 @@ export const sound = {
     }
   },
 
+  /** While a street is jammed, someone leans on their horn now and then. */
+  honk(jammed) {
+    if (!enabled || !jammed) return;
+    const a = ac(); if (!a || a.state !== 'running') return;
+    const t = a.currentTime;
+    if (!nextHonk) nextHonk = t + 1 + Math.random() * 2;
+    if (t < nextHonk) return;
+    nextHonk = t + HONK_EVERY[0] + Math.random() * (HONK_EVERY[1] - HONK_EVERY[0]);
+    // A car horn is two notes a third apart; a quick double toot about a third of the time.
+    const pitch = 330 + Math.random() * 90;
+    const out = a.createGain();
+    out.gain.value = 0.028;
+    const lp = a.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 1500;
+    const pan = a.createStereoPanner ? a.createStereoPanner() : null;
+    if (pan) { pan.pan.value = Math.random() * 1.4 - 0.7; out.connect(pan); pan.connect(a.destination); } else out.connect(a.destination);
+    lp.connect(out);
+    const toots = Math.random() < 0.35 ? [[0, 0.13], [0.2, 0.22]] : [[0, 0.3]];
+    for (const [at, dur] of toots) {
+      for (const f of [pitch, pitch * 1.26]) {
+        const osc = a.createOscillator();
+        const amp = a.createGain();
+        osc.type = 'square';
+        osc.frequency.value = f;
+        amp.gain.setValueAtTime(0, t + at);
+        amp.gain.linearRampToValueAtTime(1, t + at + 0.015);
+        amp.gain.setValueAtTime(1, t + at + dur - 0.04);
+        amp.gain.linearRampToValueAtTime(0, t + at + dur);
+        osc.connect(amp); amp.connect(lp);
+        osc.start(t + at);
+        osc.stop(t + at + dur + 0.02);
+      }
+    }
+  },
+
   /** The traffic fades out: the rush is over, or stopped. */
   quiet() {
     if (!bed || !ctx) return;
     const { src, gain } = bed;
     bed = null;
+    nextHonk = 0;
     gain.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
     src.stop(ctx.currentTime + 1.5);
   },

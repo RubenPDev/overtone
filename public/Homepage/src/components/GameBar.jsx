@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrandMark, LangToggle, ThemeToggle } from './Header.jsx';
+import { BrandMark, SettingsMenu } from './Header.jsx';
 import { t } from '../lib/i18n.js';
 import { linkHandler, withBase } from '../router.js';
 
@@ -13,8 +13,7 @@ export default function GameBar({ onNavigate, isDark, onToggleTheme, children })
       </a>
       <div className="pillbar">
         {children}
-        <LangToggle className="lang--bar" />
-        <ThemeToggle className="pillbar__btn pillbar__btn--theme" isDark={isDark} onToggle={onToggleTheme} />
+        <SettingsMenu className="pillbar__btn pillbar__btn--theme" isDark={isDark} onToggleTheme={onToggleTheme} />
       </div>
     </header>
   );

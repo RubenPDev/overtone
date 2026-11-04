@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { linkHandler, withBase } from '../router.js';
 import { LANGS, setLang, t, useLang } from '../lib/i18n.js';
 
@@ -31,38 +31,85 @@ export function BrandMark() {
   );
 }
 
-export function ThemeToggle({ className, isDark, onToggle }) {
+function Gear() {
   return (
-    <button
-      type="button"
-      className={className}
-      onClick={onToggle}
-      aria-label={isDark ? t('Switch to light theme') : t('Switch to dark theme')}
-      title={isDark ? t('Light theme') : t('Dark theme')}
-    >
-      {isDark ? <Sun /> : <Moon />}
-    </button>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
   );
 }
 
-/** English or Spanish: both shown, the one in use lit. */
-export function LangToggle({ className = '' }) {
-  const lang = useLang();
+/** Two or more choices side by side, the one in use lit. */
+function Choice({ label, options }) {
   return (
-    <div className={`lang ${className}`} role="group" aria-label={t('Language')}>
-      {LANGS.map((l) => (
-        <button
-          key={l}
-          type="button"
-          className="lang__btn"
-          lang={l === 'es' ? 'es-MX' : 'en'}
-          aria-pressed={l === lang}
-          title={l === 'es' ? 'Español' : 'English'}
-          onClick={() => setLang(l)}
-        >
-          {l.toUpperCase()}
-        </button>
-      ))}
+    <div className="settings__row">
+      <span className="settings__label">{label}</span>
+      <div className="seg" role="group" aria-label={label}>
+        {options.map((o) => (
+          <button key={o.key} type="button" className="seg__btn" aria-pressed={o.on} lang={o.lang} onClick={o.pick}>
+            {o.icon}{o.text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Theme and language behind one button, so the header stays roomy on a phone.
+ * It closes on a choice made outside it, on Escape, or on the button again.
+ */
+export function SettingsMenu({ className = '', isDark, onToggleTheme }) {
+  const lang = useLang();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const buttonRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (!rootRef.current?.contains(e.target)) setOpen(false); };
+    const key = (e) => { if (e.key === 'Escape') { setOpen(false); buttonRef.current?.focus(); } };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', key); };
+  }, [open]);
+
+  return (
+    <div className="settings" ref={rootRef}>
+      <button
+        type="button"
+        ref={buttonRef}
+        className={className}
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-label={t('Settings')}
+        title={t('Settings')}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Gear />
+      </button>
+      {open && (
+        <div className="settings__panel">
+          <Choice
+            label={t('Theme')}
+            options={[
+              { key: 'light', text: t('Light'), icon: <Sun />, on: !isDark, pick: () => { if (isDark) onToggleTheme(); } },
+              { key: 'dark', text: t('Dark'), icon: <Moon />, on: isDark, pick: () => { if (!isDark) onToggleTheme(); } },
+            ]}
+          />
+          <Choice
+            label={t('Language')}
+            options={LANGS.map((l) => ({
+              key: l,
+              text: l === 'es' ? 'Español' : 'English',
+              lang: l === 'es' ? 'es-MX' : 'en',
+              on: l === lang,
+              pick: () => setLang(l),
+            }))}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -78,8 +125,7 @@ export default function Header({ isDark, onToggleTheme, navigate }) {
       <nav className="masthead__nav">
         <a href={withBase('/#games')}>{t('Games')}</a>
         <a href={withBase('/#about')}>{t('About')}</a>
-        <LangToggle />
-        <ThemeToggle className="themetoggle" isDark={isDark} onToggle={onToggleTheme} />
+        <SettingsMenu className="themetoggle" isDark={isDark} onToggleTheme={onToggleTheme} />
       </nav>
     </header>
   );

@@ -60,6 +60,14 @@ const ROUNDABOUT_HOLD = 6;
 const FLYOVER_STRAIGHT_GAP = 0.9;
 const RAMP_GAP = { [RIGHT]: 1.3, [LEFT]: 1.9 };
 
+/* Town vehicles that never come or go: they drive round and round inside, queueing
+   and giving way like everyone else. They're traffic, but not part of the rush,
+   so they're never counted as stuck and the run doesn't wait for them. */
+const PATROLS = ['taxi', 'police', 'ambulance'];
+const PATROL_TURNS = 600; // junctions planned ahead for each, far more than a run reaches
+// One rush-hour car in this many is a lorry. Only its look changes.
+const TRUCK_EVERY = 9;
+
 /* ------------------------------------------------------------------
    The lanes and the routes over them.
 ------------------------------------------------------------------ */
@@ -243,6 +251,7 @@ export function createRun(city, net, trips, junctions) {
   }
   const sources = new Map(); // lane id -> waiting trips
   for (const l of lanes) if (l.portal === 'in') sources.set(l.id, []);
+  placePatrols(lanes, net, city.seed);
 
   const run = {
     t: 0,
@@ -255,6 +264,9 @@ export function createRun(city, net, trips, junctions) {
     sources,
     peakHeat: 0,
     next: 0,
+    // Car-seconds spent moving and waiting, rush-hour cars only, for the flow score.
+    movingTime: 0,
+    waitingTime: 0,
   };
 
   const tailRoom = (lane) => {
@@ -408,6 +420,7 @@ export function createRun(city, net, trips, junctions) {
         lane.cars.push({
           path: trip.path, ri: 0, lane: laneId, pos: 0, hold: 0, waiting: 0, since: 0,
           trip, tone: trip.tone, crossing: null, id: trip.id,
+          kind: trip.id % TRUCK_EVERY === TRUCK_EVERY - 1 ? 'truck' : 'car',
         });
         run.cars++;
       }
@@ -419,20 +432,27 @@ export function createRun(city, net, trips, junctions) {
       const ring = nodes.get(lane.to)?.type === 'roundabout';
       let stopped = 0;
       let moving = 0;
+      let flowing = 0;
+      let held = 0;
       for (let i = 0; i < cars.length; i++) {
         const car = cars[i];
-        if (car.hold > 0) { car.hold -= DT; moving++; continue; }
+        const counts = !car.trip.patrol;
+        if (car.hold > 0) { car.hold -= DT; moving++; if (counts) flowing++; continue; }
         const limit = i === 0 ? lane.len : cars[i - 1].pos - CAR_GAP;
         const before = car.pos;
         // Coming up to a roundabout, cars ease off to roll on rather than stop.
         const speed = ring && car.pos > lane.len - RING_SLOW ? RING_SPEED : lane.speed;
         car.pos = Math.max(car.pos, Math.min(car.pos + speed * DT, limit));
         const moved = car.pos - before;
-        if (moved < speed * DT * 0.25) { stopped++; car.waiting += DT; } else { moving++; car.waiting = 0; }
+        // Heat and flow are about the rush, so town vehicles don't count towards either.
+        if (moved < speed * DT * 0.25) { car.waiting += DT; if (counts) { stopped++; held++; } } else { moving++; car.waiting = 0; if (counts) flowing++; }
       }
       // Heat is the share of the street taken up by a standing queue; cars that
       // can't even get onto the plate count too.
       const backlog = lane.portal === 'in' ? sources.get(lane.id).length : 0;
+      // Cars that can't even get onto the plate are waiting too.
+      run.movingTime += flowing * DT;
+      run.waitingTime += (held + backlog) * DT;
       const raw = Math.min(1, stopped / Math.max(5, lane.cap) + backlog / 6);
       lane.heat += (raw - lane.heat) * (DT / HEAT_LAG);
       if (lane.heat > lane.peak) lane.peak = lane.heat;
@@ -459,8 +479,14 @@ export function createRun(city, net, trips, junctions) {
         const next = lanes[car.path[car.ri + 1]];
         if (next && (node.type === 'roundabout' ? ringRoom(next) : tailRoom(next))) ready.push({ lane, car, next });
       }
+      // Town vehicles slip across without taking a turn, so they never hold up the rush.
+      const rush = [];
+      for (const r of ready) {
+        if (r.car.trip.patrol) admit(node, r.lane, r.car, r.next, 0);
+        else rush.push(r);
+      }
       // Lights keep their own time, so they're asked even when no one's ready.
-      if (ready.length || node.type === 'lights') controllers[node.type](node, ready);
+      if (rush.length || node.type === 'lights') controllers[node.type](node, rush);
     }
 
     run.t = t + DT;
@@ -469,6 +495,35 @@ export function createRun(city, net, trips, junctions) {
   };
 
   return run;
+}
+
+/* Each patrol starts part way along its own street inside town and has a long,
+   fixed wander planned: at every junction it carries on another way, never back
+   the way it came and never out of town, so the same day always plays the same. */
+function placePatrols(lanes, net, seed) {
+  const rand = rng(seed * 7919 + 11);
+  const inside = lanes.filter((l) => !l.portal);
+  if (!inside.length) return;
+  const taken = new Set();
+  PATROLS.forEach((kind, i) => {
+    let lane = inside[Math.floor(rand() * inside.length)];
+    for (let k = 0; taken.has(lane.id) && k < inside.length; k++) lane = inside[(lane.id + k + 1) % inside.length] ?? inside[0];
+    taken.add(lane.id);
+    const path = [lane.id];
+    let at = lane;
+    for (let step = 0; step < PATROL_TURNS; step++) {
+      const ways = (net.outOf.get(at.to) ?? []).filter((n) => !n.portal);
+      const onward = ways.filter((n) => n.to !== at.from);
+      const choices = onward.length ? onward : ways;
+      if (!choices.length) break;
+      at = lanes[choices[Math.floor(rand() * choices.length)].id];
+      path.push(at.id);
+    }
+    lane.cars.push({
+      path, ri: 0, lane: lane.id, pos: lane.len * (0.3 + 0.4 * rand()), hold: 0, waiting: 0, since: 0,
+      trip: { patrol: true, t: 0, free: Infinity }, tone: i % 5, crossing: null, id: -1 - i, kind,
+    });
+  });
 }
 
 function sectorsFor(turn) {
@@ -502,9 +557,12 @@ export function scoreRun(run) {
   const stuck = stuckCars(run);
   const cleared = run.total ? 1 - stuck / run.total : 1;
   const perfect = stuck === 0 && run.peakHeat < RED;
+  const timed = run.movingTime + run.waitingTime;
   return {
     cleared,
     stuck,
+    // The share of the time rush-hour cars spent moving rather than waiting.
+    flow: timed ? run.movingTime / timed : 1,
     peak: run.peakHeat,
     perfect,
     solved: stuck === 0,

@@ -17,9 +17,11 @@ const MIN_STEP = 1.15; // how much longer a long note must be than a shorter nei
 const POINTS = 288;
 const STUCK_MS = 1500;
 const GESTURES = ['touchend', 'pointerup', 'click', 'keydown'];
-// Phone speakers buzz on what a desktop plays cleanly: a bright strike, a noisy
-// reverb tail, and a compressor lifting that tail as the note fades.
-const PHONE = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
+
+/* The piano's overtones: [multiple of the note, loudness, how much faster than the
+   note itself it fades]. Exact multiples, so the scope's trace holds still. */
+const PARTIALS = [[1, 1, 0], [2, 0.3, 1.6], [3, 0.11, 3], [4, 0.045, 4.5], [5, 0.02, 6]];
+const NOTE_SECONDS = 3.2;
 
 /* -1 held too short, 0 fine, 1 held too long, at a given tempo. The range alone
    is generous enough that steady tapping could slip through, so the shape has to
@@ -80,54 +82,55 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
 
   /* ---------------- audio ---------------- */
 
-  /* A soft electric piano: a phase-modulated sine whose brightness fades
-     within the first few hundred ms, leaving a mellow, nearly pure tone.
-     All partials are harmonic, so the scope trace stays steady. The strike
-     itself stays sharp; that matters more than tone in a timing game. */
+  /* A soft felt piano. A few pure overtones, the higher ones fading first, over a
+     body that settles quickly from the strike into a long, quiet ring. The strike
+     is rounded rather than hit, but still lands within a hundredth of a second,
+     which matters in a timing game. No modulation and no noise, so nothing in it
+     can buzz; it ends in a slow fade rather than being cut off. */
   function synth(freq) {
     const sr = ac.sampleRate;
-    const len = 2.2;
-    const n = Math.floor(sr * len);
+    const n = Math.floor(sr * NOTE_SECONDS);
     const b = ac.createBuffer(1, n, sr);
     const d = b.getChannelData(0);
     const w = Math.PI * 2 * freq;
-    const wDetuned = w * 1.0012;         // ~2 cents: a slow, warm beating
-    // On a phone: a softer strike, no tine, and a quicker, smoother fade.
-    const decay = 1.2 + freq / 400 + (PHONE ? 0.5 : 0); // higher notes fade sooner
-    const strike = PHONE ? 0.65 : 1.1;
-    const fade = PHONE ? 0.5 : 0.06;
+    const settle = 2.6 + freq / 500;  // the strike's quick drop; higher notes drop sooner
+    const ring = 0.6 + freq / 1000;   // and the long ring after it
+    const dull = 1 + freq / 600;      // higher notes lose their overtones sooner too
+    const rise = 0.01;
+    const fade = 0.8;
     for (let k = 0; k < n; k++) {
       const t = k / sr;
-      const attack = t < 0.006 ? t / 0.006 : 1;
-      const r = Math.min(1, (len - t) / fade);
-      const release = r * r * (3 - 2 * r);
-      const body = Math.exp(-t * decay);
-      const index = strike * Math.exp(-t * 9);  // strike brightness
-      const tine = PHONE ? 0 : Math.exp(-t * 32);
-      d[k] = 0.3 * attack * release * (
-        body * 0.78 * Math.sin(w * t + index * Math.sin(w * t)) +
-        body * 0.22 * Math.sin(wDetuned * t) +
-        body * 0.05 * Math.sin(2 * w * t) +
-        tine * 0.03 * Math.sin(7 * w * t)
-      );
+      const attack = t < rise ? 0.5 - 0.5 * Math.cos((Math.PI * t) / rise) : 1;
+      const r = Math.min(1, (NOTE_SECONDS - t) / fade);
+      const release = 0.5 - 0.5 * Math.cos(Math.PI * r);
+      const body = 0.55 * Math.exp(-t * settle) + 0.45 * Math.exp(-t * ring);
+      let s = 0;
+      for (const [mult, level, faster] of PARTIALS) s += level * Math.exp(-t * faster * dull) * Math.sin(w * mult * t);
+      d[k] = 0.2 * attack * release * body * s;
     }
     return b;
   }
 
-  /* Synthesised room: decaying stereo noise that darkens as it fades. */
-  function roomImpulse(seconds = 2.6) {
+  /* A small, warm room: a smooth decay of uncorrelated left and right noise,
+     softened so the tail is a hush, not a hiss or a rumble, and faded in over
+     its first few milliseconds so it never clicks. */
+  function roomImpulse(seconds = 2.4) {
     const sr = ac.sampleRate;
     const n = Math.floor(sr * seconds);
-    const pre = Math.floor(sr * 0.014);
+    const pre = Math.floor(sr * 0.02);
     const b = ac.createBuffer(2, n, sr);
     for (let c = 0; c < 2; c++) {
       const d = b.getChannelData(c);
-      let y = 0;
+      let lo = 0;
+      let lo2 = 0;
       for (let k = pre; k < n; k++) {
         const t = (k - pre) / sr;
-        const x = (Math.random() * 2 - 1) * Math.exp(-t * 2.6);
-        y += (x - y) * (0.55 * Math.exp(-t * 1.8) + 0.05);
-        d[k] = y;
+        const x = (Math.random() * 2 - 1) * Math.exp(-t * 3.2) * Math.min(1, t / 0.008);
+        // Two gentle lowpasses: the room loses its top as it fades, but never goes muddy.
+        const a = 0.35 * Math.exp(-t * 0.9) + 0.12;
+        lo += (x - lo) * a;
+        lo2 += (lo - lo2) * a;
+        d[k] = lo2;
       }
     }
     return b;
@@ -141,42 +144,36 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
     analyser.smoothingTimeConstant = 0;
     scopeData = new Float32Array(analyser.fftSize);
 
-    // analyser (dry, so the scope reads the clean note) -> soft top end
-    //   -> dry + reverb -> gentle glue compression -> out
+    // analyser (dry, so the scope reads the clean note) -> soft top, no rumble
+    //   -> dry + a little room -> a limiter that only ever touches peaks -> out.
+    // Nothing here turns quiet sound up, so a fading note just fades.
     const tone = ac.createBiquadFilter();
     tone.type = 'lowpass';
-    tone.frequency.value = PHONE ? 3800 : 5200;
+    tone.frequency.value = 4200;
     tone.Q.value = 0.5;
+    const low = ac.createBiquadFilter();
+    low.type = 'highpass';
+    low.frequency.value = 110;
+    low.Q.value = 0.5;
     const dry = ac.createGain();
-    dry.gain.value = PHONE ? 0.7 : 0.85;
+    dry.gain.value = 0.9;
     const room = ac.createConvolver();
     room.buffer = roomImpulse();
+    const roomLow = ac.createBiquadFilter();
+    roomLow.type = 'highpass';
+    roomLow.frequency.value = 240;
     const wet = ac.createGain();
-    wet.gain.value = PHONE ? 0.12 : 0.28;
-    // On a phone it only catches peaks, so it never lifts a fading tail into a buzz.
-    const glue = ac.createDynamicsCompressor();
-    glue.threshold.value = PHONE ? -6 : -14;
-    glue.knee.value = PHONE ? 4 : 10;
-    glue.ratio.value = PHONE ? 12 : 3;
-    glue.attack.value = 0.003;
-    glue.release.value = PHONE ? 0.3 : 0.25;
-    analyser.connect(tone);
-    let into = tone;
-    if (PHONE) {
-      // Below this a phone speaker only rattles.
-      const low = ac.createBiquadFilter();
-      low.type = 'highpass';
-      low.frequency.value = 170;
-      low.Q.value = 0.5;
-      tone.connect(low);
-      into = low;
-    }
-    into.connect(dry); dry.connect(glue);
-    into.connect(room); room.connect(wet); wet.connect(glue);
-    const out = ac.createGain();
-    out.gain.value = PHONE ? 0.85 : 1;
-    glue.connect(out);
-    out.connect(ac.destination);
+    wet.gain.value = 0.2;
+    const limit = ac.createDynamicsCompressor();
+    limit.threshold.value = -3;
+    limit.knee.value = 0;
+    limit.ratio.value = 20;
+    limit.attack.value = 0.002;
+    limit.release.value = 0.12;
+    analyser.connect(tone); tone.connect(low);
+    low.connect(dry); dry.connect(limit);
+    low.connect(room); room.connect(roomLow); roomLow.connect(wet); wet.connect(limit);
+    limit.connect(ac.destination);
   }
 
   function bufferFor(freq) {

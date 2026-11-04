@@ -51,11 +51,11 @@ export default {
   'Played today': 'Jugado hoy',
   'New today': 'Nuevo hoy',
   'Soon': 'Pronto',
-  'Switch to light theme': 'Cambiar a tema claro',
-  'Switch to dark theme': 'Cambiar a tema oscuro',
-  'Light theme': 'Tema claro',
-  'Dark theme': 'Tema oscuro',
   'Language': 'Idioma',
+  'Settings': 'Ajustes',
+  'Theme': 'Tema',
+  'Light': 'Claro',
+  'Dark': 'Oscuro',
   'like': 'me gusta',
   'likes': 'me gusta',
 
@@ -319,7 +319,11 @@ export default {
   'Every car got through, and not one street went red.': 'Pasaron todos los carros y ni una calle se puso roja.',
   'Every car got where it was going, though some streets went red. Keep them all out of the red for a perfect flow.':
     'Todos los carros llegaron a donde iban, aunque algunas calles se pusieron rojas. Que ninguna se ponga roja para un flujo perfecto.',
-  'Busiest street': 'Calle más llena',
+  'Traffic flow': 'Fluidez',
+  'Traffic flow is how much of the rush hour cars spent moving rather than waiting.':
+    'La fluidez es cuánto de la hora pico pasaron los carros avanzando en vez de esperando.',
+  'Traffic kept moving {n}% of the time.': 'El tráfico avanzó el {n}% del tiempo.',
+  '{n}% traffic flow': '{n}% de fluidez',
   'Run': 'Corrida',
   'Runs': 'Corridas',
   'of ${budget} spent': 'de ${budget} gastados',

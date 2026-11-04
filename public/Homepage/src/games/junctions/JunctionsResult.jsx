@@ -14,9 +14,11 @@ function shareText(number, perfect, tries, config, budget) {
   const built = Object.values(config).sort().map((type) => EMOJI[type]).join('');
   const how = perfect ? t('perfect flow') : t('every car through');
   const count = tries ? (tries.count === 1 ? `, ${t('first try')}` : `, ${t('{n} runs', { n: tries.count })}`) : '';
+  const flow = tries?.done ? tries.rows[tries.rows.length - 1]?.[2] : undefined;
   const nothing = t('nothing');
   return [
     `Junctions #${number}: ${how}${count}`,
+    ...(flow === undefined ? [] : [`🚗 ${t('{n}% traffic flow', { n: flow })}`]),
     `${built || nothing} ${t('${cost} of ${budget}', { cost: costOf(config), budget })}`,
     `${window.location.origin}${withBase(`/junctions/${number}`)}?via=share`,
   ].join('\n');
@@ -31,8 +33,8 @@ export default function JunctionsResult({ ns, number, budget, config, onClose, o
   const streak = useMemo(() => readStreak(ns), [ns]);
   const [shareLabel, setShareLabel] = useState(null);
   const perfect = outcome === 'solved';
-  // How full the busiest street got on the run that solved it, kept with the tries.
-  const busiest = tries?.done ? tries.rows[tries.rows.length - 1]?.[1] : undefined;
+  // How freely the traffic moved on the run that solved it, kept with the tries.
+  const flow = tries?.done ? tries.rows[tries.rows.length - 1]?.[2] : undefined;
 
   useEffect(() => {
     if (!shareLabel) return undefined;
@@ -83,8 +85,8 @@ export default function JunctionsResult({ ns, number, budget, config, onClose, o
         <dl className="cad-result__tiles cad-result__tiles--four">
           <div>
             <ResultIcon name="car" />
-            <dd>{busiest === undefined ? '—' : `${busiest}%`}</dd>
-            <dt>{t('Busiest street')}</dt>
+            <dd>{flow === undefined ? '—' : `${flow}%`}</dd>
+            <dt>{t('Traffic flow')}</dt>
           </div>
           <div>
             <ResultIcon name="retry" />
@@ -102,6 +104,10 @@ export default function JunctionsResult({ ns, number, budget, config, onClose, o
             <dt>{t('Day streak')}</dt>
           </div>
         </dl>
+
+        {flow !== undefined && (
+          <p className="cad-result__more">{t('Traffic flow is how much of the rush hour cars spent moving rather than waiting.')}</p>
+        )}
 
         <div className="cad-help__actions">
           <button type="button" className="cad__btn cad__btn--primary" onClick={onShare} aria-live="polite">

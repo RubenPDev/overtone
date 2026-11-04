@@ -393,36 +393,59 @@ main a:not(.card):hover { text-decoration-color: currentColor; }
 .themetoggle:active { transform: scale(0.92) rotate(-18deg); }
 .themetoggle svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 
-/* English or Spanish: both shown, the one in use lit. */
-.lang {
-  display: inline-flex; align-items: center; gap: 2px;
+/* Theme and language, behind one button. */
+.settings { position: relative; display: inline-flex; }
+.settings > button { -webkit-tap-highlight-color: transparent; }
+.themetoggle:active { transform: scale(0.92); }
+.themetoggle[aria-expanded="true"], .pillbar__btn[aria-expanded="true"] { color: var(--ink); background: var(--card-hover); }
+.pillbar > .settings { position: relative; margin-left: 5px; }
+.pillbar > .settings::before {
+  content: ''; position: absolute; left: -3px; top: 11px; bottom: 11px; width: 1px; background: var(--rule-2);
+}
+.pillbar > .settings:first-child { margin-left: 0; }
+.pillbar > .settings:first-child::before { display: none; }
+.settings__panel {
+  position: absolute; right: 0; top: calc(100% + 10px);
+  z-index: 60;
+  display: grid; gap: 12px;
+  width: max-content; min-width: 236px;
+  padding: 14px;
+  background: var(--sheet);
+  border: 1px solid var(--card-edge);
+  border-radius: 20px;
+  box-shadow: 0 18px 40px -18px var(--shadow), 0 2px 6px -2px var(--shadow);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .settings__panel { animation: settings-in 160ms cubic-bezier(.2, .9, .3, 1); transform-origin: top right; }
+}
+@keyframes settings-in { from { opacity: 0; transform: translateY(-4px) scale(0.97); } }
+.settings__row { display: grid; gap: 6px; }
+.settings__label { font-size: 12px; font-weight: 800; letter-spacing: 0.02em; color: var(--ink-3); }
+.seg {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px;
   padding: 3px;
   background: var(--card);
   border: 1px solid var(--card-edge);
   border-radius: 100px;
-  box-shadow: 0 8px 20px -14px var(--shadow);
 }
-.lang__btn {
-  min-width: 34px; height: 34px;
-  padding: 0 8px;
-  font: inherit; font-size: 12.5px; font-weight: 800; letter-spacing: 0.02em;
-  color: var(--ink-3);
+.seg__btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  font: inherit; font-size: 14px; font-weight: 800;
+  color: var(--ink-2);
   background: transparent;
   border: 0;
   border-radius: 100px;
   cursor: pointer;
   transition: color 160ms, background 160ms;
 }
-.lang__btn:hover { color: var(--ink); }
-.lang__btn[aria-pressed="true"] { color: var(--btn-ink); background: var(--btn); }
-.lang__btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
-/* Inside a game's pill it's one more segment of it, with the same dividers. */
-.lang--bar { position: relative; padding: 0 2px; background: none; border: 0; box-shadow: none; }
-.lang--bar .lang__btn { min-width: 32px; height: 32px; padding: 0 6px; }
-.pillbar > * + .lang--bar, .pillbar > .lang--bar + .pillbar__btn { position: relative; margin-left: 5px; }
-.pillbar > * + .lang--bar::before, .pillbar > .lang--bar + .pillbar__btn::before {
-  content: ''; position: absolute; left: -3px; top: 11px; bottom: 11px; width: 1px; background: var(--rule-2);
-}
+.seg__btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.seg__btn:hover { color: var(--ink); }
+.seg__btn[aria-pressed="true"] { color: var(--btn-ink); background: var(--btn); }
+.seg__btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+/* The brand never runs into the links beside it. */
+.masthead { gap: 14px; }
 
 /* ---------- hero ---------- */
 

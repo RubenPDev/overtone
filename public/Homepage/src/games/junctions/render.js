@@ -769,16 +769,85 @@ export function createRenderer(canvas, day) {
     ];
   }
 
-  /** A soft shadow, a low body, and a glass cabin set back from the bonnet. */
-  function car(p, z, tone) {
-    flat(footprint({ ...p, x: p.x + 0.7, y: p.y + 0.3 }, 6.6, 4.2), z + 0.01, theme.castShadow);
-    const [top, side] = CANDY[tone];
+  /* Every vehicle is a few boxes along its heading: a soft shadow, a low body, and
+     whatever sits on top. They're all as long as a queue allows (7 m apart). */
+  const glassSides = (top) => ({ top, left: theme.glass, right: mix(theme.glass, '#000000', 0.12) });
+  const painted = (top, side) => {
     const paint = theme.tint(top);
     const under = theme.tint(side);
-    // As long as a queue allows (cars stand 7 m apart), and a little wide, to read at a glance.
-    solid(footprint(p, 6.2, 3.8), z + 0.3, z + 1.6, { top: paint.top, left: under.top, right: under.left });
-    solid(footprint(p, 3.3, 3.3, -0.8), z + 1.6, z + 2.7, { top: paint.top, left: theme.glass, right: mix(theme.glass, '#000000', 0.12) });
+    return { top: paint.top, left: under.top, right: under.left };
+  };
+  // Emergency lights take turns, a few times a second, while anything's moving.
+  const blink = () => Math.floor(performance.now() / 260) % 2 === 0;
+
+  /* A vehicle's boxes, drawn back to front for whichever way it's facing, so a
+     lorry's box never paints over its own cab: [length, width, ahead, from z, to z, colours]. */
+  function boxes(p, z, list) {
+    const l = Math.hypot(p.dx, p.dy) || 1;
+    const depth = (ahead) => (p.dx / l + p.dy / l) * ahead;
+    list.map((b) => ({ b, d: depth(b[2]) }))
+      .sort((a, c) => a.d - c.d || a.b[3] - c.b[3])
+      .forEach(({ b: [len, wide, ahead, z0, z1, colours] }) => solid(footprint(p, len, wide, ahead), z + z0, z + z1, colours));
   }
+
+  function shadow(p, len) {
+    flat(footprint({ ...p, x: p.x + 0.7, y: p.y + 0.3 }, len + 0.4, 4.2), 0.01 + p.z0, theme.castShadow);
+  }
+
+  /** A car: a candy body and a glass cabin set back from the bonnet. */
+  function car(p, z, tone) {
+    shadow({ ...p, z0: z }, 6.2);
+    const [top, side] = CANDY[tone];
+    const body = painted(top, side);
+    solid(footprint(p, 6.2, 3.8), z + 0.3, z + 1.6, body);
+    solid(footprint(p, 3.3, 3.3, -0.8), z + 1.6, z + 2.7, glassSides(body.top));
+  }
+
+  /** A lorry: a candy cab up front, and a tall pale box behind it. */
+  function truck(p, z, tone) {
+    shadow({ ...p, z0: z }, 6.8);
+    const [top, side] = CANDY[tone];
+    const cab = painted(top, side);
+    boxes(p, z, [
+      [2.1, 3.7, 2.3, 0.3, 2.5, cab],
+      [0.5, 3.3, 3.0, 1.5, 2.4, glassSides(cab.top)],
+      [4.5, 3.9, -1.1, 0.5, 3.6, painted('#f6f3ec', '#cfc8bb')],
+    ]);
+  }
+
+  /** A taxi: a yellow car with a small sign on the roof. */
+  function taxi(p, z) {
+    car(p, z, 3);
+    solid(footprint(p, 1.0, 2.2, -0.8), z + 2.7, z + 3.3, painted('#fff6c2', '#2f2f3a'));
+  }
+
+  /** A police car: white over navy, with a light bar flashing red and blue. */
+  function police(p, z) {
+    shadow({ ...p, z0: z }, 6.2);
+    const body = painted('#f7f9fc', '#2c3d6e');
+    solid(footprint(p, 6.2, 3.8), z + 0.3, z + 1.6, body);
+    solid(footprint(p, 3.3, 3.3, -0.8), z + 1.6, z + 2.7, glassSides(theme.tint('#f7f9fc').top));
+    const on = blink();
+    const l = Math.hypot(p.dx, p.dy) || 1;
+    const sx = (-p.dy / l) * 0.6;
+    const sy = (p.dx / l) * 0.6;
+    solid(footprint({ ...p, x: p.x + sx, y: p.y + sy }, 0.9, 1.2, -0.8), z + 2.7, z + 3.3, painted(on ? '#ff4d5e' : '#7a2630', '#7a2630'));
+    solid(footprint({ ...p, x: p.x - sx, y: p.y - sy }, 0.9, 1.2, -0.8), z + 2.7, z + 3.3, painted(on ? '#2a3f8f' : '#4d8dff', '#23356e'));
+  }
+
+  /** An ambulance: a tall red van, with a light on the roof flashing red and white. */
+  function ambulance(p, z) {
+    shadow({ ...p, z0: z }, 6.6);
+    const red = painted('#ef5a66', '#c23a48');
+    boxes(p, z, [
+      [1.8, 3.7, 2.3, 0.3, 2.2, red],
+      [0.5, 3.3, 2.85, 1.3, 2.1, glassSides(red.top)],
+      [4.7, 3.9, -1.0, 0.4, 3.4, red],
+      [0.8, 1.6, 1.0, 3.4, 3.9, painted(blink() ? '#ffffff' : '#ff4d5e', '#9a2f3a')],
+    ]);
+  }
+
+  const VEHICLE = { car: (p, z, c) => car(p, z, c.tone), truck: (p, z, c) => truck(p, z, c.tone), taxi, police, ambulance };
 
   /** Buildings, trees, cars and anything else that stands up, back to front. */
   function drawStanding(run, types, showPeak) {
@@ -832,7 +901,8 @@ export function createRenderer(canvas, day) {
               if (n) depth = n.x + n.y + 1;
             }
           }
-          items.push({ depth, draw: () => car(p, z, c.tone) });
+          const draw = VEHICLE[c.kind] ?? VEHICLE.car;
+          items.push({ depth, draw: () => draw(p, z, c) });
         }
       }
     }

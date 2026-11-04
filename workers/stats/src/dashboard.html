@@ -797,6 +797,7 @@ function renderGames(state) {
     label: [['Budget'], (p) => (cat.junctions.puzzles[p]?.budget ? '$' + cat.junctions.puzzles[p].budget : '–')],
     heads: [
       ['First run', 'Median share of traffic cleared on each player’s first run'],
+      ['Flow', 'Median traffic flow on the solving run: how much of the time cars were moving rather than waiting'],
       ['Spent', 'Median spend on the solving run'],
       ['Winning layout', 'The most common solving layout: junction and what was built there', 'l'],
     ],
@@ -805,8 +806,10 @@ function renderGames(state) {
       const solves = recs.filter((x) => x.solve);
       const layouts = countBy(solves, (x) => x.solve.data.layout || 'nothing built');
       const m = median(firsts.map((f) => f.data.cleared));
+      const flow = median(solves.map((x) => x.solve.data.flow));
       return [
         m === null ? '–' : m + '%',
+        flow === null ? '–' : flow + '%',
         solves.length ? '$' + median(solves.map((x) => x.solve.data.cost)) : '–',
         layouts.length ? layouts[0][0] + (solves.length > 1 ? ' (' + layouts[0][1] + ' of ' + solves.length + ')' : '') : '–',
       ];

@@ -245,6 +245,7 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
       const fast = speedRef.current > 0;
       if (run.arrived > arrived) { sound.pop(fast); arrived = run.arrived; }
       sound.traffic(run.cars / 40, fast);
+      sound.honk(run.lanes.some((l) => l.heat >= RED));
       rendererRef.current?.draw(drawState.current);
       if (now - lastTick > 200) { setFrame((f) => f + 1); lastTick = now; }
       if (run.done) { finish(run); return; }
@@ -266,14 +267,15 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
     setJams(worstJunctions(done, day.city));
     sound.quiet();
     const replay = isSolved(readResults(NS)[number]);
-    recordTry(NS, number, [Math.round(s.cleared * 100), Math.round(s.peak * 100)], s.solved);
+    const flow = Math.round(s.flow * 100);
+    recordTry(NS, number, [Math.round(s.cleared * 100), Math.round(s.peak * 100), flow], s.solved);
     // Perfect flow is the full solve; every car through with some red is a solve with help.
     const outcome = !s.solved ? 'missed' : s.perfect ? 'solved' : 'assisted';
     if (!ahead) {
       reportFinish(NS, number, {
         today: isToday, outcome, replay,
         attempt: replay ? null : readTries(NS, number)?.count ?? null,
-        cleared: Math.round(s.cleared * 100), stuck: s.stuck, peak: Math.round(s.peak * 100),
+        cleared: Math.round(s.cleared * 100), stuck: s.stuck, peak: Math.round(s.peak * 100), flow,
         cost: costOf(config), budget, layout: layoutKey(config),
       });
     }
@@ -553,6 +555,7 @@ export default function JunctionsGame({ puzzleNumber, onNavigate, isDark, onTogg
             ) : (
               <><b>{score.stuck === 1 ? t('1 car got stuck.') : t('{n} cars got stuck.', { n: score.stuck })}</b> {t('Every car has to get through. The markers show where it jammed worst.')}</>
             ))}
+            {phase === 'done' && score && <> {t('Traffic kept moving {n}% of the time.', { n: Math.round(score.flow * 100) })}</>}
           </p>
         )}
 
