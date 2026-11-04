@@ -124,7 +124,7 @@ function worstJunctions(run, city) {
 /* Each step of the lesson says what it lights up on the screen. */
 const TUTORIAL = [
   {
-    text: tx('Rush hour is on its way. Cars come in on the highway and leave town by it too; the side streets at the edges add a few more.'),
+    text: tx('Rush hour is on its way. Cars come in off the highway at the yellow pennant and leave by it at the chequered flag; the side streets at the edges add a few more.'),
     focus: 'highway',
   },
   {

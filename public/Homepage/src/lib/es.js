@@ -266,8 +266,8 @@ export default {
   'Lights': 'Semáforo',
   'Roundabout': 'Glorieta',
   'Flyover': 'Puente',
-  'Rush hour is on its way. Cars come in on the highway and leave town by it too; the side streets at the edges add a few more.':
-    'Ya viene la hora pico. Los carros entran por la autopista y también salen del pueblo por ella; las calles de las orillas traen unos cuantos más.',
+  'Rush hour is on its way. Cars come in off the highway at the yellow pennant and leave by it at the chequered flag; the side streets at the edges add a few more.':
+    'Ya viene la hora pico. Los carros entran desde la autopista por el banderín amarillo y salen por la bandera de cuadros; las calles de las orillas traen unos cuantos más.',
   'Every crossing is a junction, and today they’re all give-ways. The blue bands are the traffic to come, wider where it’s busier, and the arrows show where cars at each junction want to go.':
     'Cada cruce es una intersección, y hoy todas son de ceda el paso. Las franjas azules son el tráfico que viene, más anchas donde hay más, y las flechas muestran a dónde quieren ir los carros en cada intersección.',
   'Each tool suits a different kind of junction: the line under the tools says what the one you’ve picked is for. Each costs part of today’s budget, and only a few ways of spending it work perfectly.':
@@ -337,7 +337,5 @@ export default {
   'Run': 'Corrida',
   'Runs': 'Corridas',
   'of ${budget} spent': 'de ${budget} gastados',
-  'Highway in': 'Entrada',
-  'Highway out': 'Salida',
   '+{n} waiting': '+{n} esperando',
 };

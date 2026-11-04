@@ -4,9 +4,9 @@
    ============================================================ */
 
 .junctions {
-  --jn-grass: #bfe8a6;
-  --jn-grass-2: #a9dd94;
-  --jn-grass-side: #8fcb78;
+  --jn-grass: #a8e096;
+  --jn-grass-2: #9ad58d;
+  --jn-grass-side: #85c07e;
   --jn-soil: #d8b48f;
   --jn-soil-2: #c39d79;
   --jn-road: #7f89b0;
@@ -33,19 +33,19 @@
     --jn-soil: #7a5240;
     --jn-soil-2: #5c3c31;
     --jn-road: #3f4566;
-    --jn-road-side: #686c8e;
-    --jn-mark: rgba(235, 238, 255, 0.55);
-    --jn-walk: #8a86a6;
+    --jn-road-side: #3f4566;
+    --jn-mark: rgba(158, 164, 202, 0.754);
+    --jn-walk: #a7a3c4;
     --jn-walk-side: #625e80;
-    --jn-bridge: #9da3da;
-    --jn-bridge-side: #4b5075;
+    --jn-bridge: #4f587e;
+    --jn-bridge-side: #4f587e;
     --jn-glass: #7fa6d6;
     --jn-window: #ffd98a;  /* lights on, for the evening */
     --jn-frame: #b5aac6;
     --jn-trunk: #9a6c52;
     --jn-unit: #c3bfd6;
     --jn-cast: rgba(14, 10, 40, 0.34);
-    --jn-shade: #1c1942;   /* evening shade is blue, not black */
+    --jn-shade: #4268b3;   /* evening shade is blue, not black */
     --jn-dim: 0.3;
   }
 }

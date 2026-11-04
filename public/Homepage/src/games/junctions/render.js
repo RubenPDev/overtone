@@ -33,20 +33,25 @@ const SLIP_AT = 6.6;    // and one on the slip lane
 const HEAT_W = 2.8;                // the coloured stripe down the middle of each lane
 const SUN = [0.5, 0.2];            // which way shadows fall, per metre of height
 
-/* Cars are the site's candy, top and side. */
+/* The palette is set in OKLCH, where equal steps look equal: each layer has one
+   lightness, and only the hue changes within it, so nothing in a layer shouts over
+   the rest. The layers step apart in lightness so they read at a glance: the grass
+   a step below the pale buildings on it, roofs mid-tone, and the cars, which are
+   what you watch, the most colourful thing on the board.
+   Cars, top and side: lightness 0.82 and 0.70, each hue as rich as it can be there. */
 const CANDY = [
-  ['#69ffd0', '#2fc4a0'],
-  ['#ff9c9f', '#ec6f78'],
-  ['#9cc4ff', '#6f93e0'],
-  ['#ffe66a', '#efb03e'],
-  ['#d68cff', '#a765dc'],
+  ['#37e3b1', '#0db98e'],
+  ['#fdabac', '#e8777d'],
+  ['#9ec7fd', '#5fa1f3'],
+  ['#e4c232', '#cb9317'],
+  ['#deadfd', '#bb83dd'],
 ];
-/* The town is softer: plaster walls, coloured roofs, tinted glass. */
-const WALLS = ['#fff3e3', '#ffd9c7', '#cfe2f7', '#d7f0c8', '#ecd6f5', '#ffeab0'];
-const ROOFS = ['#ef8f7f', '#7fa9cf', '#6cc2a9', '#c890bf'];
+/* Plaster walls (lightness 0.95, barely tinted), roofs (0.71, clearly coloured), glass. */
+const WALLS = ['#fdecd5', '#ffe8dc', '#ddf1ff', '#e5f4dd', '#f8e8ff', '#f8eed5'];
+const ROOFS = ['#e28374', '#60a7e9', '#3bb999', '#cf84bf'];
 const GLASS = ['#a9d8ee', '#a7e6d2', '#bccbf5', '#c9e3f2'];
-const AWNINGS = ['#ff9c9f', '#69d6b4', '#9cc4ff', '#ffd36a'];
-const LEAVES = ['#8fd9a0', '#a8df8a', '#73cdb0'];
+const AWNINGS = ['#ff9498', '#50d2a7', '#7dbaff', '#ddb049'];
+const LEAVES = ['#7fd091', '#99cc7c', '#60d3ac'];
 
 /* Heat runs mint, butter, then orange as a street fills. Red is kept for a street
    that has actually jammed, so it means the same on the board as in the score. */
@@ -978,6 +983,11 @@ export function createRenderer(canvas, day) {
         draw: () => cached(`b${i}`, boxReach(b.x0 - 2, b.y0 - 2, b.x1 + 3, b.y1 + 3, b.height + 9), () => BUILD[b.type](b)),
       });
     });
+    // The highway's flags stand among everything else, so a house in front hides them.
+    for (const [p, kind] of [[city.entrance, 'in'], [city.exit, 'out']]) {
+      const f = flagAt(p);
+      items.push({ depth: f.x + f.y, draw: () => flag(p, kind) });
+    }
     city.trees.forEach((t, i) => {
       const r = t.r * 1.6 + 2;
       items.push({ depth: t.x + t.y, draw: () => cached(`t${i}`, boxReach(t.x - r, t.y - r, t.x + r, t.y + r, t.r * 4 + 3), () => tree(t, i)) });
@@ -1034,14 +1044,6 @@ export function createRenderer(canvas, day) {
 
   /* Sized with the board, so on a phone a tag stays a tag and doesn't cover the town. */
   const labelScale = () => Math.max(0.55, Math.min(1, k / 2.6));
-  function labelWidth(text) {
-    const s = labelScale();
-    ctx.save();
-    ctx.font = `800 ${Math.round(18 * s)}px Nunito, system-ui, sans-serif`;
-    const w = ctx.measureText(text).width + 34 * s;
-    ctx.restore();
-    return w;
-  }
   function label(text, x, y, bg, ink) {
     const s = labelScale();
     ctx.save();
@@ -1062,22 +1064,76 @@ export function createRenderer(canvas, day) {
     ctx.restore();
   }
 
-  const tagText = (p) => (p === city.entrance ? t('Highway in') : t('Highway out'));
-  const tagAt = (p) => P(p.x + DX[p.heading] * 9, p.y + DY[p.heading] * 9, 0);
+  /* ---------- the highway's flags ----------
+     Where the highway meets the town, a flag on a pole beside it: a sunny pennant
+     where the rush comes in, its point aimed into town, and a chequered flag where
+     it leaves and finishes. Yellow, not green, so it never sinks into the grass.
+     They ripple while the traffic runs. */
+  const FLAG_POLE = 19;
+  const FLAG_W = 10.5;
+  const FLAG_TALL = 6.4;
+  const FLAG_STEPS = 10;
 
-  function drawHighwayTags() {
-    for (const p of [city.entrance, city.exit]) {
-      const [x, y] = tagAt(p);
-      label(tagText(p), x, y, theme.sheet, theme.ink3);
+  /** The pole's foot, beside the highway just inside the plate, and which way the cloth flies. */
+  function flagAt(p) {
+    const [rx, ry] = rightOf(p.heading);
+    const x = p.x - DX[p.heading] * 4 + rx * (HIGHWAY_W / 2 + 3);
+    const y = p.y - DY[p.heading] * 4 + ry * (HIGHWAY_W / 2 + 3);
+    return { x, y, dir: [-DX[p.heading], -DY[p.heading]], side: [rx, ry] };
+  }
+
+  /** A point on the cloth: `u` from the pole to the free edge, `v` from the top down. */
+  function clothPoint(f, u, v, phase) {
+    const wave = Math.sin(u * 0.9 + phase) * 0.55 * (u / FLAG_W);
+    return [
+      f.x + f.dir[0] * u + f.side[0] * wave,
+      f.y + f.dir[1] * u + f.side[1] * wave,
+      FLAG_POLE - 0.3 - v - u * 0.06,
+    ];
+  }
+
+  function flag(p, kind) {
+    const f = flagAt(p);
+    const phase = performance.now() / 380;
+    // The pole, a little ball on top, and its shadow.
+    flat(circle(f.x + 0.6, f.y + 0.3, 1.1, 12), 0.02, theme.castShadow);
+    box(f.x - 0.25, f.y - 0.25, f.x + 0.25, f.y + 0.25, 0, FLAG_POLE + 0.4, theme.tint('#f4f1ea'));
+    flat(circle(f.x, f.y, 0.45, 10), FLAG_POLE + 0.7, theme.tint('#f2c94c').top);
+    // The cloth, strip by strip, each a touch darker where it turns away from the light.
+    const sunny = theme.tint('#ffbf3c').top;
+    // The pennant narrows to a point: at `u` along it, the cloth spans this much of its height.
+    const span = (u) => (kind === 'in' ? 1 - u / FLAG_W : 1);
+    for (let i = 0; i < FLAG_STEPS; i++) {
+      const u0 = (i / FLAG_STEPS) * FLAG_W;
+      const u1 = ((i + 1) / FLAG_STEPS) * FLAG_W;
+      const slope = Math.cos(((u0 + u1) / 2) * 0.9 + phase);
+      const rows = kind === 'out' ? 4 : 1;
+      for (let r = 0; r < rows; r++) {
+        const edge = (u, k) => FLAG_TALL * ((1 - span(u)) / 2 + span(u) * (k / rows));
+        let colour;
+        if (kind === 'out') {
+          const light = (Math.floor((i * 4) / FLAG_STEPS) + r) % 2 === 0;
+          colour = light ? theme.tint('#fbfaf6').top : theme.tint('#2b2f45').top;
+        } else colour = sunny;
+        const shade = slope < 0 ? mix(colour, '#000000', 0.12 * -slope) : colour;
+        const q = [clothPoint(f, u0, edge(u0, r), phase), clothPoint(f, u1, edge(u1, r), phase), clothPoint(f, u1, edge(u1, r + 1), phase), clothPoint(f, u0, edge(u0, r + 1), phase)];
+        fill(q.map(([x, y, z]) => P(x, y, z)), shade);
+      }
     }
   }
 
-  /** Where the highway tags are on the canvas, for anything pointing at them. */
+  /** Where the flags are on the canvas, for anything pointing at them. */
   function tags() {
-    const h = 30 * labelScale();
     return [['in', city.entrance], ['out', city.exit]].map(([kind, p]) => {
-      const [x, y] = tagAt(p);
-      return { kind, x, y, w: labelWidth(tagText(p)), h };
+      const f = flagAt(p);
+      const pts = [P(f.x, f.y, 0), P(f.x, f.y, FLAG_POLE + 0.7), ...[0, FLAG_W].flatMap((u) => [0, FLAG_TALL].map((v) => {
+        const [x, y, z] = clothPoint(f, u, v, 0);
+        return P(x, y, z);
+      }))];
+      const xs = pts.map((q) => q[0]);
+      const ys = pts.map((q) => q[1]);
+      const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+      return { kind, x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
     });
   }
 
@@ -1101,7 +1157,6 @@ export function createRenderer(canvas, day) {
     else if (forecast) drawForecast(forecast);
     drawJunctions(run, types, hover);
     drawStanding(run, types, showPeak);
-    drawHighwayTags();
     if (run && !showPeak) drawBacklog(run);
   }
 
