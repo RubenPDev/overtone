@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { linkHandler, withBase } from '../router.js';
 import { LANGS, setLang, t, useLang } from '../lib/i18n.js';
+import { setThemeMode, useTheme } from '../lib/useTheme.js';
 
 function Sun() {
   return (
@@ -31,6 +32,15 @@ export function BrandMark() {
   );
 }
 
+function Clock() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.2" />
+      <path d="M12 7.5V12l3 2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function Gear() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -41,7 +51,7 @@ function Gear() {
 }
 
 /** Two or more choices side by side, the one in use lit. */
-function Choice({ label, options }) {
+function Choice({ label, options, note }) {
   return (
     <div className="settings__row">
       <span className="settings__label">{label}</span>
@@ -52,6 +62,7 @@ function Choice({ label, options }) {
           </button>
         ))}
       </div>
+      {note && <span className="settings__note">{note}</span>}
     </div>
   );
 }
@@ -60,8 +71,9 @@ function Choice({ label, options }) {
  * Theme and language behind one button, so the header stays roomy on a phone.
  * It closes on a choice made outside it, on Escape, or on the button again.
  */
-export function SettingsMenu({ className = '', isDark, onToggleTheme }) {
+export function SettingsMenu({ className = '' }) {
   const lang = useLang();
+  const { mode } = useTheme();
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const buttonRef = useRef(null);
@@ -94,9 +106,11 @@ export function SettingsMenu({ className = '', isDark, onToggleTheme }) {
           <Choice
             label={t('Theme')}
             options={[
-              { key: 'light', text: t('Light'), icon: <Sun />, on: !isDark, pick: () => { if (isDark) onToggleTheme(); } },
-              { key: 'dark', text: t('Dark'), icon: <Moon />, on: isDark, pick: () => { if (!isDark) onToggleTheme(); } },
+              { key: 'auto', text: t('Auto'), icon: <Clock />, on: mode === 'auto', pick: () => setThemeMode('auto') },
+              { key: 'light', text: t('Light'), icon: <Sun />, on: mode === 'light', pick: () => setThemeMode('light') },
+              { key: 'dark', text: t('Dark'), icon: <Moon />, on: mode === 'dark', pick: () => setThemeMode('dark') },
             ]}
+            note={mode === 'auto' ? t('Light by day, dark from 7 in the evening.') : null}
           />
           <Choice
             label={t('Language')}
@@ -114,7 +128,7 @@ export function SettingsMenu({ className = '', isDark, onToggleTheme }) {
   );
 }
 
-export default function Header({ isDark, onToggleTheme, navigate }) {
+export default function Header({ navigate }) {
   return (
     <header className="masthead">
       <a className="brand" href={withBase('/')} onClick={navigate ? linkHandler(navigate, '/') : undefined}>
@@ -125,7 +139,7 @@ export default function Header({ isDark, onToggleTheme, navigate }) {
       <nav className="masthead__nav">
         <a href={withBase('/#games')}>{t('Games')}</a>
         <a href={withBase('/#about')}>{t('About')}</a>
-        <SettingsMenu className="themetoggle" isDark={isDark} onToggleTheme={onToggleTheme} />
+        <SettingsMenu className="themetoggle" />
       </nav>
     </header>
   );

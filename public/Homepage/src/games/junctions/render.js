@@ -8,7 +8,7 @@
    that never changes is drawn once and copied after that.
    ============================================================ */
 
-import { DX, DY, HIGHWAY_W, ROAD_W, SIZE } from './city.js';
+import { DX, DY, HIGHWAY_W, ROAD_W, SIZE, rng } from './city.js';
 import { t } from '../../lib/i18n.js';
 import { JUNCTION_R, RED } from './sim.js';
 
@@ -52,6 +52,9 @@ const ROOFS = ['#e28374', '#60a7e9', '#3bb999', '#cf84bf'];
 const GLASS = ['#a9d8ee', '#a7e6d2', '#bccbf5', '#c9e3f2'];
 const AWNINGS = ['#ff9498', '#50d2a7', '#7dbaff', '#ddb049'];
 const LEAVES = ['#7fd091', '#99cc7c', '#60d3ac'];
+// Flowers in the beds and lawns: the cars' candy, so the town and its traffic belong together.
+const FLOWERS = ['#ff9fb2', '#ffd45c', '#f5f1ff', '#c9a4ff', '#ff9a72'];
+const LAMP_GLOW = 'rgba(255, 214, 140, ';
 
 /* Heat runs mint, butter, then orange as a street fills. Red is kept for a street
    that has actually jammed, so it means the same on the board as in the score. */
@@ -314,7 +317,9 @@ export function createRenderer(canvas, day) {
     drawTile();
     drawStreets();
     drawLots();
+    drawGarden();
     drawShadows();
+    if (theme.dark) drawLampPools();
     ctx = screen;
     ground = off;
   }
@@ -341,6 +346,85 @@ export function createRenderer(canvas, day) {
     g.addColorStop(1, theme.grass2);
     ctx.fillStyle = g;
     ctx.fill();
+    // A few soft patches of lighter and deeper grass, so the lawn isn't one flat sheet.
+    const rand = rng(city.seed * 31 + 7);
+    for (let i = 0; i < 40; i++) {
+      const x = 10 + rand() * (SIZE - 20);
+      const y = 10 + rand() * (SIZE - 20);
+      const r = 3 + rand() * 5;
+      flat(circle(x, y, r, 16), 0.005, theme.dark ? 'rgba(255, 255, 255, 0.025)' : 'rgba(255, 255, 255, 0.10)');
+    }
+    // The plate's top edge catches the light, like a moulded toy.
+    path(top);
+    ctx.strokeStyle = theme.dark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.55)';
+    ctx.lineWidth = Math.max(1, 1.4 * k / 2);
+    ctx.stroke();
+  }
+
+  /* Flower beds along the lots' edges and flowers dotted over lawns and parks, flat on
+     the grass, so whatever stands in front of them still hides them properly. Each is
+     kept clear of the buildings and trees. */
+  function drawGarden() {
+    const rand = rng(city.seed * 53 + 3);
+    const clear = (x, y, pad) => !city.buildings.some((b) => x > b.x0 - pad && x < b.x1 + pad && y > b.y0 - pad && y < b.y1 + pad)
+      && !city.trees.some((tr) => Math.hypot(tr.x - x, tr.y - y) < tr.r * 1.4 + pad);
+    for (const lot of city.lots) {
+      const w = lot.x1 - lot.x0 - 6;
+      const h = lot.y1 - lot.y0 - 6;
+      if (w < 4 || h < 4) continue;
+      const tries = Math.round((w * h) / (lot.park ? 26 : 70));
+      for (let i = 0; i < tries; i++) {
+        const x = lot.x0 + 3 + rand() * w;
+        const y = lot.y0 + 3 + rand() * h;
+        if (!clear(x, y, 1.2)) continue;
+        if (rand() < (lot.park ? 0.25 : 0.4)) {
+          // A little bed: dark leaves with a few blooms in it.
+          const bed = theme.tint(LEAVES[Math.floor(rand() * LEAVES.length)]);
+          flat(rounded(x - 1.6, y - 1, x + 1.6, y + 1, 1), LOT_TOP + 0.02, mix(bed.top, '#1d4d32', 0.18));
+          const bloom = theme.tint(FLOWERS[Math.floor(rand() * FLOWERS.length)]).top;
+          for (let j = 0; j < 4; j++) flat(circle(x - 1.1 + j * 0.75, y - 0.3 + (j % 2) * 0.6, 0.42, 6), LOT_TOP + 0.03, bloom);
+        } else {
+          const bloom = theme.tint(FLOWERS[Math.floor(rand() * FLOWERS.length)]).top;
+          for (let j = 0; j < 3; j++) flat(circle(x + (rand() - 0.5) * 1.6, y + (rand() - 0.5) * 1.6, 0.38, 6), LOT_TOP + 0.03, bloom);
+        }
+      }
+    }
+  }
+
+  /* Street lamps: two at each junction, on opposite corners. */
+  const lamps = city.nodes.filter((n) => n.kind === 'junction').flatMap((n) => [1, -1].map((s) => ({
+    x: n.x + s * (ROAD_W / 2 + 1.6),
+    y: n.y - s * (ROAD_W / 2 + 1.6),
+    s,
+  })));
+
+  function lamp(l) {
+    const pole = theme.tint('#e9e6f2');
+    box(l.x - 0.18, l.y - 0.18, l.x + 0.18, l.y + 0.18, LOT_TOP, LOT_TOP + 6.5, pole);
+    // The arm reaches out over the road, towards the junction.
+    const hx = l.x - l.s * 1.4;
+    const hy = l.y + l.s * 1.4;
+    box(Math.min(l.x, hx) - 0.12, Math.min(l.y, hy) - 0.12, Math.max(l.x, hx) + 0.12, Math.max(l.y, hy) + 0.12, LOT_TOP + 6.3, LOT_TOP + 6.6, pole);
+    const head = theme.dark ? { top: '#fff4cf', left: '#ffd88a', right: '#f5c56b', base: '#f5c56b' } : theme.tint('#cfd3e6');
+    box(hx - 0.5, hy - 0.5, hx + 0.5, hy + 0.5, LOT_TOP + 5.9, LOT_TOP + 6.4, head);
+  }
+
+  /** At night, each lamp lays a warm pool of light on the road under it. */
+  function drawLampPools() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const l of lamps) {
+      const [cx, cy] = P(l.x - l.s * 1.4, l.y + l.s * 1.4, ROAD_TOP);
+      const r = 9 * k;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, `${LAMP_GLOW}0.22)`);
+      g.addColorStop(1, `${LAMP_GLOW}0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r, r * COS_T, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   /** Each lot is a pavement kerb with grass inside it. */
@@ -391,6 +475,12 @@ export function createRenderer(canvas, day) {
 
   /** Each building's shadow, cast down and away from the light onto the ground. */
   function drawShadows() {
+    // First a soft dark rim hugging each building's foot, then the shadow it casts.
+    for (const b of city.buildings) {
+      for (const [pad, a] of [[1.4, 0.05], [0.7, 0.07], [0.25, 0.09]]) {
+        flat(rounded(b.x0 - pad, b.y0 - pad, b.x1 + pad, b.y1 + pad, pad + 0.4), LOT_TOP + 0.015, `rgba(20, 20, 60, ${theme.dark ? a * 1.6 : a})`);
+      }
+    }
     for (const b of city.buildings) {
       const h = b.height + (b.type === 'house' ? 2.5 : b.type === 'tower' ? 2 : 0.5);
       const foot = rect(b.x0, b.y0, b.x1, b.y1);
@@ -712,6 +802,11 @@ export function createRenderer(canvas, day) {
     ctx.arc(cx - r * 0.2, cy - r * 0.22, r * 0.78, 0, Math.PI * 2);
     ctx.fillStyle = leaf.top;
     ctx.fill();
+    // A little shine where the light catches it.
+    ctx.beginPath();
+    ctx.ellipse(cx - r * 0.42, cy - r * 0.5, r * 0.26, r * 0.17, -0.5, 0, Math.PI * 2);
+    ctx.fillStyle = theme.dark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.35)';
+    ctx.fill();
   }
 
   function island(n) {
@@ -972,7 +1067,35 @@ export function createRenderer(canvas, day) {
     ]);
   }
 
-  const VEHICLE = { car: (p, z, c) => car(p, z, c.tone), truck: (p, z, c) => truck(p, z, c.tone), taxi, police, ambulance };
+  /* Lights at both ends: tail lights brighten when a vehicle is held up, so a queue
+     reads as a row of red; at night the headlights are on and lay a faint beam ahead. */
+  function lights(p, z, len, c) {
+    const l = Math.hypot(p.dx, p.dy) || 1;
+    const ux = p.dx / l;
+    const uy = p.dy / l;
+    const at = (a, b) => [p.x + ux * a - uy * b, p.y + uy * a + ux * b];
+    const half = len / 2;
+    const stopped = c.waiting > 0.4 && !(c.hold > 0);
+    const tail = stopped ? '#ff3d4f' : theme.dark ? '#c4303f' : '#e2485a';
+    for (const side of [-1.15, 1.15]) {
+      const [tx, ty] = at(-half - 0.02, side);
+      solid(footprint({ x: tx, y: ty, dx: ux, dy: uy }, 0.12, 0.7), z + 0.7, z + 1.2, { top: tail, left: tail, right: tail });
+    }
+    if (!theme.dark) return;
+    for (const side of [-1.15, 1.15]) {
+      const [hx, hy] = at(half + 0.02, side);
+      solid(footprint({ x: hx, y: hy, dx: ux, dy: uy }, 0.12, 0.7), z + 0.7, z + 1.2, { top: '#fff6d8', left: '#fff6d8', right: '#fff6d8' });
+    }
+    flat([at(half + 0.4, -1.4), at(half + 0.4, 1.4), at(half + 7.5, 3), at(half + 7.5, -3)], z + 0.03, 'rgba(255, 236, 170, 0.10)');
+  }
+
+  const VEHICLE = {
+    car: (p, z, c) => { car(p, z, c.tone); lights(p, z, 6.2, c); },
+    truck: (p, z, c) => { truck(p, z, c.tone); lights(p, z, 6.8, c); },
+    taxi: (p, z, c) => { taxi(p, z); lights(p, z, 6.2, c); },
+    police: (p, z, c) => { police(p, z); lights(p, z, 6.2, c); },
+    ambulance: (p, z, c) => { ambulance(p, z); lights(p, z, 6.6, c); },
+  };
 
   /** Buildings, trees, cars and anything else that stands up, back to front. */
   function drawStanding(run, types, showPeak) {
@@ -982,6 +1105,9 @@ export function createRenderer(canvas, day) {
         depth: b.x1 + b.y1 - 6,
         draw: () => cached(`b${i}`, boxReach(b.x0 - 2, b.y0 - 2, b.x1 + 3, b.y1 + 3, b.height + 9), () => BUILD[b.type](b)),
       });
+    });
+    lamps.forEach((l, i) => {
+      items.push({ depth: l.x + l.y, draw: () => cached(`l${i}`, boxReach(l.x - 2, l.y - 2, l.x + 2, l.y + 2, LOT_TOP + 7), () => lamp(l)) });
     });
     // The highway's flags stand among everything else, so a house in front hides them.
     for (const [p, kind] of [[city.entrance, 'in'], [city.exit, 'out']]) {

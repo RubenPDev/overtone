@@ -4,7 +4,7 @@ import { t } from '../lib/i18n.js';
 import { linkHandler, withBase } from '../router.js';
 
 /** What sits at the top of a game: the way home, and its pill of small buttons. */
-export default function GameBar({ onNavigate, isDark, onToggleTheme, children }) {
+export default function GameBar({ onNavigate, children }) {
   return (
     <header className="gamebar">
       <a className="brand" href={withBase('/')} onClick={linkHandler(onNavigate, '/')} aria-label={t('Back to all games')}>
@@ -13,7 +13,7 @@ export default function GameBar({ onNavigate, isDark, onToggleTheme, children })
       </a>
       <div className="pillbar">
         {children}
-        <SettingsMenu className="pillbar__btn pillbar__btn--theme" isDark={isDark} onToggleTheme={onToggleTheme} />
+        <SettingsMenu className="pillbar__btn pillbar__btn--theme" />
       </div>
     </header>
   );

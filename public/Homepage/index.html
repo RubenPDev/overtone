@@ -31,14 +31,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
 
 <script>
-  // Runs before first paint so the correct theme is applied with no flash.
+  // Runs before first paint so the correct theme is applied with no flash: the one
+  // picked in the settings, or by the time of day, light from 7:00 to 19:00 (see useTheme.js).
   (function () {
+    var theme = null;
     try {
       var saved = localStorage.getItem('overtone:theme');
-      if (saved === 'light' || saved === 'dark') {
-        document.documentElement.setAttribute('data-theme', saved);
-      }
+      if (saved === 'light' || saved === 'dark') theme = saved;
     } catch (e) {}
+    if (!theme) {
+      var h = new Date().getHours();
+      theme = h >= 7 && h < 19 ? 'light' : 'dark';
+    }
+    document.documentElement.setAttribute('data-theme', theme);
   })();
 </script>
 </head>

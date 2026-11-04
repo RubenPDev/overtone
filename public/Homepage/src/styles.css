@@ -421,6 +421,7 @@ main a:not(.card):hover { text-decoration-color: currentColor; }
 @keyframes settings-in { from { opacity: 0; transform: translateY(-4px) scale(0.97); } }
 .settings__row { display: grid; gap: 6px; }
 .settings__label { font-size: 12px; font-weight: 800; letter-spacing: 0.02em; color: var(--ink-3); }
+.settings__note { font-size: 12px; color: var(--ink-3); }
 .seg {
   display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px;
   padding: 3px;
@@ -431,7 +432,7 @@ main a:not(.card):hover { text-decoration-color: currentColor; }
 .seg__btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   height: 36px;
-  padding: 0 12px;
+  padding: 0 11px;
   font: inherit; font-size: 14px; font-weight: 800;
   color: var(--ink-2);
   background: transparent;

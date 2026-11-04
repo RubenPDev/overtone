@@ -543,13 +543,23 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
           </p>
         )}
 
+        {/* The big button is whatever's most likely next: learning the game before a
+            first move, starting over part way through, or another go once it's solved. */}
         <div className="fc-actions">
-          <button type="button" className="cad__btn cad__btn--primary" onClick={() => { setTutStep(0); }}>
-            {t('How to play')}
-          </button>
-          <button type="button" className="cad__btn cad__btn--round" onClick={restart} aria-label={t('Restart')} title={t('Restart')}>
-            <RestartIcon />
-          </button>
+          {solved || moves > 0 ? (
+            <button type="button" className="cad__btn cad__btn--primary" onClick={restart}>
+              <RestartIcon /> {solved ? t('Play again') : t('Reset puzzle')}
+            </button>
+          ) : (
+            <button type="button" className="cad__btn cad__btn--primary" onClick={() => { setTutStep(0); }}>
+              {t('How to play')}
+            </button>
+          )}
+          {(solved || moves > 0) && (
+            <button type="button" className="cad__btn cad__btn--round" onClick={() => { setTutStep(0); }} aria-label={t('How to play')} title={t('How to play')}>
+              <span aria-hidden="true" className="fc-q">?</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -1,60 +1,80 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 
-const KEY = 'overtone:theme';
+/* Light or dark. Left alone it follows the time of day, light from seven in the
+   morning to seven at night, so the site darkens at dusk wherever someone is. Picking
+   light or dark in the settings keeps that choice until it's set back to auto.
+   index.html applies the same rule before the first paint, so there's no flash. */
 
-function systemPrefersDark() {
-  return typeof window !== 'undefined'
-    && window.matchMedia
-    && window.matchMedia('(prefers-color-scheme: dark)').matches;
+const KEY = 'overtone:theme';
+export const DAY_FROM = 7;  // the hour light mode starts, local time
+export const DAY_TO = 19;   // and ends
+export const THEME_MODES = ['auto', 'light', 'dark'];
+
+/** What the time of day says, for auto. */
+export function timeTheme(at = new Date()) {
+  const h = at.getHours();
+  return h >= DAY_FROM && h < DAY_TO ? 'light' : 'dark';
 }
 
 function readStored() {
   try {
     const v = localStorage.getItem(KEY);
-    return v === 'light' || v === 'dark' ? v : null;
+    return v === 'light' || v === 'dark' ? v : 'auto';
   } catch {
-    return null;
+    return 'auto';
   }
 }
 
-/**
- * Three states, not two: 'light', 'dark', or null meaning "follow the system".
- * A fresh visitor stays on null so flipping their OS theme at dusk still works.
- * Once they touch the toggle we respect that choice and stop following.
- */
+let mode = typeof window === 'undefined' ? 'auto' : readStored();
+const listeners = new Set();
+
+const resolve = () => (mode === 'auto' ? timeTheme() : mode);
+
+/* Always set, auto included, so the page and the canvases agree on one theme. */
+function apply() {
+  if (typeof document !== 'undefined') document.documentElement.setAttribute('data-theme', resolve());
+}
+
+function publish() {
+  apply();
+  listeners.forEach((listener) => listener({ mode, theme: resolve() }));
+}
+
+/** Auto, light or dark. Light and dark are remembered; auto forgets any choice. */
+export function setThemeMode(next) {
+  if (!THEME_MODES.includes(next)) return;
+  mode = next;
+  try {
+    if (next === 'auto') localStorage.removeItem(KEY);
+    else localStorage.setItem(KEY, next);
+  } catch {
+    /* private mode: the choice just won't persist */
+  }
+  publish();
+}
+
 export function useTheme() {
-  const [override, setOverride] = useState(readStored);
-  const [systemDark, setSystemDark] = useState(systemPrefersDark);
+  const [state, setState] = useState(() => ({ mode, theme: resolve() }));
 
-  useEffect(() => {
-    if (!window.matchMedia) return undefined;
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = (e) => setSystemDark(e.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
-
-  const resolved = override ?? (systemDark ? 'dark' : 'light');
-
-  // Before any effect runs, so a canvas re-reading the theme's colours sees the new ones.
+  // Before any effect runs, so a canvas re-reading the theme's colours sees the right ones.
   useLayoutEffect(() => {
-    const root = document.documentElement;
-    if (override) root.setAttribute('data-theme', override);
-    else root.removeAttribute('data-theme');
-  }, [override]);
-
-  const toggle = useCallback(() => {
-    setOverride((prev) => {
-      const current = prev ?? (systemPrefersDark() ? 'dark' : 'light');
-      const next = current === 'dark' ? 'light' : 'dark';
-      try {
-        localStorage.setItem(KEY, next);
-      } catch {
-        /* private mode — the choice just won't persist */
-      }
-      return next;
-    });
+    listeners.add(setState);
+    apply();
+    setState({ mode, theme: resolve() });
+    return () => { listeners.delete(setState); };
   }, []);
 
-  return { theme: resolved, isDark: resolved === 'dark', toggle };
+  // On auto, dusk and dawn arrive while the page is open: check every minute and on return.
+  useEffect(() => {
+    const check = () => {
+      if (mode === 'auto' && document.documentElement.getAttribute('data-theme') !== timeTheme()) publish();
+    };
+    const id = setInterval(check, 60 * 1000);
+    document.addEventListener('visibilitychange', check);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', check); };
+  }, []);
+
+  const toggle = useCallback(() => setThemeMode(resolve() === 'dark' ? 'light' : 'dark'), []);
+
+  return { theme: state.theme, mode: state.mode, isDark: state.theme === 'dark', toggle, setMode: setThemeMode };
 }
