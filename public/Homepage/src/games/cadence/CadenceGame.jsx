@@ -10,6 +10,8 @@ import GameBar, { PuzzleStepper, RestartIcon } from '../../components/GameBar.js
 import ArchiveDrawer from './ArchiveDrawer.jsx';
 import CadenceHelp from './CadenceHelp.jsx';
 import CadenceResult, { ResultIcon } from './CadenceResult.jsx';
+import { tuneText } from './text.js';
+import { locale, t, tx } from '../../lib/i18n.js';
 import './cadence.css';
 
 const NS = 'cadence';
@@ -17,10 +19,10 @@ const DEFAULT_VISUAL = { lobes: 3, spike: 1.9, uneven: 0.30, steady: 0.18 };
 const RESULT_DELAY_MS = 900; // lets the last note ring and the graded strip land
 
 const SLIDERS = [
-  { key: 'lobes', label: 'Lobes', min: 1, max: 12, step: 1, fmt: (v) => String(v) },
-  { key: 'spike', label: 'Spike', min: 1, max: 3, step: 0.1, fmt: (v) => v.toFixed(1) },
-  { key: 'uneven', label: 'Uneven', min: 0, max: 0.6, step: 0.01, fmt: (v) => v.toFixed(2) },
-  { key: 'steady', label: 'Steady', min: 0.05, max: 0.6, step: 0.01, fmt: (v) => v.toFixed(2) },
+  { key: 'lobes', label: tx('Lobes'), min: 1, max: 12, step: 1, fmt: (v) => String(v) },
+  { key: 'spike', label: tx('Spike'), min: 1, max: 3, step: 0.1, fmt: (v) => v.toFixed(1) },
+  { key: 'uneven', label: tx('Uneven'), min: 0, max: 0.6, step: 0.01, fmt: (v) => v.toFixed(2) },
+  { key: 'steady', label: tx('Steady'), min: 0.05, max: 0.6, step: 0.01, fmt: (v) => v.toFixed(2) },
 ];
 
 function GearIcon() {
@@ -208,7 +210,8 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
   const over = state.finished || returning;
   useEffect(() => { engineRef.current?.setLocked(returning); }, [returning]);
 
-  const dateLabel = puzzle.date.toLocaleDateString(undefined, {
+  const tune = tuneText(melody);
+  const dateLabel = puzzle.date.toLocaleDateString(locale(), {
     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
   });
 
@@ -227,11 +230,11 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
       <div className="cadence__stage">
         <GameBar onNavigate={onNavigate} isDark={isDark} onToggleTheme={onToggleTheme}>
           {isSolved(readResults(NS)[number]) && (
-            <button type="button" className="pillbar__btn" onClick={() => setShowResult(true)} aria-label="Your result">
+            <button type="button" className="pillbar__btn" onClick={() => setShowResult(true)} aria-label={t('Your result')}>
               <ResultIcon name="star" />
             </button>
           )}
-          <button type="button" className="pillbar__btn" onClick={() => setShowHelp('tap')} aria-label="How to play">?</button>
+          <button type="button" className="pillbar__btn" onClick={() => setShowHelp('tap')} aria-label={t('How to play')}>?</button>
         </GameBar>
 
         <div className="gamehead">
@@ -241,7 +244,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
         </div>
 
         <div className="cad__stripwrap">
-          <span>{isToday ? 'Today' : `Puzzle ${number}`}</span>
+          <span>{isToday ? t('Today') : t('Puzzle {n}', { n: number })}</span>
           <span>{returning ? melody.notes.length : state.index} / {melody.notes.length}</span>
         </div>
 
@@ -275,49 +278,49 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
           >
             <canvas ref={canvasRef} className="cad__scope" />
             <span className={`cad__padlabel${state.index > 0 && !state.finished ? ' is-quiet' : ''}`}>
-              {over ? (returning || result?.correct === result?.total ? 'solved' : 'all played')
-                : state.index === 0 ? 'tap anywhere' : 'keep going'}
+              {over ? (returning || result?.correct === result?.total ? t('solved') : t('all played'))
+                : state.index === 0 ? t('tap anywhere') : t('keep going')}
             </span>
           </div>
         </div>
 
         <div className="cad__readouts">
-          <span>{state.lastGapMs ? `gap ${state.lastGapMs} ms` : 'gap —'}</span>
-          <span>{state.fastestMs ? `fastest ${state.fastestMs} ms` : 'fastest —'}</span>
+          <span>{state.lastGapMs ? t('gap {ms} ms', { ms: state.lastGapMs }) : t('gap —')}</span>
+          <span>{state.fastestMs ? t('fastest {ms} ms', { ms: state.fastestMs }) : t('fastest —')}</span>
         </div>
 
         <p className="cad__hint">
           {returning ? (
             <>
-              <b className="is-ok">{pastResult === 'assisted' ? 'Solved, with help.' : 'Solved by ear.'}</b>{' '}
-              {melody.title} — {melody.composer.replace(/\.$/, '')}. {melody.solved}
+              <b className="is-ok">{pastResult === 'assisted' ? t('Solved, with help.') : t('Solved by ear.')}</b>{' '}
+              {tune.title} — {melody.composer.replace(/\.$/, '')}. {tune.solved}
             </>
           ) : result ? (
             result.correct === result.total ? (
               <>
                 <b className="is-ok">
-                  {outcome?.kind === 'assisted' ? 'Solved, with help.'
-                    : outcome?.firstTry ? 'Solved, first try.' : 'Solved by ear.'}
+                  {outcome?.kind === 'assisted' ? t('Solved, with help.')
+                    : outcome?.firstTry ? t('Solved, first try.') : t('Solved by ear.')}
                 </b>{' '}
-                {melody.title} — {melody.composer.replace(/\.$/, '')}. {melody.solved}{' '}
-                You played it at about {result.bpm} bpm; the tempo was never graded.
+                {tune.title} — {melody.composer.replace(/\.$/, '')}. {tune.solved}{' '}
+                {t('You played it at about {bpm} bpm; the tempo was never graded.', { bpm: result.bpm })}
               </>
             ) : (
               <>
-                <b className="is-bad">{result.correct} of {result.total} gaps right.</b>{' '}
-                Amber means you held too short, red too long.{' '}
+                <b className="is-bad">{t('{n} of {total} gaps right.', { n: result.correct, total: result.total })}</b>{' '}
+                {t('Amber means you held too short, red too long.')}{' '}
                 {heard
-                  ? 'You’ve heard it now. Go again.'
-                  : 'Go again, or hear the answer, though a solve after that counts as assisted.'}
+                  ? t('You’ve heard it now. Try again.')
+                  : t('Try again, or hear the answer first, though a solve after that counts as assisted.')}
               </>
             )
-          ) : melody.intro}
+          ) : tune.intro}
         </p>
 
         <div className="cad__actions">
           {over && (
             <button type="button" className="cad__btn cad__btn--primary" onClick={onReplay}>
-              <RestartIcon /> Try again
+              <RestartIcon /> {t('Try again')}
             </button>
           )}
           <button
@@ -325,14 +328,14 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
             className={`cad__btn${armed ? ' is-armed' : ''}`}
             onClick={onHear}
             disabled={hintLocked}
-            title={hintLocked ? 'Have one go first' : undefined}
+            title={hintLocked ? t('Have one go first') : undefined}
           >
-            {hintLocked ? 'Hear answer'
-              : armed ? 'Sure? Counts as assisted'
-              : heard || solvedClean ? 'Hear it again' : 'Hear answer'}
+            {hintLocked ? t('Hear answer')
+              : armed ? t('Sure? Counts as assisted')
+              : heard || solvedClean ? t('Hear it again') : t('Hear answer')}
           </button>
           {!over && (
-            <button type="button" className="cad__btn cad__btn--round" onClick={onReplay} aria-label="Reset" title="Reset">
+            <button type="button" className="cad__btn cad__btn--round" onClick={onReplay} aria-label={t('Reset')} title={t('Reset')}>
               <RestartIcon />
             </button>
           )}
@@ -341,7 +344,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
             className="cad__btn cad__btn--round"
             onClick={() => setShowSettings((v) => !v)}
             aria-expanded={showSettings}
-            aria-label="Visualizer settings"
+            aria-label={t('Visualizer settings')}
           >
             <GearIcon />
           </button>
@@ -349,10 +352,10 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
 
         <div className={`cad__settings${showSettings ? ' is-open' : ''}`}>
           <div className="cad__panel">
-            <h2>Visualizer</h2>
+            <h2>{t('Visualizer')}</h2>
             {SLIDERS.map((s) => (
               <div className="cad__row" key={s.key}>
-                <label htmlFor={`cad-${s.key}`}>{s.label}</label>
+                <label htmlFor={`cad-${s.key}`}>{t(s.label)}</label>
                 <input
                   id={`cad-${s.key}`}
                   type="range"

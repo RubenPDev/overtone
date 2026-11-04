@@ -3,10 +3,11 @@ import Glyph from './Glyph.jsx';
 import { helpSeen } from '../lib/progress.js';
 import { useGameStats } from '../lib/useGameStats.js';
 import { linkHandler, withBase } from '../router.js';
+import { t } from '../lib/i18n.js';
 
 function Streak({ n }) {
   if (!n) return null;
-  return <span className="card__streak">{n} day{n === 1 ? '' : 's'}</span>;
+  return <span className="card__streak">{n === 1 ? t('1 day') : t('{n} days', { n })}</span>;
 }
 
 export default function GameCard({ game, featured = false, navigate }) {
@@ -37,7 +38,7 @@ export default function GameCard({ game, featured = false, navigate }) {
       {live ? (
         <>
           <span className="card__cta">
-            {stats.played ? 'See today’s result' : 'Play'}
+            {stats.played ? t('See today’s result') : t('Play')}
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -45,7 +46,7 @@ export default function GameCard({ game, featured = false, navigate }) {
           <Streak n={stats.streak} />
         </>
       ) : (
-        <span className="card__cta card__cta--muted">In the workshop</span>
+        <span className="card__cta card__cta--muted">{t('In the workshop')}</span>
       )}
     </div>
   );
@@ -65,15 +66,15 @@ export default function GameCard({ game, featured = false, navigate }) {
           <h3 className="card__name">{game.name}</h3>
           {live ? (
             stats.played
-              ? <span className="card__badge card__badge--done">Played today</span>
-              : <span className="card__badge">New today</span>
+              ? <span className="card__badge card__badge--done">{t('Played today')}</span>
+              : <span className="card__badge">{t('New today')}</span>
           ) : (
-            <span className="card__badge card__badge--soon">Soon</span>
+            <span className="card__badge card__badge--soon">{t('Soon')}</span>
           )}
         </div>
 
-        <p className="card__tagline">{game.tagline}</p>
-        {featured && <p className="card__desc">{game.description}</p>}
+        <p className="card__tagline">{t(game.tagline)}</p>
+        {featured && <p className="card__desc">{t(game.description)}</p>}
         {featured && foot}
       </div>
       {!featured && foot}

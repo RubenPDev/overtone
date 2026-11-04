@@ -498,6 +498,7 @@ export const MELODIES = [
   shortest gap makes it easier (the long notes stand out); and a tune made
   mostly of one gap length is harder, because the few odd ones are easy to miss.
 */
+// The words are shown through t(), so each has a Spanish entry in es.js.
 const TIERS = [
   [10, 'breezy'],
   [14, 'gentle'],

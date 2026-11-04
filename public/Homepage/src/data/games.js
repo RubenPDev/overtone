@@ -8,14 +8,14 @@
  * named mark-<id> for the card's mark to turn into on the way in.
  */
 
+import { tx } from '../lib/i18n.js';
+
 export const GAMES = [
   {
     id: 'cadence',
     name: 'Cadence',
-    tagline: 'Play the rhythm you already know',
-    description:
-      'A new melody every day. The notes are handed to you one tap at a time — ' +
-      'the rhythm is the puzzle. Tap at any speed; only the pattern counts.',
+    tagline: tx('Play the rhythm you already know'),
+    description: tx('A new melody every day. The notes are handed to you one tap at a time — the rhythm is the puzzle. Tap at any speed; only the pattern counts.'),
     href: '/cadence',
     glyph: 'pad',
     accent: '105 255 208',
@@ -27,11 +27,8 @@ export const GAMES = [
   {
     id: 'facet',
     name: 'Facet',
-    tagline: 'Find the shortest route',
-    description:
-      'A scrambled block of colour, and a par that was proven before you started. ' +
-      'Swap and turn until the ring matches its centre and every outer row is one colour, ' +
-      'in as few moves as you can.',
+    tagline: tx('Find the shortest route'),
+    description: tx('A scrambled block of colour, and a par that was proven before you started. Swap and turn until the ring matches its centre and every outer row is one colour, in as few moves as you can.'),
     href: '/facet',
     glyph: 'facet',
     accent: '214 140 255',
@@ -42,10 +39,8 @@ export const GAMES = [
   {
     id: 'junctions',
     name: 'Junctions',
-    tagline: 'Keep the rush hour moving',
-    description:
-      'A small town, a highway and a rush hour on its way. Spend a tight budget on lights, ' +
-      'roundabouts and flyovers, then watch the traffic run. Clear it, or clear it without a single street going red.',
+    tagline: tx('Keep the rush hour moving'),
+    description: tx('A small town, a highway and a rush hour on its way. Spend a tight budget on lights, roundabouts and flyovers, then watch the traffic run. Get every car through, or do it without a single street going red.'),
     href: '/junctions',
     glyph: 'junction',
     accent: '255 230 106',

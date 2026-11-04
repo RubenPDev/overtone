@@ -1,5 +1,6 @@
 import React from 'react';
 import { linkHandler, withBase } from '../router.js';
+import { LANGS, setLang, t, useLang } from '../lib/i18n.js';
 
 function Sun() {
   return (
@@ -36,11 +37,33 @@ export function ThemeToggle({ className, isDark, onToggle }) {
       type="button"
       className={className}
       onClick={onToggle}
-      aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-      title={isDark ? 'Light theme' : 'Dark theme'}
+      aria-label={isDark ? t('Switch to light theme') : t('Switch to dark theme')}
+      title={isDark ? t('Light theme') : t('Dark theme')}
     >
       {isDark ? <Sun /> : <Moon />}
     </button>
+  );
+}
+
+/** English or Spanish: both shown, the one in use lit. */
+export function LangToggle({ className = '' }) {
+  const lang = useLang();
+  return (
+    <div className={`lang ${className}`} role="group" aria-label={t('Language')}>
+      {LANGS.map((l) => (
+        <button
+          key={l}
+          type="button"
+          className="lang__btn"
+          lang={l === 'es' ? 'es-MX' : 'en'}
+          aria-pressed={l === lang}
+          title={l === 'es' ? 'Español' : 'English'}
+          onClick={() => setLang(l)}
+        >
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -53,8 +76,9 @@ export default function Header({ isDark, onToggleTheme, navigate }) {
       </a>
 
       <nav className="masthead__nav">
-        <a href={withBase('/#games')}>Games</a>
-        <a href={withBase('/#about')}>About</a>
+        <a href={withBase('/#games')}>{t('Games')}</a>
+        <a href={withBase('/#about')}>{t('About')}</a>
+        <LangToggle />
         <ThemeToggle className="themetoggle" isDark={isDark} onToggle={onToggleTheme} />
       </nav>
     </header>

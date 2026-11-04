@@ -9,6 +9,7 @@
    ============================================================ */
 
 import { DX, DY, HIGHWAY_W, ROAD_W, SIZE } from './city.js';
+import { t } from '../../lib/i18n.js';
 import { JUNCTION_R, RED } from './sim.js';
 
 const TILT = (52 * Math.PI) / 180;
@@ -842,8 +843,17 @@ export function createRenderer(canvas, day) {
   /* ---------- labels ---------- */
 
   /* Sized with the board, so on a phone a tag stays a tag and doesn't cover the town. */
+  const labelScale = () => Math.max(0.55, Math.min(1, k / 2.6));
+  function labelWidth(text) {
+    const s = labelScale();
+    ctx.save();
+    ctx.font = `800 ${Math.round(18 * s)}px Nunito, system-ui, sans-serif`;
+    const w = ctx.measureText(text).width + 34 * s;
+    ctx.restore();
+    return w;
+  }
   function label(text, x, y, bg, ink) {
-    const s = Math.max(0.55, Math.min(1, k / 2.6));
+    const s = labelScale();
     ctx.save();
     ctx.font = `800 ${Math.round(18 * s)}px Nunito, system-ui, sans-serif`;
     const w = ctx.measureText(text).width + 34 * s;
@@ -862,11 +872,23 @@ export function createRenderer(canvas, day) {
     ctx.restore();
   }
 
+  const tagText = (p) => (p === city.entrance ? t('Highway in') : t('Highway out'));
+  const tagAt = (p) => P(p.x + DX[p.heading] * 9, p.y + DY[p.heading] * 9, 0);
+
   function drawHighwayTags() {
     for (const p of [city.entrance, city.exit]) {
-      const [x, y] = P(p.x + DX[p.heading] * 9, p.y + DY[p.heading] * 9, 0);
-      label(p === city.entrance ? 'Highway in' : 'Highway out', x, y, theme.sheet, theme.ink3);
+      const [x, y] = tagAt(p);
+      label(tagText(p), x, y, theme.sheet, theme.ink3);
     }
+  }
+
+  /** Where the highway tags are on the canvas, for anything pointing at them. */
+  function tags() {
+    const h = 30 * labelScale();
+    return [['in', city.entrance], ['out', city.exit]].map(([kind, p]) => {
+      const [x, y] = tagAt(p);
+      return { kind, x, y, w: labelWidth(tagText(p)), h };
+    });
   }
 
   function drawBacklog(run) {
@@ -875,7 +897,7 @@ export function createRenderer(canvas, day) {
       const lane = run.lanes[laneId];
       const [wx, wy] = laneAt(lane, lane.offPlate + 4);
       const [x, y] = P(wx, wy, 9);
-      label(`+${queue.length} waiting`, x, y, `rgb(${JAMMED.join(',')})`, '#fff');
+      label(t('+{n} waiting', { n: queue.length }), x, y, `rgb(${JAMMED.join(',')})`, '#fff');
     }
   }
 
@@ -903,5 +925,5 @@ export function createRenderer(canvas, day) {
     return P(n.x, n.y, ROAD_TOP);
   }
 
-  return { resize, setTheme, draw, reach, at };
+  return { resize, setTheme, draw, reach, at, tags };
 }

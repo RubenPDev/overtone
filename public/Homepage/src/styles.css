@@ -393,6 +393,37 @@ main a:not(.card):hover { text-decoration-color: currentColor; }
 .themetoggle:active { transform: scale(0.92) rotate(-18deg); }
 .themetoggle svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 
+/* English or Spanish: both shown, the one in use lit. */
+.lang {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 3px;
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: 100px;
+  box-shadow: 0 8px 20px -14px var(--shadow);
+}
+.lang__btn {
+  min-width: 34px; height: 34px;
+  padding: 0 8px;
+  font: inherit; font-size: 12.5px; font-weight: 800; letter-spacing: 0.02em;
+  color: var(--ink-3);
+  background: transparent;
+  border: 0;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: color 160ms, background 160ms;
+}
+.lang__btn:hover { color: var(--ink); }
+.lang__btn[aria-pressed="true"] { color: var(--btn-ink); background: var(--btn); }
+.lang__btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+/* Inside a game's pill it's one more segment of it, with the same dividers. */
+.lang--bar { position: relative; padding: 0 2px; background: none; border: 0; box-shadow: none; }
+.lang--bar .lang__btn { min-width: 32px; height: 32px; padding: 0 6px; }
+.pillbar > * + .lang--bar, .pillbar > .lang--bar + .pillbar__btn { position: relative; margin-left: 5px; }
+.pillbar > * + .lang--bar::before, .pillbar > .lang--bar + .pillbar__btn::before {
+  content: ''; position: absolute; left: -3px; top: 11px; bottom: 11px; width: 1px; background: var(--rule-2);
+}
+
 /* ---------- hero ---------- */
 
 .hero {

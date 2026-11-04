@@ -3,6 +3,7 @@ import { createCadenceEngine } from './engine.js';
 import { hueFor, NOTE as N } from './melodies.js';
 import { reportLesson } from '../../lib/stats.js';
 import { useDialog } from '../../lib/useDialog.js';
+import { t } from '../../lib/i18n.js';
 
 /* Deliberately not in the catalogue, so learning the game never spoils a
    puzzle. It has its own engine and never touches progress or stats. */
@@ -73,13 +74,13 @@ export default function CadenceHelp({ visual, onClose, openedByTap }) {
         aria-labelledby="cad-help-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="cad-help__title" id="cad-help-title">How to play</h2>
+        <h2 className="cad-help__title" id="cad-help-title">{t('How to play')}</h2>
         <p className="cad-help__text">
-          Every puzzle is a tune you probably know. Each tap plays its next note for you, so
-          the notes are never wrong. The only thing you choose is <em>when</em>.
+          {t('Every puzzle is a tune you probably know. Each tap plays its next note for you, so the notes are never wrong. The only thing you choose is')}{' '}
+          <em>{t('when')}</em>.
         </p>
         <p className="cad-help__text">
-          Try it: tap out “Hot cross buns” twice, with a pause after the first “buns”.
+          {t('Try it: tap out “Hot cross buns” twice, with a pause after the first “buns”.')}
         </p>
 
         <p className="cad-help__words" aria-hidden="true">
@@ -92,33 +93,33 @@ export default function CadenceHelp({ visual, onClose, openedByTap }) {
           <div className={`cad__pad${finished ? ' is-done' : ''}`} ref={padRef}>
             <canvas ref={canvasRef} className="cad__scope" />
             <span className={`cad__padlabel${index > 0 && !finished ? ' is-quiet' : ''}`}>
-              {finished ? (solved ? 'solved' : 'all played') : index === 0 ? 'tap here' : 'keep going'}
+              {finished ? (solved ? t('solved') : t('all played')) : index === 0 ? t('tap here') : t('keep going')}
             </span>
           </div>
         </div>
 
         <p className="cad-help__result" aria-live="polite">
-          {!result && 'Go at any speed. Only the pattern counts.'}
-          {solved && <b className="is-ok">That’s it. You’re ready for a real one.</b>}
+          {!result && t('Go at any speed. Only the pattern counts.')}
+          {solved && <b className="is-ok">{t('That’s it. You’re ready for a real one.')}</b>}
           {result && !solved && (
             <>
-              <b className="is-bad">{result.correct} of {result.total} gaps right.</b>{' '}
-              Amber means you held too short, red too long. Try again below.
+              <b className="is-bad">{t('{n} of {total} gaps right.', { n: result.correct, total: result.total })}</b>{' '}
+              {t('Amber means you held too short, red too long.')} {t('Try again below.')}
             </>
           )}
         </p>
 
         <ul className="cad-help__list">
-          <li>There’s one new tune a day, with a small clue under the pad.</li>
-          <li>Try as many times as you like. A wrong try costs nothing.</li>
-          <li>Stuck? After one try you can hear the answer, but solving it after that counts as assisted.</li>
+          <li>{t('There’s one new tune a day, with a small clue under the pad.')}</li>
+          <li>{t('Try as many times as you like. A wrong try costs nothing.')}</li>
+          <li>{t('Stuck? After one try you can hear the answer, but solving it after that counts as assisted.')}</li>
         </ul>
 
         <div className="cad-help__actions">
           {finished
-            ? <button type="button" className="cad__btn" onClick={() => engineRef.current?.reset()}>Try again</button>
-            : <button type="button" className="cad__btn" onClick={onHear}>Hear it</button>}
-          <button type="button" className="cad__btn cad__btn--primary" onClick={close}>Got it</button>
+            ? <button type="button" className="cad__btn" onClick={() => engineRef.current?.reset()}>{t('Try again')}</button>
+            : <button type="button" className="cad__btn" onClick={onHear}>{t('Hear it')}</button>}
+          <button type="button" className="cad__btn cad__btn--primary" onClick={close}>{t('Got it')}</button>
         </div>
       </div>
     </div>

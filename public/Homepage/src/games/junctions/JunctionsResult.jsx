@@ -6,16 +6,18 @@ import { useDialog, useLeave } from '../../lib/useDialog.js';
 import { withBase } from '../../router.js';
 import { dateForNumber } from './puzzles.js';
 import { costOf } from './sim.js';
+import { locale, t } from '../../lib/i18n.js';
 
 const EMOJI = { lights: '🚦', roundabout: '🔄', flyover: '🌉' };
 
 function shareText(number, perfect, tries, config, budget) {
-  const built = Object.values(config).sort().map((t) => EMOJI[t]).join('') || 'nothing';
-  const how = perfect ? 'perfect flow' : 'cleared';
-  const count = tries ? (tries.count === 1 ? ', first try' : `, ${tries.count} tries`) : '';
+  const built = Object.values(config).sort().map((type) => EMOJI[type]).join('');
+  const how = perfect ? t('perfect flow') : t('every car through');
+  const count = tries ? (tries.count === 1 ? `, ${t('first try')}` : `, ${t('{n} runs', { n: tries.count })}`) : '';
+  const nothing = t('nothing');
   return [
     `Junctions #${number}: ${how}${count}`,
-    `${built} $${costOf(config)} of $${budget}`,
+    `${built || nothing} ${t('${cost} of ${budget}', { cost: costOf(config), budget })}`,
     `${window.location.origin}${withBase(`/junctions/${number}`)}?via=share`,
   ].join('\n');
 }
@@ -29,8 +31,8 @@ export default function JunctionsResult({ ns, number, budget, config, onClose, o
   const streak = useMemo(() => readStreak(ns), [ns]);
   const [shareLabel, setShareLabel] = useState(null);
   const perfect = outcome === 'solved';
-  // The share of cars that got through on the run that solved it, kept with the tries.
-  const cleared = perfect ? 100 : tries?.done ? tries.rows[tries.rows.length - 1]?.[0] : undefined;
+  // How full the busiest street got on the run that solved it, kept with the tries.
+  const busiest = tries?.done ? tries.rows[tries.rows.length - 1]?.[1] : undefined;
 
   useEffect(() => {
     if (!shareLabel) return undefined;
@@ -43,11 +45,11 @@ export default function JunctionsResult({ ns, number, budget, config, onClose, o
       .then(setShareLabel)
       .catch((e) => {
         // Closing the share sheet isn't a failure.
-        if (e?.name !== 'AbortError') setShareLabel('Couldn’t copy');
+        if (e?.name !== 'AbortError') setShareLabel(t('Couldn’t copy'));
       });
   };
 
-  const dateLabel = dateForNumber(number).toLocaleDateString(undefined, {
+  const dateLabel = dateForNumber(number).toLocaleDateString(locale(), {
     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
   });
 
@@ -62,50 +64,50 @@ export default function JunctionsResult({ ns, number, budget, config, onClose, o
         aria-labelledby="jn-result-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <button type="button" className="arch__close cad-result__close" onClick={close} aria-label="Close">
+        <button type="button" className="arch__close cad-result__close" onClick={close} aria-label={t('Close')}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
         </button>
 
         <div className={`cad-result__badge${perfect ? '' : ' is-assisted'}`}><ResultIcon name={perfect ? 'star' : 'retry'} /></div>
-        <h2 className="cad-result__title" id="jn-result-title">{perfect ? 'Perfect flow!' : 'Traffic cleared'}</h2>
+        <h2 className="cad-result__title" id="jn-result-title">{perfect ? t('Perfect flow!') : t('Every car through')}</h2>
         <p className="cad-result__meta">Junctions #{number} · {dateLabel}</p>
 
         <p className="cad-result__note">
           {perfect
-            ? 'Every car got through, and not one street went red.'
-            : 'Most of the town got where it was going. Keep every street out of the red for a perfect flow.'}
+            ? t('Every car got through, and not one street went red.')
+            : t('Every car got where it was going, though some streets went red. Keep them all out of the red for a perfect flow.')}
         </p>
 
         <dl className="cad-result__tiles cad-result__tiles--four">
           <div>
             <ResultIcon name="car" />
-            <dd>{cleared === undefined ? '—' : `${cleared}%`}</dd>
-            <dt>Cleared</dt>
+            <dd>{busiest === undefined ? '—' : `${busiest}%`}</dd>
+            <dt>{t('Busiest street')}</dt>
           </div>
           <div>
             <ResultIcon name="retry" />
             <dd>{tries ? tries.count : '—'}</dd>
-            <dt>{tries?.count === 1 ? 'Run' : 'Runs'}</dt>
+            <dt>{tries?.count === 1 ? t('Run') : t('Runs')}</dt>
           </div>
           <div>
             <ResultIcon name="star" />
             <dd>${costOf(config)}</dd>
-            <dt>of ${budget} spent</dt>
+            <dt>{t('of ${budget} spent', { budget })}</dt>
           </div>
           <div>
             <ResultIcon name="flame" />
             <dd>{streak}</dd>
-            <dt>Day streak</dt>
+            <dt>{t('Day streak')}</dt>
           </div>
         </dl>
 
         <div className="cad-help__actions">
           <button type="button" className="cad__btn cad__btn--primary" onClick={onShare} aria-live="polite">
-            {shareLabel || 'Share'}
+            {shareLabel || t('Share')}
           </button>
-          <button type="button" className="cad__btn" onClick={() => leave(onReplay)}>Play again</button>
+          <button type="button" className="cad__btn" onClick={() => leave(onReplay)}>{t('Play again')}</button>
         </div>
 
         <DonateLink quiet />

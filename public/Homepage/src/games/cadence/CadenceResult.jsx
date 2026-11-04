@@ -4,6 +4,8 @@ import { readResults, readStreak, readTries } from '../../lib/progress.js';
 import { reportShare } from '../../lib/stats.js';
 import { useDialog, useLeave } from '../../lib/useDialog.js';
 import { withBase } from '../../router.js';
+import { locale, t } from '../../lib/i18n.js';
+import { tuneText } from './text.js';
 
 const ICONS = {
   star: <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />,
@@ -23,14 +25,14 @@ const withLastNote = (row) => [...row, 0];
 const EMOJI = { 0: '🟩', [-1]: '🟧', 1: '🟥' };
 
 function triesLabel(count) {
-  return count === 1 ? 'first try' : `${count} tries`;
+  return count === 1 ? t('first try') : t('{n} tries', { n: count });
 }
 
 /** Colours say only right, short or long, so sharing never gives away the tune. */
 function shareText(number, outcome, tries) {
-  const how = outcome === 'assisted' ? 'with help' : 'by ear';
+  const how = outcome === 'assisted' ? t('solved with help') : t('solved by ear');
   return [
-    `Cadence #${number}: solved ${how}${tries ? `, ${triesLabel(tries.count)}` : ''}`,
+    `Cadence #${number}: ${how}${tries ? `, ${triesLabel(tries.count)}` : ''}`,
     ...(tries ? tries.rows.map((row) => withLastNote(row).map((m) => EMOJI[m]).join('')) : []),
     `${window.location.origin}${withBase(`/cadence/${number}`)}?via=share`,
   ].join('\n');
@@ -46,7 +48,7 @@ export async function share(text, game) {
   }
   await navigator.clipboard.writeText(text);
   reportShare(game, 'copy');
-  return 'Copied!';
+  return t('Copied!');
 }
 
 export default function CadenceResult({ ns, puzzle, onClose, onReplay }) {
@@ -70,15 +72,16 @@ export default function CadenceResult({ ns, puzzle, onClose, onReplay }) {
       .then(setShareLabel)
       .catch((e) => {
         // Closing the share sheet isn't a failure.
-        if (e?.name !== 'AbortError') setShareLabel('Couldn’t copy');
+        if (e?.name !== 'AbortError') setShareLabel(t('Couldn’t copy'));
       });
   };
 
   const assisted = outcome === 'assisted';
   const firstTry = !assisted && tries?.count === 1;
-  const heading = assisted ? 'Solved, with help' : firstTry ? 'First try!' : 'Solved by ear';
+  const heading = assisted ? t('Solved, with help') : firstTry ? t('First try!') : t('Solved by ear');
   const badge = assisted ? 'headphones' : firstTry ? 'star' : 'ear';
-  const dateLabel = date.toLocaleDateString(undefined, {
+  const tune = tuneText(melody);
+  const dateLabel = date.toLocaleDateString(locale(), {
     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
   });
 
@@ -93,7 +96,7 @@ export default function CadenceResult({ ns, puzzle, onClose, onReplay }) {
         aria-labelledby="cad-result-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <button type="button" className="arch__close cad-result__close" onClick={close} aria-label="Close">
+        <button type="button" className="arch__close cad-result__close" onClick={close} aria-label={t('Close')}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
@@ -103,24 +106,24 @@ export default function CadenceResult({ ns, puzzle, onClose, onReplay }) {
         <h2 className="cad-result__title" id="cad-result-title">{heading}</h2>
         <p className="cad-result__meta">Cadence #{number} · {dateLabel}</p>
 
-        <p className="cad-result__tune"><b>{melody.title}</b> · {melody.composer}</p>
-        <p className="cad-result__note">{melody.solved}</p>
+        <p className="cad-result__tune"><b>{tune.title}</b> · {melody.composer}</p>
+        <p className="cad-result__note">{tune.solved}</p>
 
         <dl className="cad-result__tiles">
           <div>
             <ResultIcon name="retry" />
             <dd>{tries ? tries.count : '—'}</dd>
-            <dt>{tries?.count === 1 ? 'Try' : 'Tries'}</dt>
+            <dt>{tries?.count === 1 ? t('Try') : t('Tries')}</dt>
           </div>
           <div>
             <ResultIcon name={assisted ? 'headphones' : 'ear'} />
-            <dd>{assisted ? 'Yes' : 'No'}</dd>
-            <dt>Help</dt>
+            <dd>{assisted ? t('Yes') : t('No')}</dd>
+            <dt>{t('Help')}</dt>
           </div>
           <div>
             <ResultIcon name="flame" />
             <dd>{streak}</dd>
-            <dt>Day streak</dt>
+            <dt>{t('Day streak')}</dt>
           </div>
         </dl>
 
@@ -136,14 +139,14 @@ export default function CadenceResult({ ns, puzzle, onClose, onReplay }) {
           </div>
         )}
         {tries && tries.count > tries.rows.length && (
-          <p className="cad-result__more">Your last {tries.rows.length} of {tries.count} tries</p>
+          <p className="cad-result__more">{t('Your last {n} of {total} tries', { n: tries.rows.length, total: tries.count })}</p>
         )}
 
         <div className="cad-help__actions">
           <button type="button" className="cad__btn cad__btn--primary" onClick={onShare} aria-live="polite">
-            {shareLabel || 'Share'}
+            {shareLabel || t('Share')}
           </button>
-          <button type="button" className="cad__btn" onClick={() => leave(onReplay)}>Play again</button>
+          <button type="button" className="cad__btn" onClick={() => leave(onReplay)}>{t('Play again')}</button>
         </div>
 
         <DonateLink quiet />

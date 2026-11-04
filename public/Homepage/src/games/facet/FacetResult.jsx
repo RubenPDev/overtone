@@ -5,10 +5,11 @@ import { readBest, readStreak } from '../../lib/progress.js';
 import { useDialog, useLeave } from '../../lib/useDialog.js';
 import { withBase } from '../../router.js';
 import { dateForNumber, parFor } from './solver.js';
+import { locale, t } from '../../lib/i18n.js';
 
 function shareText(number, best, par) {
   return [
-    `Facet #${number}: ${best} moves, par ${par}`,
+    `Facet #${number}: ${t('{n} moves, par {par}', { n: best, par })}`,
     `${window.location.origin}${withBase(`/facet/${number}`)}?via=share`,
   ].join('\n');
 }
@@ -33,12 +34,12 @@ export default function FacetResult({ ns, number, onClose, onReplay }) {
       .then(setShareLabel)
       .catch((e) => {
         // Closing the share sheet isn't a failure.
-        if (e?.name !== 'AbortError') setShareLabel('Couldn’t copy');
+        if (e?.name !== 'AbortError') setShareLabel(t('Couldn’t copy'));
       });
   };
 
   const atPar = best === par;
-  const dateLabel = dateForNumber(number).toLocaleDateString(undefined, {
+  const dateLabel = dateForNumber(number).toLocaleDateString(locale(), {
     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
   });
 
@@ -53,45 +54,45 @@ export default function FacetResult({ ns, number, onClose, onReplay }) {
         aria-labelledby="fc-result-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <button type="button" className="arch__close cad-result__close" onClick={close} aria-label="Close">
+        <button type="button" className="arch__close cad-result__close" onClick={close} aria-label={t('Close')}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
         </button>
 
         <div className="cad-result__badge"><ResultIcon name={atPar ? 'star' : 'retry'} /></div>
-        <h2 className="cad-result__title" id="fc-result-title">{atPar ? 'Exactly par!' : 'Solved'}</h2>
+        <h2 className="cad-result__title" id="fc-result-title">{atPar ? t('Exactly par!') : t('Solved')}</h2>
         <p className="cad-result__meta">Facet #{number} · {dateLabel}</p>
 
         <p className="cad-result__note">
           {atPar
-            ? 'No shorter route exists. The search proved it before you started.'
-            : 'Finishing is the easy half. The puzzle is the route.'}
+            ? t('No shorter route exists. The search proved it before you started.')
+            : t('Finishing is the easy half. The puzzle is the route.')}
         </p>
 
         <dl className="cad-result__tiles">
           <div>
             <ResultIcon name="retry" />
             <dd>{best ?? '—'}</dd>
-            <dt>Best</dt>
+            <dt>{t('Best')}</dt>
           </div>
           <div>
             <ResultIcon name="star" />
             <dd>{par}</dd>
-            <dt>Par</dt>
+            <dt>{t('Par')}</dt>
           </div>
           <div>
             <ResultIcon name="flame" />
             <dd>{streak}</dd>
-            <dt>Day streak</dt>
+            <dt>{t('Day streak')}</dt>
           </div>
         </dl>
 
         <div className="cad-help__actions">
           <button type="button" className="cad__btn cad__btn--primary" onClick={onShare} aria-live="polite">
-            {shareLabel || 'Share'}
+            {shareLabel || t('Share')}
           </button>
-          <button type="button" className="cad__btn" onClick={() => leave(onReplay)}>Play again</button>
+          <button type="button" className="cad__btn" onClick={() => leave(onReplay)}>{t('Play again')}</button>
         </div>
 
         <DonateLink quiet />

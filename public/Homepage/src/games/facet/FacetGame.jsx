@@ -16,6 +16,7 @@ import ArchiveDrawer from '../cadence/ArchiveDrawer.jsx';
 import { ResultIcon } from '../cadence/CadenceResult.jsx';
 import ArchiveList from './ArchiveList.jsx';
 import FacetResult from './FacetResult.jsx';
+import { locale, t, tx } from '../../lib/i18n.js';
 import './facet.css';
 
 const NS = 'facet';
@@ -61,7 +62,7 @@ function TurnBlock({ dir, col, row, pulsing, onTurn }) {
   const { arc, head } = dir > 0 ? ARROW_CW : ARROW_CCW;
   return (
     <ControlBlock col={col} row={row} pulsing={pulsing} onPress={() => onTurn(dir)}
-                  label={dir > 0 ? 'Turn ring right' : 'Turn ring left'}>
+                  label={dir > 0 ? t('Turn ring right') : t('Turn ring left')}>
       {/* The arrow lies in the plane the ring turns in, so the projection
           squashing it into an ellipse is the point, not a flaw. */}
       <svg className="fc-icon" viewBox="0 0 52 52" aria-hidden="true">
@@ -74,7 +75,7 @@ function TurnBlock({ dir, col, row, pulsing, onTurn }) {
 
 function SoundBlock({ col, row, on, onToggle }) {
   return (
-    <ControlBlock col={col} row={row} label="Sound" toggled={on} onPress={onToggle}>
+    <ControlBlock col={col} row={row} label={t('Sound')} toggled={on} onPress={onToggle}>
       {/* Turned to face the player, since a speaker on its side reads as nothing. */}
       <svg className={`fc-icon fc-icon--upright${on ? '' : ' is-off'}`} viewBox="0 0 52 52" aria-hidden="true">
         <path d="M11 21h6l9-7.5v25L17 31h-6z" fill="currentColor" stroke="currentColor"
@@ -96,7 +97,7 @@ function SoundBlock({ col, row, on, onToggle }) {
 
 function LikeBlock({ col, row, liked, onLike }) {
   return (
-    <ControlBlock col={col} row={row} label={liked ? 'Liked' : 'Like Facet'} toggled={liked} onPress={onLike}>
+    <ControlBlock col={col} row={row} label={liked ? t('Liked') : t('Like Facet')} toggled={liked} onPress={onLike}>
       <svg className="fc-icon fc-icon--upright" viewBox="0 0 52 52" aria-hidden="true">
         <path d={HEART_PATH} className={liked ? 'is-liked' : undefined}
               fill={liked ? 'currentColor' : 'none'} stroke="currentColor"
@@ -150,15 +151,15 @@ const FLASH_MS = 450;
 
 const TUTORIAL = [
   {
-    text: 'Tap any outer block and it trades places with the face cell it touches, as the board is showing. With a mouse, hover first and both light up so you can see the pair.',
+    text: tx('Tap any outer block and it trades places with the face cell it touches, as the board is showing. With a mouse, hover first and both light up so you can see the pair.'),
     highlight: 'swaps',
   },
   {
-    text: 'The plain blocks at the left and right corners turn the ring of eight a quarter turn. The centre never moves — it sets the colour you are aiming for.',
+    text: tx('The plain blocks at the left and right corners turn the ring of eight a quarter turn. The centre never moves — it sets the colour you are aiming for.'),
     highlight: 'turns',
   },
   {
-    text: 'To finish, fill the eight around the centre with its colour and make each outer row of three a single colour. Any colour can take any row, and whatever is already right glows. The board glows a little warmer the closer you get, and each move sounds a lower note.',
+    text: tx('To finish, fill the eight around the centre with its colour and make each outer row of three a single colour. Any colour can take any row, and whatever is already right glows. The board glows a little warmer the closer you get, and each move sounds a lower note.'),
     highlight: 'glow',
   },
 ];
@@ -388,7 +389,7 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
   // How near the board is to solved, from 0 at the scramble to 1 once it's done.
   const near = solved ? 1 : distance == null || !par ? 0 : Math.max(0, 1 - distance / par);
 
-  const dateLabel = dateForNumber(number).toLocaleDateString(undefined, {
+  const dateLabel = dateForNumber(number).toLocaleDateString(locale(), {
     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
   });
 
@@ -421,7 +422,7 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
       <div className="facet__stage-wrap">
         <GameBar onNavigate={onNavigate} isDark={isDark} onToggleTheme={onToggleTheme}>
           {isSolved(readResults(NS)[number]) && (
-            <button type="button" className="pillbar__btn" onClick={() => setShowResult(true)} aria-label="Your result">
+            <button type="button" className="pillbar__btn" onClick={() => setShowResult(true)} aria-label={t('Your result')}>
               <ResultIcon name="star" />
             </button>
           )}
@@ -435,13 +436,13 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
 
         <div className="fc-score">
           <div>
-            <div className="fc-label">Moves</div>
+            <div className="fc-label">{t('Moves')}</div>
             <div className="fc-moves">
-              {moves} <span>/ par {ready ? par : '—'}</span>
+              {moves} <span>/ {t('par')} {ready ? par : '—'}</span>
             </div>
           </div>
           <span className="fc-label">
-            {distance != null && !solved ? `${moves > 0 && distance >= FAR ? `${FAR}+` : distance} from solved` : ''}
+            {distance != null && !solved ? t('{n} from solved', { n: moves > 0 && distance >= FAR ? `${FAR}+` : distance }) : ''}
           </span>
         </div>
 
@@ -500,7 +501,7 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
                   style={{ left: `${col * PITCH}px`, top: `${row * PITCH}px` }}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Swap outer block ${arm} inward`}
+                  aria-label={t('Swap outer block {n} inward', { n: arm })}
                   onPointerEnter={() => { if (!solved) { setHovered({ arm, ring }); sound.tick(); } }}
                   onPointerLeave={() => setHovered(null)}
                   onClick={() => doSwap(arm, ring)}
@@ -513,40 +514,40 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
 
         {tutorial ? (
           <div className="fc-card">
-            <p>{tutorial.text}</p>
+            <p>{t(tutorial.text)}</p>
             <div className="fc-cardfoot">
               <button type="button" className="cad__btn cad__btn--primary" onClick={() => advanceTutorial(false)}>
-                {tutStep === TUTORIAL.length - 1 ? 'Start' : 'Next'}
+                {tutStep === TUTORIAL.length - 1 ? t('Start') : t('Next')}
               </button>
-              <button type="button" className="cad__btn" onClick={() => advanceTutorial(true)}>Skip</button>
+              <button type="button" className="cad__btn" onClick={() => advanceTutorial(true)}>{t('Skip')}</button>
               <span className="fc-label">{tutStep + 1} / {TUTORIAL.length}</span>
             </div>
           </div>
         ) : (
           <p className="fc-msg">
-            {!ready ? 'Measuring every scramble…'
+            {!ready ? t('Measuring every scramble…')
               : solved ? (
                 moves === par ? (
                   <>
-                    <b className="is-ok">Solved in {moves} — exactly par.</b>{' '}
-                    No shorter route exists; the search proved it before you started.
+                    <b className="is-ok">{t('Solved in {n} — exactly par.', { n: moves })}</b>{' '}
+                    {t('No shorter route exists; the search proved it before you started.')}
                   </>
                 ) : (
                   <>
-                    <b>Solved in {moves}.</b> Par was {par}. Finishing is the easy half — the puzzle is the route.
+                    <b>{t('Solved in {n}.', { n: moves })}</b> {t('Par was {par}. Finishing is the easy half — the puzzle is the route.', { par })}
                   </>
                 )
               ) : (
-                <>Par {par}. Match the eight around the centre to it, and make each outer row of three a single colour.</>
+                <>{t('Par {par}. Match the eight around the centre to it, and make each outer row of three a single colour.', { par })}</>
               )}
           </p>
         )}
 
         <div className="fc-actions">
           <button type="button" className="cad__btn cad__btn--primary" onClick={() => { setTutStep(0); }}>
-            How to play
+            {t('How to play')}
           </button>
-          <button type="button" className="cad__btn cad__btn--round" onClick={restart} aria-label="Restart" title="Restart">
+          <button type="button" className="cad__btn cad__btn--round" onClick={restart} aria-label={t('Restart')} title={t('Restart')}>
             <RestartIcon />
           </button>
         </div>

@@ -13,6 +13,7 @@ import JunctionsGame from './games/junctions/JunctionsGame.jsx';
 import { resetForNewRules } from './lib/progress.js';
 import { reportVisit } from './lib/stats.js';
 import { useTheme } from './lib/useTheme.js';
+import { locale, t, useLang } from './lib/i18n.js';
 import { useRoute, parseRoute } from './router.js';
 import { GAMES } from './data/games.js';
 
@@ -22,7 +23,7 @@ resetForNewRules('facet', 'full-colour');
 resetForNewRules('junctions', 'small-town');
 
 function formatToday() {
-  return new Date().toLocaleDateString(undefined, {
+  return new Date().toLocaleDateString(locale(), {
     weekday: 'long', month: 'long', day: 'numeric',
   });
 }
@@ -33,10 +34,9 @@ function Home({ navigate }) {
       <section className="hero">
         <div>
           <p className="hero__date">{formatToday()}</p>
-          <h1 className="hero__title">Daily puzzles<br />for your ears.</h1>
+          <h1 className="hero__title">{t('Daily puzzles')}<br />{t('for your ears.')}</h1>
           <p className="hero__lede">
-            One minute a day. No account, no app, no price. Just a tune you half-remember,
-            a scrambled block of colour and the shortest way back, or a town’s rush hour to untangle.
+            {t('One minute a day. No account, no app, no price. Just a tune you half-remember, a scrambled block of colour and the shortest way back, or a town’s rush hour to untangle.')}
           </p>
         </div>
         <CandyBoard />
@@ -44,7 +44,7 @@ function Home({ navigate }) {
 
       <section className="games" id="games">
         <div className="games__head">
-          <span className="eyebrow">Today</span>
+          <span className="eyebrow">{t('Today')}</span>
           <span className="games__rule" aria-hidden="true" />
           <LikeCount />
         </div>
@@ -61,6 +61,8 @@ function Home({ navigate }) {
 
 export default function App() {
   const { isDark, toggle } = useTheme();
+  // Everything below re-renders in the new language when it changes.
+  useLang();
   const { path, navigate } = useRoute();
   const route = parseRoute(path);
 

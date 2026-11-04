@@ -479,7 +479,10 @@ function sectorsFor(turn) {
    Scoring.
 ------------------------------------------------------------------ */
 
-export const CLEAR_SHARE = 0.9;  // the share of cars that must get through
+/* A day is cleared when every car gets through, and perfect when no street goes red
+   on the way. When a day is made, doing nothing must leave far more stuck: at most
+   this share through, so the first try is never nearly there. */
+export const CLEAR_SHARE = 0.9;
 export const RED = 0.7;          // heat at which a street shows red
 
 /* A car still out there is stuck once it's well past the time its trip takes
@@ -496,13 +499,15 @@ export function stuckCars(run) {
 
 /** How a finished run went. */
 export function scoreRun(run) {
-  const cleared = run.total ? 1 - stuckCars(run) / run.total : 1;
-  const perfect = cleared === 1 && run.peakHeat < RED;
+  const stuck = stuckCars(run);
+  const cleared = run.total ? 1 - stuck / run.total : 1;
+  const perfect = stuck === 0 && run.peakHeat < RED;
   return {
     cleared,
+    stuck,
     peak: run.peakHeat,
     perfect,
-    solved: cleared >= CLEAR_SHARE,
+    solved: stuck === 0,
     time: run.t,
   };
 }
