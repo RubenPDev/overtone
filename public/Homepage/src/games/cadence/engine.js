@@ -17,6 +17,9 @@ const MIN_STEP = 1.15; // how much longer a long note must be than a shorter nei
 const POINTS = 288;
 const STUCK_MS = 1500;
 const GESTURES = ['touchend', 'pointerup', 'click', 'keydown'];
+// Phone speakers buzz on what a desktop plays cleanly: a bright strike, a noisy
+// reverb tail, and a compressor lifting that tail as the note fades.
+const PHONE = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
 
 /* -1 held too short, 0 fine, 1 held too long, at a given tempo. The range alone
    is generous enough that steady tapping could slip through, so the shape has to
@@ -62,6 +65,7 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
   let warmTimer = 0, pendingFreq = null, resumeAskedAt = 0;
 
   let taps = [], index = 0, finished = false;
+  let locked = false; // showing a solved puzzle: the pad waits for Try again
   let lastTapTime = 0, fastestGap = Infinity, lastFreq = 330;
   let flash = 0, ripple = null, result = null;
   let revealTimers = [], revealLit = -1;
@@ -88,14 +92,18 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
     const d = b.getChannelData(0);
     const w = Math.PI * 2 * freq;
     const wDetuned = w * 1.0012;         // ~2 cents: a slow, warm beating
-    const decay = 1.2 + freq / 400;      // higher notes fade sooner
+    // On a phone: a softer strike, no tine, and a quicker, smoother fade.
+    const decay = 1.2 + freq / 400 + (PHONE ? 0.5 : 0); // higher notes fade sooner
+    const strike = PHONE ? 0.65 : 1.1;
+    const fade = PHONE ? 0.5 : 0.06;
     for (let k = 0; k < n; k++) {
       const t = k / sr;
       const attack = t < 0.006 ? t / 0.006 : 1;
-      const release = Math.min(1, (len - t) / 0.06);
+      const r = Math.min(1, (len - t) / fade);
+      const release = r * r * (3 - 2 * r);
       const body = Math.exp(-t * decay);
-      const index = 1.1 * Math.exp(-t * 9);  // strike brightness
-      const tine = Math.exp(-t * 32);
+      const index = strike * Math.exp(-t * 9);  // strike brightness
+      const tine = PHONE ? 0 : Math.exp(-t * 32);
       d[k] = 0.3 * attack * release * (
         body * 0.78 * Math.sin(w * t + index * Math.sin(w * t)) +
         body * 0.22 * Math.sin(wDetuned * t) +
@@ -137,22 +145,38 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
     //   -> dry + reverb -> gentle glue compression -> out
     const tone = ac.createBiquadFilter();
     tone.type = 'lowpass';
-    tone.frequency.value = 5200;
+    tone.frequency.value = PHONE ? 3800 : 5200;
     tone.Q.value = 0.5;
     const dry = ac.createGain();
-    dry.gain.value = 0.85;
+    dry.gain.value = PHONE ? 0.7 : 0.85;
     const room = ac.createConvolver();
     room.buffer = roomImpulse();
     const wet = ac.createGain();
-    wet.gain.value = 0.28;
+    wet.gain.value = PHONE ? 0.12 : 0.28;
+    // On a phone it only catches peaks, so it never lifts a fading tail into a buzz.
     const glue = ac.createDynamicsCompressor();
-    glue.threshold.value = -14;
-    glue.knee.value = 10;
-    glue.ratio.value = 3;
+    glue.threshold.value = PHONE ? -6 : -14;
+    glue.knee.value = PHONE ? 4 : 10;
+    glue.ratio.value = PHONE ? 12 : 3;
+    glue.attack.value = 0.003;
+    glue.release.value = PHONE ? 0.3 : 0.25;
     analyser.connect(tone);
-    tone.connect(dry); dry.connect(glue);
-    tone.connect(room); room.connect(wet); wet.connect(glue);
-    glue.connect(ac.destination);
+    let into = tone;
+    if (PHONE) {
+      // Below this a phone speaker only rattles.
+      const low = ac.createBiquadFilter();
+      low.type = 'highpass';
+      low.frequency.value = 170;
+      low.Q.value = 0.5;
+      tone.connect(low);
+      into = low;
+    }
+    into.connect(dry); dry.connect(glue);
+    into.connect(room); room.connect(wet); wet.connect(glue);
+    const out = ac.createGain();
+    out.gain.value = PHONE ? 0.85 : 1;
+    glue.connect(out);
+    out.connect(ac.destination);
   }
 
   function bufferFor(freq) {
@@ -435,6 +459,8 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
   function onPress(e) {
     const now = performance.now();
     if (e && e.preventDefault) e.preventDefault();
+    // A finished run stays on the pad until Try again, so stray taps can't wipe it.
+    if (finished || locked) return;
 
     if (e && e.clientX !== undefined) {
       const r = pad.getBoundingClientRect();
@@ -443,7 +469,6 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
       ripple = { x: W / 2, y: H / 2, t: now };
     }
 
-    if (finished) { reset(); return; }
     if (!melody) return;
 
     ensureAudio();
@@ -523,6 +548,7 @@ export function createCadenceEngine({ pad, canvas, onChange }) {
     },
     reset,
     reveal,
+    setLocked(on) { locked = on; },
     unlock: onGesture,
     setVisual(next) { visual = { ...visual, ...next }; },
     getState: snapshot,

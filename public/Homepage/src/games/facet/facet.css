@@ -260,6 +260,21 @@
 
 /* ---------- tutorial ---------- */
 
+/* The tutorial's moves play slower than a tap's, so the eye can follow them. */
+.fc-board.is-demo .fc-block { transition-duration: 560ms, 180ms, 120ms; }
+
+/* Lies on the board over the two blocks' tops, between the blocks and the tap targets. */
+.fc-swaparrow {
+  position: absolute;
+  z-index: 820;
+  overflow: visible;
+  pointer-events: none;
+  animation: fc-arrow-in 260ms ease-out;
+}
+.fc-swaparrow__edge { stroke: rgb(20 30 40 / .35); stroke-width: 9; }
+.fc-swaparrow__line { stroke: #fff; stroke-width: 4.5; }
+@keyframes fc-arrow-in { from { opacity: 0; } }
+
 .is-pulsing { animation: fc-pulse 1.1s ease-in-out infinite; }
 @keyframes fc-pulse {
   0%, 100% { filter: brightness(1); }

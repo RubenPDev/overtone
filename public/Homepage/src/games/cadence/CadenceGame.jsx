@@ -139,7 +139,7 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.index]);
 
-  // Tapping to go again during the delay clears the outcome, and with it this timer.
+  // Trying again during the delay clears the outcome, and with it this timer.
   useEffect(() => {
     if (!isSolved(outcome?.kind)) return undefined;
     const t = setTimeout(() => setShowResult(true), RESULT_DELAY_MS);
@@ -190,6 +190,8 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
   // A puzzle already solved opens solved, until the player starts on it again.
   const pastResult = readResults(NS)[number];
   const returning = !replaying && !result && state.index === 0 && isSolved(pastResult);
+  const over = state.finished || returning;
+  useEffect(() => { engineRef.current?.setLocked(returning); }, [returning]);
 
   const dateLabel = puzzle.date.toLocaleDateString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
@@ -252,13 +254,14 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
 
         <div className="cad__padwrap">
           <div
-            className="cad__pad"
+            className={`cad__pad${over ? ' is-done' : ''}`}
             ref={padRef}
             style={{ viewTransitionName: morphIn && !showResult && !showHelp ? 'mark-cadence' : 'none' }}
           >
             <canvas ref={canvasRef} className="cad__scope" />
             <span className={`cad__padlabel${state.index > 0 && !state.finished ? ' is-quiet' : ''}`}>
-              {state.finished || returning ? 'tap to try again' : state.index === 0 ? 'tap anywhere' : 'keep going'}
+              {over ? (returning || result?.correct === result?.total ? 'solved' : 'all played')
+                : state.index === 0 ? 'tap anywhere' : 'keep going'}
             </span>
           </div>
         </div>
@@ -297,6 +300,11 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
         </p>
 
         <div className="cad__actions">
+          {over && (
+            <button type="button" className="cad__btn cad__btn--primary" onClick={onReplay}>
+              <RestartIcon /> Try again
+            </button>
+          )}
           <button
             type="button"
             className={`cad__btn${armed ? ' is-armed' : ''}`}
@@ -308,9 +316,11 @@ export default function CadenceGame({ puzzleNumber, onNavigate, isDark, onToggle
               : armed ? 'Sure? Counts as assisted'
               : heard || solvedClean ? 'Hear it again' : 'Hear answer'}
           </button>
-          <button type="button" className="cad__btn cad__btn--round" onClick={onReplay} aria-label="Reset" title="Reset">
-            <RestartIcon />
-          </button>
+          {!over && (
+            <button type="button" className="cad__btn cad__btn--round" onClick={onReplay} aria-label="Reset" title="Reset">
+              <RestartIcon />
+            </button>
+          )}
           <button
             type="button"
             className="cad__btn cad__btn--round"

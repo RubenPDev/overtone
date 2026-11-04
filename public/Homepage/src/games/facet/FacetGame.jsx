@@ -106,9 +106,51 @@ function LikeBlock({ col, row, liked, onLike }) {
   );
 }
 
+/* A double arrow lying on the board between two neighbouring cells, at the height of their tops. */
+function SwapArrow({ from, to }) {
+  const [r1, c1] = RC[from];
+  const [r2, c2] = RC[to];
+  const left = Math.min(c1, c2) * PITCH;
+  const top = Math.min(r1, r2) * PITCH;
+  const w = Math.abs(c1 - c2) * PITCH + 52;
+  const h = Math.abs(r1 - r2) * PITCH + 52;
+  // From one cell's centre to the other's, pulled in so the heads sit on the faces.
+  const ax = (c1 - Math.min(c1, c2)) * PITCH + 26;
+  const ay = (r1 - Math.min(r1, r2)) * PITCH + 26;
+  const bx = (c2 - Math.min(c1, c2)) * PITCH + 26;
+  const by = (r2 - Math.min(r1, r2)) * PITCH + 26;
+  const len = Math.hypot(bx - ax, by - ay);
+  const ux = (bx - ax) / len;
+  const uy = (by - ay) / len;
+  const end = (x, y, dir) => {
+    const tx = x + ux * dir * 8;
+    const ty = y + uy * dir * 8;
+    return `M${tx - ux * dir * 9 - uy * 7} ${ty - uy * dir * 9 + ux * 7}L${tx} ${ty}L${tx - ux * dir * 9 + uy * 7} ${ty - uy * dir * 9 - ux * 7}`;
+  };
+  return (
+    <svg className="fc-swaparrow" style={{ left, top, width: w, height: h }} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+      <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+        {['fc-swaparrow__edge', 'fc-swaparrow__line'].map((cls) => (
+          <g key={cls} className={cls}>
+            <path d={`M${ax + ux * 6} ${ay + uy * 6}L${bx - ux * 6} ${by - uy * 6}`} />
+            <path d={end(ax, ay, -1)} />
+            <path d={end(bx, by, 1)} />
+          </g>
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+/* The tutorial acts out each kind of move on the board itself, then puts it back. */
+const DEMO_SWAPS = [[9, 1], [12, 3], [15, 5], [18, 7]];
+const DEMO_STEPS = [[0, 'show'], [700, 'moved'], [1900, 'show'], [2900, null]];
+const DEMO_EVERY = 3300;
+const FLASH_MS = 450;
+
 const TUTORIAL = [
   {
-    text: 'Tap any outer block. It trades places with the one face cell it touches. With a mouse, hover first and both light up so you can see the pair.',
+    text: 'Tap any outer block and it trades places with the face cell it touches, as the board is showing. With a mouse, hover first and both light up so you can see the pair.',
     highlight: 'swaps',
   },
   {
@@ -150,6 +192,8 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
   const [solved, setSolved] = useState(false);
   const [restored, setRestored] = useState(false); // solved on an earlier visit, not just now
   const [hovered, setHovered] = useState(null);
+  const [flash, setFlash] = useState(null); // the two blocks a tap just swapped
+  const [demo, setDemo] = useState(null);   // the tutorial's move: { pair, moved } or { turn, moved }
   const [soundOn, setSoundOn] = useState(sound.enabled);
   const [liked, setLiked] = useState(() => hasLiked(NS));
   const [tutStep, setTutStep] = useState(() => (helpSeen(NS) ? -1 : 0));
@@ -227,8 +271,16 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
     sound.unlock();
     setPos((p) => applyPerm(p, swapPerm(arm, ring)));
     setMoves((m) => m + 1);
+    setFlash([pos[arm], pos[ring]]);
     sound.swap();
-  }, [solved, colours]);
+  }, [solved, colours, pos]);
+
+  // A touch screen has no hover, so the pair lights up as it lands instead.
+  useEffect(() => {
+    if (!flash) return undefined;
+    const t = setTimeout(() => setFlash(null), FLASH_MS);
+    return () => clearTimeout(t);
+  }, [flash]);
 
   // Each move rings a note for how far is left, settling lower as the board comes
   // right, so the win chord lands as its resolution.
@@ -306,6 +358,24 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
   const tutorial = tutStep >= 0 && tutStep < TUTORIAL.length ? TUTORIAL[tutStep] : null;
   const highlight = tutorial ? tutorial.highlight : null;
 
+  useEffect(() => {
+    if (highlight !== 'swaps' && highlight !== 'turns') { setDemo(null); return undefined; }
+    let round = 0;
+    let timers = [];
+    const play = () => {
+      const pair = DEMO_SWAPS[round % DEMO_SWAPS.length];
+      round += 1;
+      timers = DEMO_STEPS.map(([at, phase]) => setTimeout(() => {
+        if (!phase) setDemo(null);
+        else if (highlight === 'swaps') setDemo({ pair, moved: phase === 'moved' });
+        else setDemo({ turn: true, moved: phase === 'moved' });
+      }, at));
+    };
+    play();
+    const every = setInterval(play, DEMO_EVERY);
+    return () => { clearInterval(every); timers.forEach(clearTimeout); setDemo(null); };
+  }, [highlight]);
+
   // How near the board is to solved, from 0 at the scramble to 1 once it's done.
   const near = solved ? 1 : distance == null || !par ? 0 : Math.max(0, 1 - distance / par);
 
@@ -316,9 +386,16 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
   const settled = useMemo(() => (colours ? settledCells(pos, colours) : []), [pos, colours]);
 
   const glowing = useMemo(() => {
-    if (!hovered) return new Set();
-    return new Set([pos[hovered.arm], pos[hovered.ring]]);
-  }, [hovered, pos]);
+    if (hovered) return new Set([pos[hovered.arm], pos[hovered.ring]]);
+    if (demo?.pair) return new Set([pos[demo.pair[0]], pos[demo.pair[1]]]);
+    return new Set(flash ?? []);
+  }, [hovered, demo, flash, pos]);
+
+  // What the board shows: the real position, or the tutorial's move played on it.
+  const shown = useMemo(() => {
+    if (!demo?.moved) return pos;
+    return applyPerm(pos, demo.pair ? swapPerm(demo.pair[0], demo.pair[1]) : turnPerm(1));
+  }, [demo, pos]);
 
   return (
     <div className="facet">
@@ -361,20 +438,20 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
 
         <div className="fc-stage" ref={stageRef}>
           <div
-            className={`fc-board${solved && !restored ? ' is-waving' : ''}`}
+            className={`fc-board${solved && !restored ? ' is-waving' : ''}${demo ? ' is-demo' : ''}`}
             style={{ '--fc-near': highlight === 'glow' ? 0.7 : near }}
           >
             <div className="fc-plate" />
             <div className={`fc-glow${highlight === 'glow' ? ' is-pulsing' : ''}`} />
 
-            {ready && colours && pos.map((tileId, position) => {
+            {ready && colours && shown.map((tileId, position) => {
               const [row, col] = RC[position];
               const x = col * PITCH;
               const y = row * PITCH;
               return (
                 <div
                   key={`tile-${tileId}`}
-                  className={`fc-block fc-tone-${colours[tileId]}${settled[position] ? ' is-settled' : ''}${glowing.has(tileId) ? ' is-glowing' : ''}${highlight === 'swaps' && position >= 8 ? ' is-pulsing' : ''}`}
+                  className={`fc-block fc-tone-${colours[tileId]}${settled[position] && !demo?.moved ? ' is-settled' : ''}${glowing.has(tileId) ? ' is-glowing' : ''}`}
                   data-tone={colours[tileId]}
                   style={{
                     transform: `translate3d(${x}px,${y}px,0)`,
@@ -397,6 +474,8 @@ export default function FacetGame({ puzzleNumber, onNavigate, isDark, onToggleTh
             >
               <div className="fc-face" />
             </div>
+
+            {demo?.pair && <SwapArrow key={demo.pair[0]} from={demo.pair[0]} to={demo.pair[1]} />}
 
             <SoundBlock col={0} row={0} on={soundOn} onToggle={toggleSound} />
             <TurnBlock dir={-1} col={0} row={4} pulsing={highlight === 'turns'} onTurn={doTurn} />

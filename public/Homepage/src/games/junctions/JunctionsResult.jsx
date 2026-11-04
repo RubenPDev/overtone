@@ -29,6 +29,8 @@ export default function JunctionsResult({ ns, number, budget, config, onClose, o
   const streak = useMemo(() => readStreak(ns), [ns]);
   const [shareLabel, setShareLabel] = useState(null);
   const perfect = outcome === 'solved';
+  // The share of cars that got through on the run that solved it, kept with the tries.
+  const cleared = perfect ? 100 : tries?.done ? tries.rows[tries.rows.length - 1]?.[0] : undefined;
 
   useEffect(() => {
     if (!shareLabel) return undefined;
@@ -76,7 +78,12 @@ export default function JunctionsResult({ ns, number, budget, config, onClose, o
             : 'Most of the town got where it was going. Keep every street out of the red for a perfect flow.'}
         </p>
 
-        <dl className="cad-result__tiles">
+        <dl className="cad-result__tiles cad-result__tiles--four">
+          <div>
+            <ResultIcon name="car" />
+            <dd>{cleared === undefined ? '—' : `${cleared}%`}</dd>
+            <dt>Cleared</dt>
+          </div>
           <div>
             <ResultIcon name="retry" />
             <dd>{tries ? tries.count : '—'}</dd>

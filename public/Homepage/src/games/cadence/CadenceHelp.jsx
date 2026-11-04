@@ -89,10 +89,10 @@ export default function CadenceHelp({ visual, onClose, openedByTap }) {
         </p>
 
         <div className="cad__padwrap">
-          <div className="cad__pad" ref={padRef}>
+          <div className={`cad__pad${finished ? ' is-done' : ''}`} ref={padRef}>
             <canvas ref={canvasRef} className="cad__scope" />
             <span className={`cad__padlabel${index > 0 && !finished ? ' is-quiet' : ''}`}>
-              {finished ? 'tap to try again' : index === 0 ? 'tap here' : 'keep going'}
+              {finished ? (solved ? 'solved' : 'all played') : index === 0 ? 'tap here' : 'keep going'}
             </span>
           </div>
         </div>
@@ -103,7 +103,7 @@ export default function CadenceHelp({ visual, onClose, openedByTap }) {
           {result && !solved && (
             <>
               <b className="is-bad">{result.correct} of {result.total} gaps right.</b>{' '}
-              Amber means you held too short, red too long. Tap to go again.
+              Amber means you held too short, red too long. Try again below.
             </>
           )}
         </p>
@@ -115,7 +115,9 @@ export default function CadenceHelp({ visual, onClose, openedByTap }) {
         </ul>
 
         <div className="cad-help__actions">
-          <button type="button" className="cad__btn" onClick={onHear}>Hear it</button>
+          {finished
+            ? <button type="button" className="cad__btn" onClick={() => engineRef.current?.reset()}>Try again</button>
+            : <button type="button" className="cad__btn" onClick={onHear}>Hear it</button>}
           <button type="button" className="cad__btn cad__btn--primary" onClick={close}>Got it</button>
         </div>
       </div>
