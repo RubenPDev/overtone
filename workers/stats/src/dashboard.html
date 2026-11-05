@@ -103,6 +103,15 @@ summary { cursor: pointer; }
 .player__head h3 { font-size: 20px; margin: 0; }
 .player__head .tag { font-size: 18px; padding: 2px 10px; }
 .player__close { font: inherit; font-size: 13px; padding: 5px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--text-2); cursor: pointer; }
+.label { display: grid; grid-template-columns: minmax(140px, 220px) 1fr auto; gap: 8px; align-items: start; margin-top: 14px; }
+.label input, .label textarea { font: inherit; font-size: 13px; padding: 7px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--text); }
+.label textarea { min-height: 36px; resize: vertical; }
+.label button { font: inherit; font-size: 13px; padding: 7px 14px; border: 0; border-radius: 8px; background: var(--s1); color: #fff; cursor: pointer; }
+.label .status { grid-column: 1 / -1; font-size: 12px; color: var(--text-3); min-height: 16px; }
+@media (max-width: 640px) { .label { grid-template-columns: 1fr; } }
+.who-name { margin-left: 6px; font-weight: 600; color: var(--text); }
+.player__name { font-size: 20px; font-weight: 650; margin-left: 8px; }
+.player__note { margin: 6px 0 0; font-size: 13px; color: var(--text-2); white-space: pre-wrap; }
 .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 22px; margin: 14px 0 18px; font-size: 13px; }
 .facts dt { color: var(--text-3); font-size: 12px; }
 .facts dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
@@ -241,7 +250,7 @@ footer button { font: inherit; padding: 0; border: 0; background: none; color: i
   <section>
     <p class="sub">Everyone in this period, one row per browser, with a short tag that stays the same between visits. Click a column to sort, and a row to see what that player did, visit by visit. The page's address then points at them, so it can be bookmarked.</p>
     <div class="controls">
-      <input type="search" id="player-search" placeholder="Find a tag, place or device" aria-label="Find a player">
+      <input type="search" id="player-search" placeholder="Find a name, tag, place or device" aria-label="Find a player">
       <label><input type="checkbox" id="player-lookers"> Include people who only looked</label>
       <span id="player-count"></span>
     </div>
@@ -560,6 +569,8 @@ function prepare(raw) {
     first: v[0], last: v[1], engaged: !!v[2], country: v[3], region: v[4], ipTz: v[5], network: v[6], tz: v[7],
     device: v[8], os: v[9], browser: v[10], lang: v[11], screen: v[12], source: v[13], referrer: v[14], landing: v[15],
     tag: v[16] || String(v[0]).slice(-5), firstDay: dayOf(v[0]),
+    city: v[17], osVersion: v[18], browserVersion: v[19], model: v[20], dpr: v[21], langs: v[22], standalone: !!v[23],
+    name: v[24] || '', note: v[25] || '',
   }));
   const all = raw.events.map((e) => ({
     ts: e[0], v: e[1], type: e[2], game: e[3], puzzle: e[4], today: !!e[5], data: e[6] || {}, visit: e[7], day: dayOf(e[0]),
@@ -1019,6 +1030,7 @@ function playerSummaries(state) {
     return {
       ...p, tag: v.tag, first: v.first, played,
       solved: Object.values(p.games).reduce((t, g) => t + g.solved.size, 0),
+      name: v.name, note: v.note,
       where: tzName(v.tz) || countryName(v.country),
       device: [v.device, v.os, v.browser].filter(Boolean).join(' · '),
       source: SOURCE_NAMES[v.source] || v.source || '',
@@ -1028,7 +1040,12 @@ function playerSummaries(state) {
 
 const gameCell = (g) => (g.played.size ? g.solved.size + '/' + g.played.size : '');
 const COLUMNS = [
-  ['tag', 'Player', 'l', (p) => el('span', 'tag', p.tag), (p) => p.tag],
+  ['tag', 'Player', 'l', (p) => {
+    const s = el('span');
+    s.appendChild(el('span', 'tag', p.tag));
+    if (p.name) s.appendChild(el('span', 'who-name', p.name));
+    return s;
+  }, (p) => (p.name || '~' + p.tag).toLowerCase()],
   ['last', 'Last seen', 'l', (p) => ago(p.last), (p) => p.last],
   ['first', 'First seen', 'l', (p) => shortDay(dayOf(p.first)), (p) => p.first],
   ['days', 'Days', null, (p) => fmt(p.days.size), (p) => p.days.size],
@@ -1053,7 +1070,7 @@ function renderPlayers(state) {
   state.players = new Map(all.map((p) => [p.tag, p]));
   const q = explorer.query.trim().toLowerCase();
   let rows = all.filter((p) => (explorer.lookers || p.played > 0)
-    && (!q || [p.tag, p.where, p.device, p.source].some((s) => (s || '').toLowerCase().includes(q))));
+    && (!q || [p.tag, p.name, p.note, p.where, p.device, p.source].some((s) => (s || '').toLowerCase().includes(q))));
   const col = COLUMNS.find((c) => c[0] === explorer.sort) || COLUMNS[1];
   rows.sort((a, b) => {
     const x = col[4](a);
@@ -1111,6 +1128,90 @@ function renderPlayers(state) {
   renderPlayer(state);
 }
 
+/* iPhones don't say which model they are, but each family has its own screen size
+   and pixel density, so that narrows it down. */
+const IPHONES = {
+  '375x667@2': 'iPhone SE or 6–8', '414x736@3': 'iPhone 6–8 Plus', '375x812@3': 'iPhone X–11 Pro or 12–13 mini',
+  '414x896@2': 'iPhone XR or 11', '414x896@3': 'iPhone XS Max or 11 Pro Max', '390x844@3': 'iPhone 12–14',
+  '428x926@3': 'iPhone 12–13 Pro Max or 14 Plus', '393x852@3': 'iPhone 14 Pro, 15 or 16', '430x932@3': 'iPhone 14 Pro Max, 15–16 Plus or Pro Max',
+  '402x874@3': 'iPhone 16 Pro or 17', '440x956@3': 'iPhone 16–17 Pro Max',
+};
+function phoneGuess(v) {
+  if (v.os !== 'iOS' || !v.screen || !v.dpr) return '';
+  const [w, h] = v.screen.split('x').map(Number);
+  const key = Math.min(w, h) + 'x' + Math.max(w, h) + '@' + Math.round(v.dpr);
+  return IPHONES[key] ? IPHONES[key] + ' (by screen)' : (Math.min(w, h) >= 744 ? 'iPad' : '');
+}
+
+function languageNames(list) {
+  if (!list) return '';
+  return list.split(',').filter(Boolean).map((l) => {
+    try { return new Intl.DisplayNames(undefined, { type: 'language' }).of(l); } catch (e) { return l; }
+  }).join(', ');
+}
+
+/** What a player's play says about them: when in their day, how steadily, which game. */
+function playHabits(state, p, v) {
+  const mine = state.E.filter((e) => e.v === p.v);
+  const hours = new Array(24).fill(0);
+  let fmtHour = null;
+  try { fmtHour = new Intl.DateTimeFormat('en-US', { timeZone: v.tz || 'UTC', hour: 'numeric', hourCycle: 'h23' }); } catch (e) { fmtHour = null; }
+  for (const e of mine) if (e.type === 'start' && fmtHour) hours[Number(fmtHour.format(new Date(e.ts))) % 24] += 1;
+  const best = hours.indexOf(Math.max(...hours));
+  const label = (h) => new Date(Date.UTC(2020, 0, 1, h)).toLocaleTimeString('en-US', { hour: 'numeric', timeZone: 'UTC' }).toLowerCase().replace(' ', '');
+  const when = hours[best] ? 'around ' + label(best) + ' their time' : '';
+  const days = [...p.days].sort();
+  let run = days.length ? 1 : 0, cur = 1;
+  for (let i = 1; i < days.length; i++) {
+    cur = Date.parse(days[i]) - Date.parse(days[i - 1]) === DAY_MS ? cur + 1 : 1;
+    run = Math.max(run, cur);
+  }
+  const fav = Object.entries(p.games).sort((a, b) => b[1].attempts - a[1].attempts)[0];
+  const n = (type) => mine.filter((e) => e.type === type).length;
+  const also = [[n('hint'), 'heard an answer', 'heard answers'], [n('share'), 'share', 'shares'], [n('like'), 'like', 'likes']]
+    .filter(([k]) => k).map(([k, one, many]) => k + ' ' + (k === 1 ? one : many)).join(' · ');
+  return { when, run: run > 1 ? run : 0, favourite: fav && fav[1].attempts ? GAMES[fav[0]] : '', also };
+}
+
+/** A name and a note, kept on the server so they're there from any browser with the key. */
+function labelEditor(state, v) {
+  const form = el('form', 'label');
+  const name = el('input');
+  name.placeholder = 'Name, to recognise them';
+  name.maxLength = 40;
+  name.value = v.name;
+  name.setAttribute('aria-label', 'Name');
+  const note = el('textarea');
+  note.placeholder = 'A note';
+  note.maxLength = 400;
+  note.value = v.note;
+  note.setAttribute('aria-label', 'Note');
+  const save = el('button', null, 'Save');
+  save.type = 'submit';
+  const status = el('span', 'status');
+  status.setAttribute('role', 'status');
+  form.append(name, note, save, status);
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    status.textContent = 'Saving…';
+    try {
+      const res = await fetch('/label', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + readKey(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tag: v.tag, name: name.value, note: note.value }),
+      });
+      if (!res.ok) { status.textContent = 'Couldn’t save: ' + (await res.text()); return; }
+      const saved = await res.json();
+      v.name = saved.name || '';
+      v.note = saved.note || '';
+      renderPlayers(state);
+    } catch (err) {
+      status.textContent = 'Couldn’t reach the stats.';
+    }
+  });
+  return form;
+}
+
 const pickedTag = () => (location.hash.match(/player=([0-9a-z]+)/) || [])[1] || null;
 
 /** One player: who they are, how each game went for them, and every visit in order. */
@@ -1130,12 +1231,15 @@ function renderPlayer(state) {
 
   const head = el('div', 'player__head');
   const title = el('h3');
-  title.append(el('span', 'tag', p.tag), document.createTextNode(' '));
+  title.appendChild(el('span', 'tag', p.tag));
+  if (v.name) title.appendChild(el('span', 'player__name', v.name));
   const close = el('button', 'player__close', 'Close');
   close.type = 'button';
   close.addEventListener('click', () => { history.replaceState(null, '', location.pathname + location.search); renderPlayers(state); });
   head.append(title, el('span', 'muted', 'First seen ' + new Date(v.first).toLocaleString() + ' · last seen ' + ago(p.last)), close);
   wrap.appendChild(head);
+  if (v.note) wrap.appendChild(el('p', 'player__note', v.note));
+  wrap.appendChild(labelEditor(state, v));
 
   const facts = el('dl', 'facts');
   const offset = offsetOf(v.tz);
@@ -1146,14 +1250,21 @@ function renderPlayer(state) {
     facts.appendChild(d);
   };
   fact('Device clock', [tzName(v.tz), offset].filter(Boolean).join(' · '));
-  fact('Connection', [countryName(v.country), v.region].filter(Boolean).join(', ') + (offsetOf(v.ipTz) && offsetOf(v.ipTz) !== offset ? ' (a different time zone: VPN or relay?)' : ''));
+  fact('Connection', [v.city, v.region, countryName(v.country)].filter(Boolean).join(', ') + (offsetOf(v.ipTz) && offsetOf(v.ipTz) !== offset ? ' (a different time zone: VPN or relay?)' : ''));
   fact('Network', v.network);
-  fact('Device', [v.device, v.os, v.browser, v.screen].filter(Boolean).join(' · '));
-  fact('Language', v.lang);
+  fact('Device', [v.model || phoneGuess(v), v.device].filter(Boolean).join(' · '));
+  fact('System', [v.os && v.os + (v.osVersion ? ' ' + v.osVersion : ''), v.browser && v.browser + (v.browserVersion ? ' ' + v.browserVersion : '')].filter(Boolean).join(' · '));
+  fact('Screen', [v.screen, v.dpr && '×' + v.dpr].filter(Boolean).join(' ') + (v.standalone ? ' · opened as an app from the home screen' : ''));
+  fact('Languages', languageNames(v.langs || v.lang));
   fact('Came from', [p.source, v.referrer].filter(Boolean).join(' · '));
   fact('First page', v.landing);
   const count = (n, one, many) => fmt(n) + ' ' + (n === 1 ? one : many);
   fact('In this period', count(p.days.size, 'day', 'days') + ' · ' + count(p.visits.size, 'visit', 'visits') + ' · ' + duration(p.screen) + ' on screen');
+  const habits = playHabits(state, p, v);
+  fact('Usually plays', habits.when);
+  fact('Longest run', habits.run ? count(habits.run, 'day', 'days') + ' in a row' : '');
+  fact('Favourite', habits.favourite);
+  fact('Also', habits.also);
   wrap.appendChild(facts);
 
   // How each game went for them.

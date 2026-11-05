@@ -54,6 +54,26 @@ function browserOf(ua) {
   return 'Other';
 }
 
+/* Versions, as far as the user agent still gives them away. */
+function osVersionOf(ua) {
+  const ios = ua.match(/OS (\d+)[._](\d+)(?:[._](\d+))? like Mac/);
+  if (ios) return ios.slice(1).filter(Boolean).join('.');
+  const android = ua.match(/Android (\d+(?:\.\d+)?)/);
+  if (android) return android[1];
+  if (/Windows NT 10/.test(ua)) return '10 or 11';
+  return null;
+}
+function browserVersionOf(ua) {
+  const m = ua.match(/(?:Edg|SamsungBrowser|OPR|Firefox|FxiOS|CriOS|Chrome)\/(\d+)/) || ua.match(/Version\/(\d+(?:\.\d+)?)/);
+  return m ? m[1] : null;
+}
+/** The phone model, from the browser's own hint or an older user agent that still names it. */
+function modelOf(ua, hint) {
+  if (hint) return hint;
+  const m = ua.match(/Android [^;]+; ([^;)]+?)(?: Build|\))/);
+  return m && m[1] !== 'K' ? m[1].trim() : null;
+}
+
 function corsHeaders(request) {
   const origin = request.headers.get('Origin');
   return ALLOWED_ORIGINS.has(origin) ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : { Vary: 'Origin' };
@@ -104,18 +124,29 @@ async function collect(request, env) {
   const cf = request.cf ?? {};
   writes.unshift(env.DB.prepare(
     `INSERT INTO visitors (uid, first_ts, last_ts, first_day, engaged, country, region, ip_tz, network,
-                           tz, device, os, browser, lang, screen, source, referrer, landing)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
+                           tz, device, os, browser, lang, screen, source, referrer, landing,
+                           city, os_version, browser_version, model, dpr, langs, standalone)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
+             ?19, ?20, ?21, ?22, ?23, ?24, ?25)
      ON CONFLICT (uid) DO UPDATE SET
        first_ts = MIN(first_ts, excluded.first_ts),
        first_day = MIN(first_day, excluded.first_day),
        last_ts = MAX(last_ts, excluded.last_ts),
-       engaged = MAX(engaged, excluded.engaged)`
+       engaged = MAX(engaged, excluded.engaged),
+       city = COALESCE(city, excluded.city),
+       os_version = excluded.os_version,
+       browser_version = excluded.browser_version,
+       model = COALESCE(excluded.model, model),
+       dpr = COALESCE(dpr, excluded.dpr),
+       langs = COALESCE(langs, excluded.langs),
+       standalone = MAX(COALESCE(standalone, 0), excluded.standalone)`
   ).bind(
     uid, first, now, DAY(first), body.engaged ? 1 : 0,
     clip(cf.country, 2), clip(cf.region, 60), clip(cf.timezone, 60), clip(cf.asOrganization, 80),
     clip(ctx.tz, 60), clip(ctx.device, 12), osOf(ua), browserOf(ua), clip(ctx.lang, 16), clip(ctx.screen, 12),
     clip(ctx.source, 24), clip(ctx.referrer, 80), clip(ctx.landing, 64),
+    clip(cf.city, 60), (clip(ctx.platformVersion, 20) || osVersionOf(ua))?.replace(/_/g, '.') ?? null, browserVersionOf(ua),
+    clip(modelOf(ua, ctx.model), 40), Number.isFinite(ctx.dpr) ? ctx.dpr : null, clip(ctx.langs, 60), ctx.standalone ? 1 : 0,
   ));
   await env.DB.batch(writes);
   return accepted(request);
@@ -169,7 +200,8 @@ async function readStats(request, env) {
 
   const [visitors, events] = await env.DB.batch([
     env.DB.prepare(
-      `SELECT * FROM visitors WHERE uid IN (SELECT DISTINCT uid FROM events WHERE ts >= ?1)`
+      `SELECT v.*, l.name AS label_name, l.note AS label_note FROM visitors v LEFT JOIN labels l ON l.uid = v.uid
+       WHERE v.uid IN (SELECT DISTINCT uid FROM events WHERE ts >= ?1)`
     ).bind(since),
     env.DB.prepare(
       `SELECT ts, uid, sid, type, game, puzzle, today, data FROM events WHERE ts >= ?1 ORDER BY ts`
@@ -180,7 +212,8 @@ async function readStats(request, env) {
   const vs = visitors.results.map((v, i) => {
     index.set(v.uid, i);
     return [v.first_ts, v.last_ts, v.engaged, v.country, v.region, v.ip_tz, v.network, v.tz,
-      v.device, v.os, v.browser, v.lang, v.screen, v.source, v.referrer, v.landing, tagOf(v.uid)];
+      v.device, v.os, v.browser, v.lang, v.screen, v.source, v.referrer, v.landing, tagOf(v.uid),
+      v.city, v.os_version, v.browser_version, v.model, v.dpr, v.langs, v.standalone, v.label_name, v.label_note];
   });
   const visits = new Map();
   const es = [];
@@ -196,6 +229,29 @@ async function readStats(request, env) {
   return new Response(JSON.stringify({ generated: Date.now(), since, days, catalog: catalog(), visitors: vs, events: es }), {
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
+}
+
+/* A name and a note for a player, to recognise them by: they're found by their tag,
+   and an empty name and note clears them. */
+async function saveLabel(request, env) {
+  if (!(await authorised(request, env))) return new Response('Key needed', { status: 401 });
+  const body = await readBody(request);
+  const tag = typeof body?.tag === 'string' ? body.tag : '';
+  if (!/^[0-9a-z]{5}$/.test(tag)) return new Response('Bad tag', { status: 400 });
+  const { results } = await env.DB.prepare('SELECT uid FROM visitors').all();
+  const match = results.filter((r) => tagOf(r.uid) === tag);
+  if (match.length !== 1) return new Response(match.length ? 'Tag is shared by more than one browser' : 'No such player', { status: 404 });
+  const name = clip(body.name, 40)?.trim() || null;
+  const note = clip(body.note, 400)?.trim() || null;
+  const uid = match[0].uid;
+  if (!name && !note) await env.DB.prepare('DELETE FROM labels WHERE uid = ?1').bind(uid).run();
+  else {
+    await env.DB.prepare(
+      `INSERT INTO labels (uid, name, note, updated) VALUES (?1, ?2, ?3, ?4)
+       ON CONFLICT (uid) DO UPDATE SET name = excluded.name, note = excluded.note, updated = excluded.updated`
+    ).bind(uid, name, note, Date.now()).run();
+  }
+  return new Response(JSON.stringify({ tag, name, note }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 }
 
 /* The one number the site itself shows: browsers that tapped a heart. */
@@ -216,6 +272,7 @@ export default {
       return collect(request, env);
     }
     if (request.method === 'GET' && pathname === '/stats') return readStats(request, env);
+    if (request.method === 'POST' && pathname === '/label') return saveLabel(request, env);
     if (request.method === 'GET' && pathname === '/likes') return readLikes(request, env);
     if (request.method === 'GET' && pathname === '/') {
       return new Response(DASHBOARD_HTML, {

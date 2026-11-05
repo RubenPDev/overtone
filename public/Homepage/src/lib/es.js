@@ -99,13 +99,13 @@ export default {
   'whether you finished or skipped a how-to-play, when you share a result, and when you tap a game’s heart.':
     'si terminaste o te saltaste un cómo jugar, cuándo compartes un resultado y cuándo tocas el corazón de un juego.',
   'Your device:': 'Tu dispositivo:',
-  'phone, tablet or desktop, screen size, language, the time zone it’s set to, and the system and browser it runs.':
-    'celular, tableta o computadora, tamaño de pantalla, idioma, la zona horaria que tiene configurada, y el sistema y navegador que usa.',
+  'phone, tablet or desktop, and its model where the browser shares it; screen size and sharpness; the languages it asks for; the time zone it’s set to; the system and browser it runs and their versions; and whether you opened the site as an app from your home screen.':
+    'celular, tableta o computadora, y su modelo cuando el navegador lo comparte; tamaño y nitidez de la pantalla; los idiomas que pide; la zona horaria que tiene configurada; el sistema y navegador que usa y sus versiones; y si abriste el sitio como app desde tu pantalla de inicio.',
   'How you arrived:': 'Cómo llegaste:',
   'the site that sent you, such as reddit.com, but not the page or post on it.':
     'el sitio que te mandó, como reddit.com, pero no la página ni la publicación.',
-  'Our counter runs on Cloudflare, which works out a rough country, region, time zone and network provider from your IP address. We keep those, not the address itself. We don’t record your name, email, contacts or precise location, and the ID isn’t linked to anything outside this site.':
-    'Nuestro contador funciona en Cloudflare, que calcula a partir de tu dirección IP un país, región, zona horaria y proveedor de red aproximados. Guardamos eso, no la dirección. No registramos tu nombre, correo, contactos ni ubicación precisa, y el ID no está ligado a nada fuera de este sitio.',
+  'Our counter runs on Cloudflare, which works out a rough country, region, city, time zone and network provider from your IP address. We keep those, not the address itself. We don’t record your name, email, contacts or precise location, and the ID isn’t linked to anything outside this site.':
+    'Nuestro contador funciona en Cloudflare, que calcula a partir de tu dirección IP un país, región, ciudad, zona horaria y proveedor de red aproximados. Guardamos eso, no la dirección. No registramos tu nombre, correo, contactos ni ubicación precisa, y el ID no está ligado a nada fuera de este sitio.',
   'Only we can see these records. We use them to make the games better and nothing else: they aren’t sold, shared or used for advertising.':
     'Solo nosotros podemos ver estos registros. Los usamos para mejorar los juegos y para nada más: no se venden, no se comparten y no se usan para publicidad.',
   'Turning it off': 'Cómo apagarlo',
@@ -128,7 +128,7 @@ export default {
   'Questions': 'Preguntas',
   'Write to': 'Escribe a',
   'If this page changes, the date below will too.': 'Si esta página cambia, la fecha de abajo también.',
-  'Last updated November 3, 2026.': 'Última actualización: 3 de noviembre de 2026.',
+  'Last updated November 4, 2026.': 'Última actualización: 4 de noviembre de 2026.',
 
   // Every game
   'Puzzle archive': 'Archivo de acertijos',

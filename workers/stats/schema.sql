@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS players;
 DROP TABLE IF EXISTS daily;
 DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS visitors;
+DROP TABLE IF EXISTS labels;
 
 -- A browser, by the random ID it keeps in localStorage. Where it came from and what
 -- it runs on are from its first visit; `engaged` turns on once someone touches the
@@ -28,7 +29,22 @@ CREATE TABLE visitors (
   screen    TEXT,
   source    TEXT,
   referrer  TEXT,
-  landing   TEXT
+  landing   TEXT,
+  city      TEXT,   -- from the IP address, by Cloudflare: rough, and wrong behind a VPN
+  os_version TEXT,
+  browser_version TEXT,
+  model     TEXT,   -- the phone model, where the browser says
+  dpr       REAL,   -- pixels per CSS pixel
+  langs     TEXT,   -- the languages the browser asks for, in order
+  standalone INTEGER -- 1 when opened as an app from the home screen
+);
+
+-- What we call a player, to recognise them: set by hand on the dashboard.
+CREATE TABLE labels (
+  uid     TEXT PRIMARY KEY,
+  name    TEXT,
+  note    TEXT,
+  updated INTEGER
 );
 
 CREATE TABLE events (

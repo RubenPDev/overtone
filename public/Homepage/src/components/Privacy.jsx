@@ -59,14 +59,14 @@ export default function Privacy() {
             {t('whether you finished or skipped a how-to-play, when you share a result, and when you tap a game’s heart.')}
           </Item>
           <Item lead={t('Your device:')}>
-            {t('phone, tablet or desktop, screen size, language, the time zone it’s set to, and the system and browser it runs.')}
+            {t('phone, tablet or desktop, and its model where the browser shares it; screen size and sharpness; the languages it asks for; the time zone it’s set to; the system and browser it runs and their versions; and whether you opened the site as an app from your home screen.')}
           </Item>
           <Item lead={t('How you arrived:')}>
             {t('the site that sent you, such as reddit.com, but not the page or post on it.')}
           </Item>
         </ul>
         <p>
-          {t('Our counter runs on Cloudflare, which works out a rough country, region, time zone and network provider from your IP address. We keep those, not the address itself. We don’t record your name, email, contacts or precise location, and the ID isn’t linked to anything outside this site.')}
+          {t('Our counter runs on Cloudflare, which works out a rough country, region, city, time zone and network provider from your IP address. We keep those, not the address itself. We don’t record your name, email, contacts or precise location, and the ID isn’t linked to anything outside this site.')}
         </p>
         <p>
           {t('Only we can see these records. We use them to make the games better and nothing else: they aren’t sold, shared or used for advertising.')}
@@ -109,7 +109,7 @@ export default function Privacy() {
         <p>
           {t('Write to')} <a href="mailto:contact@overtone.games">contact@overtone.games</a>. {t('If this page changes, the date below will too.')}
         </p>
-        <p className="page__updated">{t('Last updated November 3, 2026.')}</p>
+        <p className="page__updated">{t('Last updated November 4, 2026.')}</p>
       </div>
     </section>
   );

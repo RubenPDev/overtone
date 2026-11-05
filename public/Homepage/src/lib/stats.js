@@ -132,7 +132,21 @@ function context() {
     referrer,
     landing: window.location.pathname.slice(0, 64),
     standalone: !!window.matchMedia?.('(display-mode: standalone)').matches,
+    dpr: Math.round((window.devicePixelRatio || 1) * 100) / 100,
+    langs: (navigator.languages || []).slice(0, 4).join(',').slice(0, 60),
   };
+}
+
+/* Chrome-family browsers will say which phone model and system version they're on if
+   asked; the plain user agent no longer does. It arrives a moment later, in time for
+   the first batch. */
+function askDevice() {
+  const hints = navigator.userAgentData?.getHighEntropyValues;
+  if (!hints) return;
+  hints.call(navigator.userAgentData, ['model', 'platformVersion']).then((h) => {
+    if (h.model) ctx.model = String(h.model).slice(0, 40);
+    if (h.platformVersion) ctx.platformVersion = String(h.platformVersion).slice(0, 20);
+  }).catch(() => {});
 }
 
 let ctx = null;
@@ -223,6 +237,7 @@ const ENGAGE_EVENTS = ['pointerdown', 'keydown', 'touchstart', 'wheel', 'scroll'
 function init() {
   browserId();
   ctx = context();
+  askDevice();
   shownAt = document.visibilityState === 'visible' ? Date.now() : 0;
   ENGAGE_EVENTS.forEach((type) => window.addEventListener(type, onEngage, { capture: true, passive: true }));
   document.addEventListener('visibilitychange', onVisibility);
