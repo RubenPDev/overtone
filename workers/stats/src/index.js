@@ -149,6 +149,14 @@ function catalog() {
   return out;
 }
 
+/* A short, stable tag for a browser, so one person can be picked out and followed
+   across visits and reloads without their ID ever leaving here. */
+function tagOf(uid) {
+  let h = 2166136261;
+  for (let i = 0; i < uid.length; i++) { h ^= uid.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36).padStart(7, '0').slice(-5);
+}
+
 /* Every event in the range, and the browsers behind them. The browser IDs stay here:
    the dashboard gets a row number for each instead. Fine into the tens of thousands
    of events; past that it wants totals worked out in SQL. */
@@ -172,7 +180,7 @@ async function readStats(request, env) {
   const vs = visitors.results.map((v, i) => {
     index.set(v.uid, i);
     return [v.first_ts, v.last_ts, v.engaged, v.country, v.region, v.ip_tz, v.network, v.tz,
-      v.device, v.os, v.browser, v.lang, v.screen, v.source, v.referrer, v.landing];
+      v.device, v.os, v.browser, v.lang, v.screen, v.source, v.referrer, v.landing, tagOf(v.uid)];
   });
   const visits = new Map();
   const es = [];

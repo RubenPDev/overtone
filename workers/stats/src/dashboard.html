@@ -85,7 +85,32 @@ td.heat { color: var(--text); }
 .muted { color: var(--text-3); }
 details { margin-top: 8px; font-size: 13px; color: var(--text-2); }
 summary { cursor: pointer; }
-.feed td { font-size: 12.5px; }
+/* The player explorer: a sortable list, and one player's story when picked. */
+.controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 10px; font-size: 13px; color: var(--text-2); }
+.controls input[type="search"] { font: inherit; padding: 7px 11px; min-width: 200px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); color: var(--text); }
+.controls label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.players th.sortable { cursor: pointer; user-select: none; }
+.players th.sortable:hover { color: var(--text); }
+.players th[aria-sort="ascending"]::after { content: ' ↑'; }
+.players th[aria-sort="descending"]::after { content: ' ↓'; }
+.players tbody tr { cursor: pointer; }
+.players tbody tr:hover td { background: var(--panel); }
+.players tbody tr.is-picked td { background: var(--panel-2); }
+.players tbody tr:focus { outline: 2px solid var(--s1); outline-offset: -2px; }
+.more { margin-top: 10px; font: inherit; font-size: 13px; padding: 7px 14px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); color: var(--text); cursor: pointer; }
+.player { margin-top: 18px; padding: 18px 20px; background: var(--panel); border-radius: 12px; }
+.player__head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; justify-content: space-between; }
+.player__head h3 { font-size: 20px; margin: 0; }
+.player__head .tag { font-size: 18px; padding: 2px 10px; }
+.player__close { font: inherit; font-size: 13px; padding: 5px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--text-2); cursor: pointer; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 22px; margin: 14px 0 18px; font-size: 13px; }
+.facts dt { color: var(--text-3); font-size: 12px; }
+.facts dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.visit { margin-top: 14px; }
+.visit__head { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.visit__head span { font-weight: 400; color: var(--text-3); }
+.visit table td { font-size: 12.5px; padding: 5px 10px; background: var(--surface); }
+.visit table td:first-child { color: var(--text-3); width: 72px; }
 .tag { display: inline-block; padding: 0 6px; border-radius: 5px; background: var(--panel-2); font-size: 12px; }
 .lock { max-width: 360px; margin: 18vh auto 0; padding: 0 16px; }
 .lock form { display: flex; gap: 8px; margin-top: 14px; }
@@ -212,10 +237,16 @@ footer button { font: inherit; padding: 0; border: 0; background: none; color: i
     <section><h3>Visit length</h3><p class="sub">Time each visit was on screen. A visit ends after half an hour away.</p><div id="lengths"></div></section>
     <section><h3>Visits per player</h3><p class="sub">Separate visits by each player in this period.</p><div id="visits"></div></section>
   </div>
+  <div class="part"><h2>Players</h2></div>
   <section>
-    <h3>Latest activity</h3>
-    <p class="sub">The last 80 things that happened. Each browser has a short tag, so one person's steps can be followed.</p>
-    <div class="scroll" id="feed"></div>
+    <p class="sub">Everyone in this period, one row per browser, with a short tag that stays the same between visits. Click a column to sort, and a row to see what that player did, visit by visit. The page's address then points at them, so it can be bookmarked.</p>
+    <div class="controls">
+      <input type="search" id="player-search" placeholder="Find a tag, place or device" aria-label="Find a player">
+      <label><input type="checkbox" id="player-lookers"> Include people who only looked</label>
+      <span id="player-count"></span>
+    </div>
+    <div class="scroll" id="players"></div>
+    <div id="player"></div>
   </section>
 
   <footer>
@@ -528,7 +559,7 @@ function prepare(raw) {
   const V = raw.visitors.map((v) => ({
     first: v[0], last: v[1], engaged: !!v[2], country: v[3], region: v[4], ipTz: v[5], network: v[6], tz: v[7],
     device: v[8], os: v[9], browser: v[10], lang: v[11], screen: v[12], source: v[13], referrer: v[14], landing: v[15],
-    firstDay: dayOf(v[0]),
+    tag: v[16] || String(v[0]).slice(-5), firstDay: dayOf(v[0]),
   }));
   const all = raw.events.map((e) => ({
     ts: e[0], v: e[1], type: e[2], game: e[3], puzzle: e[4], today: !!e[5], data: e[6] || {}, visit: e[7], day: dayOf(e[0]),
@@ -664,7 +695,7 @@ function render(state) {
   renderGames(state);
   renderWho(state, visitors);
   renderVisits(state, visitsMs, players);
-  renderFeed(state);
+  renderPlayers(state);
 }
 
 function visitLengths(E) {
@@ -951,21 +982,219 @@ function describe(e) {
   }
 }
 
-function renderFeed(state) {
-  const { E, V } = state;
-  const tagOf = (v) => {
-    const h = ((v + 1) * 2654435761 >>> 0).toString(36).slice(-4);
-    return h;
+/* ---------- players ---------- */
+
+const PAGE = 25;
+const SOURCE_NAMES = { direct: 'Direct', shared: 'Shared result', google: 'Google', bing: 'Bing', duckduckgo: 'DuckDuckGo', reddit: 'Reddit', x: 'X / Twitter', facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', discord: 'Discord', youtube: 'YouTube', hackernews: 'Hacker News', bluesky: 'Bluesky', threads: 'Threads', other: 'Other site' };
+const explorer = { sort: 'last', desc: true, shown: PAGE, query: '', lookers: false };
+
+/** One row per browser: what they did in this period, in numbers. */
+function playerSummaries(state) {
+  const { V, E } = state;
+  const by = new Map();
+  for (const e of E) {
+    let p = by.get(e.v);
+    if (!p) {
+      p = { v: e.v, last: 0, days: new Set(), visits: new Set(), screen: 0, games: {} };
+      for (const g of Object.keys(GAMES)) p.games[g] = { played: new Set(), solved: new Set(), clean: new Set(), attempts: 0 };
+      by.set(e.v, p);
+    }
+    p.last = Math.max(p.last, e.ts);
+    p.days.add(e.day);
+    if (e.visit !== null && e.visit !== undefined) p.visits.add(e.visit);
+    if (e.type === 'hide') p.screen += e.data.ms || 0;
+    const g = e.game && p.games[e.game];
+    if (!g) continue;
+    if (e.type === 'start') g.played.add(e.puzzle);
+    if (e.type === 'finish') {
+      g.played.add(e.puzzle);
+      g.attempts += 1;
+      if (e.data.outcome === 'solved' || e.data.outcome === 'assisted') g.solved.add(e.puzzle);
+      if (e.data.outcome === 'solved') g.clean.add(e.puzzle);
+    }
+  }
+  return [...by.values()].map((p) => {
+    const v = V[p.v];
+    const played = Object.values(p.games).reduce((t, g) => t + g.played.size, 0);
+    return {
+      ...p, tag: v.tag, first: v.first, played,
+      solved: Object.values(p.games).reduce((t, g) => t + g.solved.size, 0),
+      where: tzName(v.tz) || countryName(v.country),
+      device: [v.device, v.os, v.browser].filter(Boolean).join(' · '),
+      source: SOURCE_NAMES[v.source] || v.source || '',
+    };
+  });
+}
+
+const gameCell = (g) => (g.played.size ? g.solved.size + '/' + g.played.size : '');
+const COLUMNS = [
+  ['tag', 'Player', 'l', (p) => el('span', 'tag', p.tag), (p) => p.tag],
+  ['last', 'Last seen', 'l', (p) => ago(p.last), (p) => p.last],
+  ['first', 'First seen', 'l', (p) => shortDay(dayOf(p.first)), (p) => p.first],
+  ['days', 'Days', null, (p) => fmt(p.days.size), (p) => p.days.size],
+  ['visits', 'Visits', null, (p) => fmt(p.visits.size), (p) => p.visits.size],
+  ['screen', 'On screen', null, (p) => duration(p.screen), (p) => p.screen],
+  ['cadence', 'Cadence', null, (p) => gameCell(p.games.cadence), (p) => p.games.cadence.played.size],
+  ['facet', 'Facet', null, (p) => gameCell(p.games.facet), (p) => p.games.facet.played.size],
+  ['junctions', 'Junctions', null, (p) => gameCell(p.games.junctions), (p) => p.games.junctions.played.size],
+  ['where', 'Where', 'l', (p) => p.where, (p) => p.where],
+  ['device', 'Device', 'l', (p) => p.device, (p) => p.device],
+  ['source', 'Came from', 'l', (p) => p.source, (p) => p.source],
+];
+const COLUMN_TITLES = {
+  days: 'Different days they used the site in this period',
+  screen: 'Time the site was on their screen in this period',
+  cadence: 'Puzzles solved out of puzzles played', facet: 'Puzzles solved out of puzzles played', junctions: 'Puzzles cleared out of puzzles played',
+  where: 'Device time zone',
+};
+
+function renderPlayers(state) {
+  const all = playerSummaries(state);
+  state.players = new Map(all.map((p) => [p.tag, p]));
+  const q = explorer.query.trim().toLowerCase();
+  let rows = all.filter((p) => (explorer.lookers || p.played > 0)
+    && (!q || [p.tag, p.where, p.device, p.source].some((s) => (s || '').toLowerCase().includes(q))));
+  const col = COLUMNS.find((c) => c[0] === explorer.sort) || COLUMNS[1];
+  rows.sort((a, b) => {
+    const x = col[4](a);
+    const y = col[4](b);
+    const d = typeof x === 'string' ? x.localeCompare(y) : x - y;
+    return explorer.desc ? -d : d;
+  });
+  $('player-count').textContent = fmt(rows.length) + (rows.length === 1 ? ' player' : ' players');
+
+  const target = $('players');
+  target.textContent = '';
+  if (!rows.length) { target.appendChild(el('p', 'none', 'No one matches')); renderPlayer(state); return; }
+  const t = el('table', 'players');
+  const head = el('tr');
+  for (const [key, name, cls] of COLUMNS) {
+    const h = th(name, COLUMN_TITLES[key] || null, ((cls || '') + ' sortable').trim());
+    h.tabIndex = 0;
+    if (key === explorer.sort) h.setAttribute('aria-sort', explorer.desc ? 'descending' : 'ascending');
+    const pick = () => {
+      if (explorer.sort === key) explorer.desc = !explorer.desc;
+      else { explorer.sort = key; explorer.desc = !['tag', 'where', 'device', 'source'].includes(key); }
+      renderPlayers(state);
+    };
+    h.addEventListener('click', pick);
+    h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+    head.appendChild(h);
+  }
+  const thead = el('thead');
+  thead.appendChild(head);
+  t.appendChild(thead);
+  const body = el('tbody');
+  const picked = pickedTag();
+  for (const p of rows.slice(0, explorer.shown)) {
+    const tr = el('tr', p.tag === picked ? 'is-picked' : null);
+    tr.tabIndex = 0;
+    for (const [, , cls, cell] of COLUMNS) {
+      const td = el('td', cls);
+      const c = cell(p);
+      if (c instanceof Node) td.appendChild(c); else td.textContent = c;
+      tr.appendChild(td);
+    }
+    const open = () => { location.hash = 'player=' + p.tag; };
+    tr.addEventListener('click', open);
+    tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); });
+    body.appendChild(tr);
+  }
+  t.appendChild(body);
+  target.appendChild(t);
+  if (rows.length > explorer.shown) {
+    const more = el('button', 'more', 'Show ' + Math.min(PAGE, rows.length - explorer.shown) + ' more');
+    more.type = 'button';
+    more.addEventListener('click', () => { explorer.shown += PAGE; renderPlayers(state); });
+    target.appendChild(more);
+  }
+  renderPlayer(state);
+}
+
+const pickedTag = () => (location.hash.match(/player=([0-9a-z]+)/) || [])[1] || null;
+
+/** One player: who they are, how each game went for them, and every visit in order. */
+function renderPlayer(state) {
+  const box = $('player');
+  box.textContent = '';
+  const tag = pickedTag();
+  const p = tag && state.players && state.players.get(tag);
+  if (!tag) return;
+  const wrap = el('div', 'player');
+  box.appendChild(wrap);
+  if (!p) {
+    wrap.appendChild(el('p', 'none', 'Player ' + tag + ' did nothing in this period. Try a longer one.'));
+    return;
+  }
+  const v = state.V[p.v];
+
+  const head = el('div', 'player__head');
+  const title = el('h3');
+  title.append(el('span', 'tag', p.tag), document.createTextNode(' '));
+  const close = el('button', 'player__close', 'Close');
+  close.type = 'button';
+  close.addEventListener('click', () => { history.replaceState(null, '', location.pathname + location.search); renderPlayers(state); });
+  head.append(title, el('span', 'muted', 'First seen ' + new Date(v.first).toLocaleString() + ' · last seen ' + ago(p.last)), close);
+  wrap.appendChild(head);
+
+  const facts = el('dl', 'facts');
+  const offset = offsetOf(v.tz);
+  const fact = (name, value) => {
+    if (!value) return;
+    const d = el('div');
+    d.append(el('dt', null, name), el('dd', null, value));
+    facts.appendChild(d);
   };
-  const latest = E.filter((e) => e.type !== 'engage').slice(-80).reverse();
-  table($('feed'), [['When', null, 'l'], ['Who', 'A short tag per browser', 'l'], ['What', null, 'l'], ['', null, 'l wrap'], ['Where', 'Device time zone', 'l'], ['Device', null, 'l']],
-    latest.map((e) => {
-      const [what, detail] = describe(e);
-      const tag = el('span', 'tag', tagOf(e.v));
-      const v = V[e.v];
-      return [ago(e.ts), tag, what, detail, tzName(v.tz) || countryName(v.country), [v.device, v.os, v.browser].filter(Boolean).join(' · ')];
-    }));
-  $('feed').querySelector('table')?.classList.add('feed');
+  fact('Device clock', [tzName(v.tz), offset].filter(Boolean).join(' · '));
+  fact('Connection', [countryName(v.country), v.region].filter(Boolean).join(', ') + (offsetOf(v.ipTz) && offsetOf(v.ipTz) !== offset ? ' (a different time zone: VPN or relay?)' : ''));
+  fact('Network', v.network);
+  fact('Device', [v.device, v.os, v.browser, v.screen].filter(Boolean).join(' · '));
+  fact('Language', v.lang);
+  fact('Came from', [p.source, v.referrer].filter(Boolean).join(' · '));
+  fact('First page', v.landing);
+  const count = (n, one, many) => fmt(n) + ' ' + (n === 1 ? one : many);
+  fact('In this period', count(p.days.size, 'day', 'days') + ' · ' + count(p.visits.size, 'visit', 'visits') + ' · ' + duration(p.screen) + ' on screen');
+  wrap.appendChild(facts);
+
+  // How each game went for them.
+  const gameRows = Object.entries(GAMES).filter(([g]) => p.games[g].played.size).map(([g, name]) => {
+    const s = p.games[g];
+    return [name, fmt(s.played.size), fmt(s.solved.size), fmt(s.clean.size), fmt(s.attempts)];
+  });
+  if (gameRows.length) {
+    const gt = el('div', 'scroll');
+    table(gt, [['Game', null, 'l'], ['Puzzles played'], ['Solved', 'Solved, or cleared in Junctions'], ['Clean', 'By ear in Cadence, a perfect flow in Junctions, solved in Facet'], ['Attempts finished']], gameRows);
+    wrap.appendChild(gt);
+  }
+
+  // Every visit, newest first, each in the order it happened.
+  const mine = state.E.filter((e) => e.v === p.v && e.type !== 'engage');
+  const visits = new Map();
+  for (const e of mine) {
+    const key = e.visit === null || e.visit === undefined ? 'day:' + e.day : e.visit;
+    if (!visits.has(key)) visits.set(key, []);
+    visits.get(key).push(e);
+  }
+  const ordered = [...visits.values()].sort((a, b) => b[0].ts - a[0].ts);
+  const timeOf = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  ordered.slice(0, explorer.visits || 10).forEach((evs) => {
+    const sec = el('div', 'visit');
+    const on = evs.filter((e) => e.type === 'hide').reduce((t, e) => t + (e.data.ms || 0), 0);
+    const when = new Date(evs[0].ts).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const vh = el('div', 'visit__head', when + ' ');
+    vh.appendChild(el('span', null, '· ' + (on ? duration(on) + ' on screen · ' : '') + evs.length + (evs.length === 1 ? ' step' : ' steps')));
+    sec.appendChild(vh);
+    const vt = el('div', 'scroll');
+    table(vt, [['Time', null, 'l'], ['What', null, 'l'], ['', null, 'l wrap']], evs.map((e) => [timeOf(e.ts), ...describe(e)]));
+    sec.appendChild(vt);
+    wrap.appendChild(sec);
+  });
+  if (ordered.length > (explorer.visits || 10)) {
+    const more = el('button', 'more', 'Show earlier visits (' + (ordered.length - (explorer.visits || 10)) + ')');
+    more.type = 'button';
+    more.addEventListener('click', () => { explorer.visits = (explorer.visits || 10) + 10; renderPlayer(state); });
+    wrap.appendChild(more);
+  }
 }
 
 /* ---------- loading ---------- */
@@ -1017,6 +1246,15 @@ document.querySelectorAll('.range button').forEach((b) => b.addEventListener('cl
   load(d);
 }));
 $('forget').addEventListener('click', () => { writeKey(null); lock(); });
+$('player-search').addEventListener('input', (e) => { explorer.query = e.target.value; explorer.shown = PAGE; if (state) renderPlayers(state); });
+$('player-lookers').addEventListener('change', (e) => { explorer.lookers = e.target.checked; explorer.shown = PAGE; if (state) renderPlayers(state); });
+// Picking a player (or the address pointing at one) opens them, scrolled into view.
+window.addEventListener('hashchange', () => {
+  if (!state) return;
+  explorer.visits = 10;
+  renderPlayers(state);
+  if (pickedTag()) $('player').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => { if (state) render(state); }, 150);
