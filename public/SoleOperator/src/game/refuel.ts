@@ -1,5 +1,5 @@
 import { bus } from '../core/events';
-import { CASK_CAPACITY, caskReceive, caskTakeFresh, type Assembly } from '../logistics';
+import { caskCapacity, caskReceive, caskTakeFresh, type Assembly } from '../logistics';
 import { pushToast } from '../state/hud';
 import { useMode, type RefuelPhase } from '../state/mode';
 import { logistics, player, simHost, syncLogistics } from './runtime';
@@ -129,7 +129,7 @@ export function updateRefuel(dt: number, holdE: boolean, holdS: boolean) {
       break;
     }
     case 'extract': {
-      if (holdE && logistics.state.cart.cask.length >= CASK_CAPACITY) {
+      if (holdE && logistics.state.cart.cask.length >= caskCapacity(logistics.state)) {
         pushToast({ level: 'warn', text: 'Cask full', detail: 'No room for the spent assembly.' });
         machine.progress = 0;
         break;

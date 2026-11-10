@@ -13,6 +13,7 @@ import {
 import { Rng } from './rng';
 import { clamp, type SimSystem, type TickContext } from './system';
 import { acceleratorSystem, applyAccelCommand, createAccelState, productionSystem } from './accelerator';
+import { applyEconCommand, createEconState, economySystem } from './economy';
 import { alarmsSystem } from './systems/alarms';
 import { fuelSystem } from './systems/fuel';
 import { kineticsSystem } from './systems/kinetics';
@@ -30,7 +31,7 @@ import type {
   SimSnapshot,
 } from './types';
 
-export const SIM_SCHEMA = 2;
+export const SIM_SCHEMA = 3;
 
 /**
  * The tick pipeline, in order. Add a new system by writing a SimSystem and
@@ -45,6 +46,7 @@ export const SYSTEMS: readonly SimSystem[] = [
   turbineSystem,
   acceleratorSystem,
   productionSystem,
+  economySystem,
   alarmsSystem,
 ];
 
@@ -115,6 +117,7 @@ export function createInitialState(rng: Rng, options: PlantSimOptions): PlantSta
     rods,
     alarms: [],
     accel,
+    econ: createEconState(),
   };
 }
 
@@ -124,6 +127,7 @@ function validCell(n: number): boolean {
 
 function applyCommand(state: PlantState, cmd: PlantCommand, emit: (e: SimEvent) => void): void {
   if (applyAccelCommand(state, cmd, emit)) return;
+  if (applyEconCommand(state, cmd, emit)) return;
   const reject = (reason: string) => emit({ type: 'commandRejected', command: cmd.type, reason });
   const rodsLocked = () =>
     state.scrammed && (reject('Rods are latched in after a scram. Reset first.'), true);

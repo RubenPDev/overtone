@@ -1,5 +1,5 @@
 import { initialLogistics, type LogisticsState } from '../logistics';
-import { Rng, createAccelState, type RngState, type SimSnapshot } from '../sim';
+import { Rng, createAccelState, createEconState, type RngState, type SimSnapshot } from '../sim';
 
 /**
  * Save games: versioned JSON in localStorage.
@@ -8,7 +8,7 @@ import { Rng, createAccelState, type RngState, type SimSnapshot } from '../sim';
  * migration MIGRATIONS[oldVersion] that turns an old save into the next version.
  * Old saves then upgrade step by step on load.
  */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 const PREFIX = 'sole-operator:save:';
 
 export type SaveSlot = 'auto' | 'manual';
@@ -88,6 +88,18 @@ export const MIGRATIONS: Record<number, Migration> = {
       version: 3,
       sim: { ...sim, schema: 2, state: { ...sim.state, accel, netOutput: output - accel.powerDraw } },
       world: world.room === 'particle-accelerator' ? { ...world, room: 'fuel-storage' } : world,
+    };
+  },
+  /**
+   * v3 → v4: economy and progression (sim schema 3). Old saves start with the
+   * opening balance and keep the clearance they had (L3 in v3).
+   */
+  3: (old) => {
+    const sim = old.sim as { schema: number; state: Record<string, unknown> };
+    return {
+      ...old,
+      version: 4,
+      sim: { ...sim, schema: 3, state: { ...sim.state, econ: createEconState() } },
     };
   },
 };

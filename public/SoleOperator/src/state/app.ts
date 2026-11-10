@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 export type Screen = 'loading' | 'title' | 'game';
-export type Overlay = null | 'pause' | 'map' | 'settings';
+export type Overlay = null | 'pause' | 'map' | 'settings' | 'ops';
 export type Quality = 'high' | 'low';
 
 export interface Settings {

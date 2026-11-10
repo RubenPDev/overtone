@@ -7,6 +7,10 @@ import { canRefuel, interact } from './interactions';
 import { enterMode, exitMode, inMode } from './modes';
 import { player, simHost } from './runtime';
 import { closeMenu, openMenu, setSpeed, togglePause } from './session';
+import { closeTablet, openTablet } from './ops';
+import { bus } from '../core/events';
+import { hasTool } from '../sim';
+import { useHud } from '../state/hud';
 import { currentRoomId } from './worldController';
 
 /** Game-screen hotkeys. Returns an uninstall function. */
@@ -17,7 +21,8 @@ export function installHotkeys(): () => void {
     const overlay = app.overlay;
 
     if (a === 'pause') {
-      if (overlay === 'settings') app.closeSettings();
+      if (overlay === 'ops') closeTablet();
+      else if (overlay === 'settings') app.closeSettings();
       else if (overlay) closeMenu();
       else if (inMode()) exitMode();
       else openMenu('pause');
@@ -27,6 +32,11 @@ export function installHotkeys(): () => void {
     // Inside a control mode, keys belong to the machine (see game/modes.ts).
     if (inMode()) {
       if (a === 'rods' && useMode.getState().mode.kind === 'rods') exitMode();
+      return;
+    }
+    if (a === 'tablet') {
+      if (overlay === 'ops') closeTablet();
+      else if (!overlay && !player.locked) openTablet();
       return;
     }
     if (a === 'map') {
@@ -67,10 +77,20 @@ export function installHotkeys(): () => void {
           detail: 'Dock the transfer cart in the core cart bay first.',
         });
         return;
-      case 'inspect':
-        // TODO(milestone: tools): inspect mode (hover readouts on equipment).
-        pushToast({ level: 'info', text: 'Inspect tool', detail: 'Not in this build yet.' });
+      case 'inspect': {
+        if (!hasTool(simHost.state, 'scanner')) {
+          pushToast({
+            level: 'info',
+            text: 'No scanner',
+            detail: 'Buy the handheld scanner on the ops tablet (T) · Tools.',
+          });
+          return;
+        }
+        const on = !useHud.getState().scanner;
+        useHud.setState({ scanner: on });
+        if (on) bus.emit('ui/opened', { panel: 'scanner' });
         return;
+      }
     }
   });
 }

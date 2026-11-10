@@ -11,13 +11,15 @@ import {
 import { FIRST_OBJECTIVE } from '../objectives/definitions';
 import type { ObjectiveProgress } from '../objectives/runner';
 import { START_ROOM, getRoom } from '../rooms/registry';
-import { RECIPE_BY_ID, type AlarmId } from '../sim';
+import { MARKET_BY_ID, RECIPE_BY_ID, STOCK_LABEL, UPGRADE_BY_ID, type AlarmId } from '../sim';
+import { OBJECTIVES } from '../objectives/definitions';
+import { applyGameUpgrades, closeTablet, deliverAssembly } from './ops';
 import { useApp } from '../state/app';
 import { pushToast, useHud, type HudObjective } from '../state/hud';
 import { useWorld } from '../state/world';
 import { arrivalPoint } from '../world/geometry';
 import { initialLogistics } from '../logistics';
-import { logistics, objectives, player, session, simHost, syncLogistics } from './runtime';
+import { logistics, objectives, player, session, simHost } from './runtime';
 import { exitMode } from './modes';
 import { placeInRoom } from './worldController';
 
@@ -61,6 +63,8 @@ export function closeMenu() {
 // --- New / continue / save -------------------------------------------------------
 
 function resetCommon() {
+  closeTablet();
+  useHud.setState({ scanner: false });
   player.path = [];
   player.stamina = 1;
   player.focus = 0.88;
@@ -75,7 +79,7 @@ export function newGame() {
   simHost.reset(session.seed);
   player.dose = 0;
   logistics.state = initialLogistics();
-  syncLogistics();
+  applyGameUpgrades();
   resetCommon();
   placeInRoom(START_ROOM);
   objectives.load({ active: null, step: 0, completed: [] });
@@ -103,7 +107,7 @@ export function continueGame(): boolean {
   player.focus = d.world.focus;
   player.dose = d.world.dose;
   logistics.state = structuredClone(d.logistics);
-  syncLogistics();
+  applyGameUpgrades();
   placeInRoom(d.world.room, { position: d.world.player, facing: player.yaw });
   objectives.load(d.objectives);
   setSpeed(1);
@@ -217,6 +221,52 @@ bus.on('sim', (e) => {
         text: 'Production run started',
         detail: RECIPE_BY_ID.get(e.recipe)?.name,
       });
+    case 'contractOffered':
+      return pushToast({ level: 'info', text: 'New contract offer', detail: 'Ops tablet (T) · Contracts' });
+    case 'contractAccepted':
+      return pushToast({ level: 'ok', text: 'Contract accepted', detail: e.title });
+    case 'contractCompleted':
+      return pushToast(
+        { level: 'ok', text: `Contract complete · +${credits(e.reward)}`, detail: e.title },
+        6000,
+      );
+    case 'contractFailed':
+      return pushToast({ level: 'warn', text: 'Contract failed', detail: e.title }, 6000);
+    case 'clearanceRaised':
+      return pushToast(
+        {
+          level: 'ok',
+          text: `Clearance L${e.level} granted`,
+          detail: 'New recipes, upgrades and contracts.',
+        },
+        6000,
+      );
+    case 'sold':
+      return pushToast({
+        level: 'ok',
+        text: `Sold ${e.amount} · ${STOCK_LABEL[e.stock]}`,
+        detail: `+${credits(e.credits)}`,
+      });
+    case 'purchased': {
+      if (e.item === 'fuel-assembly' || e.item === 'fuel-fab') {
+        const id = deliverAssembly();
+        return pushToast({
+          level: 'ok',
+          text: e.item === 'fuel-fab' ? 'Assembly fabricated' : 'Fuel assembly delivered',
+          detail: id ? `${id} is in the pool rack · Fuel Rod Storage` : 'Pool rack full.',
+        });
+      }
+      applyGameUpgrades();
+      const u = UPGRADE_BY_ID.get(e.item);
+      const m = MARKET_BY_ID.get(e.item);
+      return pushToast({
+        level: 'ok',
+        text: u
+          ? `${u.name}${u.levels.length > 1 ? ` · level ${e.level}` : ''}`
+          : `Bought ${m?.name ?? e.item}`,
+        detail: u ? u.effect[e.level - 1] : 'Delivered to the ring stores.',
+      });
+    }
     case 'feedExhausted':
       return pushToast({
         level: 'warn',
@@ -227,7 +277,16 @@ bus.on('sim', (e) => {
 });
 
 bus.on('toast', (t) => pushToast(t));
-bus.on('objective/completed', () => pushToast({ level: 'ok', text: 'Objective complete' }, 5000));
+const credits = (n: number) => `${Math.round(n).toLocaleString('en-US')} CR`;
+
+bus.on('objective/completed', ({ objective }) => {
+  const reward = OBJECTIVES.find((o) => o.id === objective)?.reward ?? 0;
+  if (reward) bus.emit('cmd/sim', { type: 'grantCredits', amount: reward });
+  pushToast(
+    { level: 'ok', text: 'Objective complete', detail: reward ? `+${credits(reward)}` : undefined },
+    5000,
+  );
+});
 bus.on('room/entered', () => saveGame('auto'));
 
 function toHudObjective(p: ObjectiveProgress): HudObjective | null {

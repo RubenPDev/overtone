@@ -10,6 +10,7 @@ export const OBJECTIVES: ObjectiveDef[] = [
     id: 'swap-cell-07',
     title: 'Swap Fuel Cell 07',
     kind: 'main',
+    reward: 5_000,
     next: 'return-spent',
     steps: [
       {
@@ -68,6 +69,7 @@ export const OBJECTIVES: ObjectiveDef[] = [
     id: 'retune-cavity-03',
     title: 'Re-tune RF Cavity 03',
     kind: 'main',
+    reward: 4_000,
     next: 'first-enrichment',
     steps: [
       {
@@ -97,6 +99,8 @@ export const OBJECTIVES: ObjectiveDef[] = [
     id: 'first-enrichment',
     title: 'First Enrichment Run',
     kind: 'main',
+    reward: 8_000,
+    next: 'ops-online',
     steps: [
       {
         id: 'reach',
@@ -124,6 +128,80 @@ export const OBJECTIVES: ObjectiveDef[] = [
           channel: 'sim',
           where: (e) => e.type === 'produced' && e.stock === 'enriched-u' && e.total >= 5,
         },
+      },
+    ],
+  },
+  {
+    id: 'ops-online',
+    title: 'Run the Plant Like a Business',
+    kind: 'main',
+    reward: 5_000,
+    next: 'clearance-2',
+    steps: [
+      {
+        id: 'tablet',
+        text: 'Open the ops tablet',
+        detail: 'Press T, or click your credits',
+        completeOn: { channel: 'ui/opened', where: (e) => e.panel === 'ops' },
+      },
+      {
+        id: 'accept',
+        text: 'Accept a contract',
+        detail: 'Ops tablet · Contracts',
+        completeOn: { channel: 'sim', where: (e) => e.type === 'contractAccepted' },
+      },
+      {
+        id: 'scanner',
+        text: 'Buy the handheld scanner',
+        detail: 'Ops tablet · Tools · 8,000 CR',
+        completeOn: { channel: 'sim', where: (e) => e.type === 'purchased' && e.item === 'scanner' },
+      },
+      {
+        id: 'scan',
+        text: 'Take a reading with the scanner',
+        detail: 'Press Q near any equipment',
+        completeOn: { channel: 'ui/opened', where: (e) => e.panel === 'scanner' },
+      },
+    ],
+  },
+  {
+    id: 'clearance-2',
+    title: 'Clearance Level 2',
+    kind: 'main',
+    reward: 10_000,
+    steps: [
+      {
+        id: 'reach',
+        text: 'Go to the Detector Hall in sector 3',
+        detail: 'Ring shuttle from any sector',
+        target: { room: 'ring-s3', interactable: 'research-console' },
+        completeOn: { channel: 'room/entered', where: (e) => e.room === 'ring-s3' },
+      },
+      {
+        id: 'run',
+        text: 'Start a collider run',
+        detail: 'Detector control console',
+        target: { room: 'ring-s3', interactable: 'research-console' },
+        completeOn: {
+          channel: 'sim',
+          where: (e) => e.type === 'productionStarted' && e.recipe === 'research',
+        },
+      },
+      {
+        id: 'data',
+        text: 'Collect 60 research data',
+        detail: 'Keep the beam above 1.0 GeV',
+        target: { room: 'ring-s3', interactable: 'research-console' },
+        completeOn: {
+          channel: 'sim',
+          where: (e) => e.type === 'produced' && e.stock === 'research' && e.total >= 60,
+        },
+      },
+      {
+        id: 'review',
+        text: 'File a clearance review',
+        detail: 'Ops tablet · Clearance · 15,000 CR',
+        completeOn: { channel: 'sim', where: (e) => e.type === 'clearanceRaised' },
       },
     ],
   },

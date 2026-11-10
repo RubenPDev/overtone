@@ -29,6 +29,8 @@ export interface CartState {
   /** Bay id when parked in a docking bay. */
   bay: string | null;
   cask: Assembly[];
+  /** Cask bays (2, or 3 with the triple-bay cask). Missing in older saves = 2. */
+  capacity?: number;
 }
 
 export interface LogisticsState {
@@ -38,6 +40,8 @@ export interface LogisticsState {
 }
 
 export const isFresh = (a: Assembly) => a.burnup < 0.5;
+
+export const caskCapacity = (s: LogisticsState) => s.cart.capacity ?? CASK_CAPACITY;
 
 export const slotName = (i: number) =>
   `${String.fromCharCode(65 + Math.floor(i / POOL_COLS))}${(i % POOL_COLS) + 1}`;
@@ -79,7 +83,7 @@ export function craneAtCask(s: LogisticsState): CraneResult {
   const held = s.crane.holding;
   const cask = s.cart.cask;
   if (held) {
-    if (cask.length >= CASK_CAPACITY) return { ok: false, reason: 'The cask is full.' };
+    if (cask.length >= caskCapacity(s)) return { ok: false, reason: 'The cask is full.' };
     cask.push(held);
     s.crane.holding = null;
     return { ok: true, placed: held, where: 'cask' };
@@ -100,7 +104,7 @@ export function caskFresh(s: LogisticsState): Assembly | null {
 
 /** Refuelling machine: spent assembly from the core goes into the cask. */
 export function caskReceive(s: LogisticsState, a: Assembly): boolean {
-  if (s.cart.cask.length >= CASK_CAPACITY) return false;
+  if (s.cart.cask.length >= caskCapacity(s)) return false;
   s.cart.cask.push(a);
   return true;
 }

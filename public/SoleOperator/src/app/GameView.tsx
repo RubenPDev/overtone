@@ -5,6 +5,7 @@ import GameCanvas from '../scene/GameCanvas';
 import { useApp } from '../state/app';
 import { MapScreen } from './MapScreen';
 import { PauseMenu } from './PauseMenu';
+import { OpsTablet } from './OpsTablet';
 import { TransitionOverlay } from './TransitionOverlay';
 
 // Dev tools are only bundled in dev builds (the import is dead code in production).
@@ -42,6 +43,7 @@ export default function GameView() {
       <TransitionOverlay />
       {overlay === 'pause' && <PauseMenu />}
       {overlay === 'map' && <MapScreen />}
+      {overlay === 'ops' && <OpsTablet />}
       {DevOverlay && (
         <Suspense fallback={null}>
           <DevOverlay />

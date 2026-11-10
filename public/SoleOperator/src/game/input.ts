@@ -13,6 +13,7 @@ export type Action =
   | 'inspect'
   | 'refuel'
   | 'rods'
+  | 'tablet'
   | 'dev';
 
 export const KEYMAP: Record<string, Action> = {
@@ -27,6 +28,7 @@ export const KEYMAP: Record<string, Action> = {
   KeyQ: 'inspect',
   KeyR: 'refuel',
   KeyF: 'rods',
+  KeyT: 'tablet',
   Backquote: 'dev',
 };
 
@@ -37,6 +39,7 @@ export const KEY_LABEL: Partial<Record<Action, string>> = {
   inspect: 'Q',
   refuel: 'R',
   rods: 'F',
+  tablet: 'T',
   pause: 'ESC',
 };
 

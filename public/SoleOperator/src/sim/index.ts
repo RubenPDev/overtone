@@ -24,3 +24,16 @@ export {
   createAccelState,
 } from './accelerator';
 export type { Recipe } from './accelerator';
+export {
+  UPGRADES,
+  UPGRADE_BY_ID,
+  MARKET,
+  MARKET_BY_ID,
+  SELL_PRICE,
+  clearanceCost,
+  createEconState,
+  gridPrice,
+  hasTool,
+  upgradeLevel,
+} from './economy';
+export type { MarketItem, UpgradeCategory, UpgradeDef } from './economy';

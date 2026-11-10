@@ -870,3 +870,105 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- Funds (in the clock card) ------------------------------------------------ */
+.funds {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-head);
+  text-shadow: var(--shadow-text);
+}
+.funds b {
+  font: 700 20px/1 var(--font-head);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.funds b.is-neg {
+  color: var(--danger);
+}
+.funds small {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+}
+.funds__lvl {
+  font: 600 11px/1 var(--font-head);
+  letter-spacing: 0.1em;
+  padding: 3px 5px;
+  border: 1px solid rgba(95, 227, 255, 0.5);
+  color: var(--cyan);
+}
+.funds__offers {
+  font: 600 11px/1 var(--font-head);
+  letter-spacing: 0.08em;
+  padding: 3px 6px;
+  background: var(--amber);
+  color: #1a1206;
+  text-shadow: none;
+}
+.funds:hover b {
+  color: var(--cyan);
+}
+
+/* ---- Scanner readout (Q) ------------------------------------------------------- */
+.hud-scan {
+  top: calc(var(--gutter) + 230px);
+  right: var(--gutter);
+  width: min(270px, 40vw);
+  padding: 12px 14px;
+  background: linear-gradient(160deg, rgba(10, 26, 34, 0.82), rgba(6, 12, 18, 0.82));
+  border-right: 2px solid var(--player);
+}
+.scan__head {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.scan__head span {
+  font: 600 10px/1 var(--font-head);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--player);
+}
+.scan__head b {
+  font: 700 16px/1.1 var(--font-head);
+}
+.scan__list {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  font-size: 14px;
+}
+.scan__list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.scan__list dt {
+  color: var(--ink-dim);
+}
+.scan__list dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.scan__list .is-ok dd {
+  color: var(--player);
+}
+.scan__list .is-warn dd {
+  color: var(--amber);
+}
+.scan__list .is-bad dd {
+  color: var(--danger);
+}
+.scan__foot {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink-faint);
+}

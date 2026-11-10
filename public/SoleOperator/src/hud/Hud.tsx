@@ -11,6 +11,7 @@ import { Minimap } from './Minimap';
 import { ModePanel } from './ModePanel';
 import { getRoom, isRoomBuilt } from '../rooms/registry';
 import { RingVitals } from './AccelPanels';
+import { ScannerPanel } from './Scanner';
 import { fmt, formatClock, placeName } from './nav';
 import './hud.css';
 
@@ -241,6 +242,7 @@ const HOTKEYS: { action: Action; key: string; label: string; icon: string }[] = 
   },
   { action: 'refuel', key: 'R', label: 'Refuel', icon: 'M5 2h6v12H5zM5 6h6M5 10h6' },
   { action: 'rods', key: 'F', label: 'Rods', icon: 'M2 3h12M4 3v8M8 3v10M12 3v6' },
+  { action: 'tablet', key: 'T', label: 'Ops', icon: 'M4 1.5h8v13H4zM6.5 12.5h3M6 4h4M6 6.5h4M6 9h2' },
   {
     action: 'map',
     key: 'M',
@@ -286,6 +288,24 @@ const SPEEDS: { s: GameSpeed; label: string }[] = [
   { s: 3, label: '3×' },
 ];
 
+function Funds() {
+  const credits = useHud((s) => Math.round(s.sim?.econ.credits ?? 0));
+  const clearance = useHud((s) => s.sim?.accel.clearance ?? 1);
+  const offers = useHud((s) => s.sim?.econ.contracts.filter((c) => c.status === 'offered').length ?? 0);
+  return (
+    <button className="funds" onClick={() => fireAction('tablet')} title="Ops tablet (T)">
+      <b className={credits < 0 ? 'is-neg' : ''}>{credits.toLocaleString('en-US')}</b>
+      <small>CR</small>
+      <span className="funds__lvl">L{clearance}</span>
+      {offers > 0 && (
+        <span className="funds__offers">
+          {offers} offer{offers > 1 ? 's' : ''}
+        </span>
+      )}
+    </button>
+  );
+}
+
 function ClockAndSpeed() {
   const time = useHud((s) => s.sim?.time ?? 0);
   const speed = useHud((s) => s.speed);
@@ -294,6 +314,7 @@ function ClockAndSpeed() {
   return (
     <section className="hud-br">
       <div className="clock">
+        <Funds />
         <div className="clock__time">{c.hhmm}</div>
         <div className="clock__day">
           DAY {c.day} · SHIFT {c.shift}
@@ -332,6 +353,7 @@ export default function Hud() {
       <ObjectiveTracker />
       <Compass />
       <TopRightVitals />
+      <ScannerPanel />
       <OperatorCard />
       <BottomCentre />
       <ClockAndSpeed />

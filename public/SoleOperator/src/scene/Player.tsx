@@ -3,7 +3,8 @@ import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { CART_OFFSET, CART_SPEED, CART_SPRINT, cartInteractable, followPlayer } from '../game/cart';
 import { isDown, keyboardDir } from '../game/input';
-import { player } from '../game/runtime';
+import { player, simHost } from '../game/runtime';
+import { hasTool } from '../sim';
 import { arrive, enterCorridor } from '../game/worldController';
 import { useApp } from '../state/app';
 import { useLogistics } from '../state/logistics';
@@ -176,7 +177,7 @@ export function Player({
     // --- Dose placeholder: rises near the core. TODO(sim): move dosimetry into the sim. ---
     if (coreAt && !menuOpen) {
       const d = Math.hypot(player.pos.x - coreAt.x, player.pos.z - coreAt.z);
-      player.dose += dt * 0.006 * Math.max(0, 1 - d / 12) ** 2;
+      player.dose += dt * 0.006 * Math.max(0, 1 - d / 12) ** 2 * (hasTool(simHost.state, 'hazmat') ? 0.5 : 1);
     }
   });
 

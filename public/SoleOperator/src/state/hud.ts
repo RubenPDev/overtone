@@ -6,6 +6,7 @@ import {
   coreStatus,
   type AccelState,
   type Criticality,
+  type EconState,
   type PlantState,
   type Stability,
 } from '../sim';
@@ -33,6 +34,7 @@ export interface HudSim {
   netOutput: number;
   /** Accelerator snapshot (copied, so the HUD never holds live sim objects). */
   accel: AccelState;
+  econ: EconState;
 }
 
 export function toHudSim(s: Readonly<PlantState>): HudSim {
@@ -58,6 +60,11 @@ export function toHudSim(s: Readonly<PlantState>): HudSim {
       cavities: s.accel.cavities.map((c) => ({ ...c })),
       stock: { ...s.accel.stock },
       detuned: [...s.accel.detuned],
+    },
+    econ: {
+      ...s.econ,
+      upgrades: { ...s.econ.upgrades },
+      contracts: s.econ.contracts.map((c) => ({ ...c })),
     },
     ...coreStatus(s),
   };
@@ -95,6 +102,8 @@ interface HudState {
   toasts: Toast[];
   /** Alarms acknowledged at the alarm panel (beacons go steady instead of spinning). */
   acked: string[];
+  /** Handheld scanner readout on (Q). */
+  scanner: boolean;
 }
 
 export const useHud = create<HudState>()(() => ({
@@ -105,6 +114,7 @@ export const useHud = create<HudState>()(() => ({
   speed: 1,
   toasts: [],
   acked: [],
+  scanner: false,
 }));
 
 let toastId = 0;

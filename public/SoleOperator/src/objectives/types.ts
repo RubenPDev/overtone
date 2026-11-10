@@ -22,4 +22,6 @@ export interface ObjectiveDef {
   steps: ObjectiveStep[];
   /** Objective that starts automatically when this one completes. */
   next?: string;
+  /** Credits paid on completion. */
+  reward?: number;
 }

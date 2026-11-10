@@ -36,17 +36,18 @@ None of these ship: they sit behind `import.meta.env.DEV` and are removed from p
 
 ### Controls
 
-| Key                   | Action                                                                        |
-| --------------------- | ----------------------------------------------------------------------------- |
-| Click floor / WASD    | Move (WASD is screen-relative), Shift to sprint (uses stamina)                |
-| E                     | Interact with what the prompt shows (talk, use, push/park the transfer cart…) |
-| M                     | Facility map (pauses)                                                         |
-| Esc                   | Leave a control mode, else pause menu                                         |
-| 1 / 2 / 3, P or Space | Game speed 1×/2×/3×, pause toggle                                             |
-| Scroll                | Zoom (clamped)                                                                |
-| F                     | Rod control (in Reactor Control)                                              |
-| R                     | Refuelling machine (when the cart is docked in the core bay)                  |
-| Q                     | Inspect tool (placeholder)                                                    |
+| Key                   | Action                                                                          |
+| --------------------- | ------------------------------------------------------------------------------- |
+| Click floor / WASD    | Move (WASD is screen-relative), Shift to sprint (uses stamina)                  |
+| E                     | Interact with what the prompt shows (talk, use, push/park the transfer cart…)   |
+| M                     | Facility map (pauses)                                                           |
+| Esc                   | Leave a control mode, else pause menu                                           |
+| 1 / 2 / 3, P or Space | Game speed 1×/2×/3×, pause toggle                                               |
+| Scroll                | Zoom (clamped)                                                                  |
+| F                     | Rod control (in Reactor Control)                                                |
+| R                     | Refuelling machine (when the cart is docked in the core bay)                    |
+| Q                     | Handheld scanner readout (after buying the scanner)                             |
+| T                     | Ops tablet: contracts, upgrades, tools, market, clearance (plant keeps running) |
 
 Control modes (the Operator stands still, the camera frames the machine, and a panel replaces the
 hotkey bar):
@@ -125,6 +126,31 @@ template (`makeSector`), so stations differ only by data and a component in
 The beamline (`scene/Beamline.tsx`) is instanced: a 425 m tunnel costs a few
 dozen draw calls.
 
+## Progression and economy
+
+`sim/economy.ts` (pure TS, tested) adds money and progression to the plant model:
+
+- **Grid sales.** Net output (after the ring's draw) sells at a price that follows demand: about
+  2.4 CR/MWh on average, +30% at the 18:00 peak, −30% at 06:00. A plant drawing more than it makes
+  buys power back at 1.5×.
+- **Market.** Accelerator products sell at fixed prices; feedstock and fresh fuel assemblies are
+  bought (fuel arrives in the pool rack). Spent assemblies can be shipped to the ring stores as
+  transmutation feed.
+- **Upgrades and tools** (`UPGRADES`, data only) cost credits, sometimes research data, and need a
+  clearance level. Systems read them with `upgradeLevel(state, id)`: rod drive speed, turbine
+  efficiency, RF drift, cryo draw, beam current, ring energy, and the water upgrades. Tools
+  (scanner, vibration analyzer, triple cask, shielded suit) are one-level upgrades the game layer
+  checks with `hasTool`.
+- **Clearance** runs L1–L8. A review costs 60·L² research data and 15,000·L credits. New games
+  start at L1.
+- **Contracts** come in every 3 game hours from the seeded RNG: deliveries of anything the player
+  can make at their clearance, or grid dispatch requests (hold N MWe net for some hours). Active
+  deliveries complete automatically once the stores hold enough.
+- **Objectives** can carry a `reward` in credits.
+
+To add a purchase: add an entry to `UPGRADES` (or `MARKET`), then read its level where it matters.
+The ops tablet (`app/OpsTablet.tsx`) lists it automatically.
+
 ## Architecture
 
 ```
@@ -180,8 +206,9 @@ src/
 6. **Saves** are versioned JSON in `localStorage` (`sole-operator:save:auto|manual`). There's an
    autosave every 2 minutes and on entering a room, plus a manual save from the pause menu. When
    the shape changes, bump `SAVE_VERSION` and add `MIGRATIONS[oldVersion]` in `core/save.ts`.
-   Saves are at v3. v2 added fuel logistics (the v1 → v2 migration puts a carried assembly into the
+   Saves are at v4. v2 added fuel logistics (the v1 → v2 migration puts a carried assembly into the
    cart's cask). v3 added the accelerator (sim schema 2; the v2 → v3 migration commissions a fresh ring).
+   v4 added the economy (sim schema 3; old saves get the opening balance and keep their clearance).
 7. **Quality:** High gives bloom, PCF shadows (refreshed at half rate), SMAA and DPR up to 1.5; an adaptive governor lowers resolution when frames run long. Low turns those off and
    keeps the grade. Touch devices with small screens start on Low.
 
@@ -282,9 +309,9 @@ rods 5% changes power by about 17%, and the response is overdamped.
   from each room's geometry.
 - **NPCs:** `RoomDefinition.workstations` holds seats and roles; `scene/Npc.tsx` is a seated
   placeholder. TODO: schedules, walking (cafeteria breaks), reacting to `sim` alarms on the bus.
-- **Tools:** Q (inspect mode) is still a stub in `game/hotkeys.ts`.
+- **Tools:** the scanner's readings per room live in `hud/Scanner.tsx` (`scanReadings`).
 - **Fuel:** assembly ids and burn-up flow between the sim (cells) and logistics (pool, cask). TODO:
-  fresh-fuel deliveries, a cooling timer for spent fuel in the pool, crane collisions.
+  a cooling timer for spent fuel in the pool, crane collisions.
 - **Screens:** the map's STAFF / RESEARCH / LOGBOOK tabs are disabled stubs.
 - **Sim:** xenon, coolant pumps, turbine trip, cooling chambers and water reserves; move dosimetry
   (now a placeholder in `scene/Player.tsx`) into the sim.

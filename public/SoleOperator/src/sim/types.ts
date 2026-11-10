@@ -53,6 +53,44 @@ export interface PlantState {
   /** Output after the plant's own big consumers (the accelerator), MWe. */
   netOutput: number;
   accel: AccelState;
+  econ: EconState;
+}
+
+// --- Economy and progression ----------------------------------------------------------
+
+export interface Contract {
+  id: number;
+  kind: 'deliver' | 'grid';
+  client: string;
+  title: string;
+  /** Deliveries: what and how much. Grid: amount = game seconds to hold the target. */
+  stock: StockId | null;
+  amount: number;
+  /** Grid: net MWe to hold. */
+  target: number;
+  progress: number;
+  reward: number;
+  /** Offer lapses at this game time if not accepted. */
+  expires: number;
+  /** Once accepted: game time by which it must be done. */
+  deadline: number;
+  /** Game seconds allowed once accepted. */
+  window: number;
+  status: 'offered' | 'active' | 'done' | 'failed' | 'expired';
+}
+
+export interface EconState {
+  credits: number;
+  /** Lifetime income, credits. */
+  earned: number;
+  /** Current grid price, credits per MWh. */
+  price: number;
+  /** Upgrade and tool levels by id (missing = 0). */
+  upgrades: Record<string, number>;
+  contracts: Contract[];
+  nextContractAt: number;
+  nextContractId: number;
+  completed: number;
 }
 
 // --- Particle accelerator ------------------------------------------------------------
@@ -126,7 +164,14 @@ export type PlantCommand =
   | { type: 'tuneCavity'; cavity: number; deltaKHz: number }
   | { type: 'selectRecipe'; recipe: string | null }
   | { type: 'addStock'; stock: StockId; amount: number }
-  | { type: 'setClearance'; level: number };
+  | { type: 'setClearance'; level: number }
+  | { type: 'acceptContract'; id: number }
+  | { type: 'declineContract'; id: number }
+  | { type: 'buyUpgrade'; id: string }
+  | { type: 'buyItem'; id: string }
+  | { type: 'sell'; stock: StockId; amount: number }
+  | { type: 'clearanceReview' }
+  | { type: 'grantCredits'; amount: number };
 
 export type SimEvent =
   | { type: 'alarm'; alarm: AlarmId }
@@ -145,7 +190,14 @@ export type SimEvent =
   | { type: 'cavityTuned'; cavity: number }
   | { type: 'productionStarted'; recipe: string }
   | { type: 'produced'; recipe: string; stock: StockId; total: number }
-  | { type: 'feedExhausted'; recipe: string };
+  | { type: 'feedExhausted'; recipe: string }
+  | { type: 'contractOffered'; id: number }
+  | { type: 'contractAccepted'; id: number; title: string }
+  | { type: 'contractCompleted'; id: number; title: string; reward: number }
+  | { type: 'contractFailed'; id: number; title: string }
+  | { type: 'purchased'; item: string; level: number }
+  | { type: 'sold'; stock: StockId; amount: number; credits: number }
+  | { type: 'clearanceRaised'; level: number };
 
 export interface SimSnapshot {
   /** Bumped when PlantState's shape changes; save migrations key off it. */

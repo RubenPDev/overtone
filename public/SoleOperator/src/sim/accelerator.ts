@@ -1,4 +1,5 @@
 import type { Rng } from './rng';
+import { upgradeLevel } from './economy';
 import { clamp, relax, type SimSystem } from './system';
 import type { AccelState, PlantCommand, PlantState, SimEvent, StockId } from './types';
 
@@ -230,7 +231,7 @@ export function createAccelState(rng: Rng): AccelState {
     recipe: null,
     progress: 0,
     stock,
-    clearance: 3,
+    clearance: 1,
     detuned: cavities.map((c) => c.field < MAX_FIELD * 0.9),
   };
   a.energy = targetEnergy(a);
@@ -239,17 +240,17 @@ export function createAccelState(rng: Rng): AccelState {
   return a;
 }
 
-function targetEnergy(a: AccelState) {
+function targetEnergy(a: AccelState, rampBonus = 0) {
   const eff = a.cavities.reduce((s, c) => s + c.field, 0) / (CAVITY_COUNT * MAX_FIELD);
-  return INJECTION_GEV + RAMP_GEV * eff;
+  return INJECTION_GEV + (RAMP_GEV + rampBonus) * eff;
 }
 
 function beamLoss(a: AccelState) {
   return LOSS_BASE + (a.cavities.reduce((s, c) => s + (1 - c.field / MAX_FIELD), 0) * LOSS_PER_DETUNE) / 2;
 }
 
-function powerDraw(a: AccelState) {
-  return POWER_IDLE_MW + (a.beamOn ? POWER_RF_MW + beamPower(a) / WALLPLUG_EFFICIENCY : 0);
+function powerDraw(a: AccelState, cryoLevel = 0) {
+  return POWER_IDLE_MW - 4 * cryoLevel + (a.beamOn ? POWER_RF_MW + beamPower(a) / WALLPLUG_EFFICIENCY : 0);
 }
 
 /** Cavity drift, beam energy and current, loss, cryo, interlocks and power draw. */
@@ -258,8 +259,12 @@ export const acceleratorSystem: SimSystem = {
   step(state, ctx) {
     const a = state.accel;
     const dt = ctx.dt;
+    const drift = DETUNE_DRIFT * (1 - 0.35 * upgradeLevel(state, 'rf-feedback'));
+    const cryoLevel = upgradeLevel(state, 'cryo-plant');
+    const rampBonus = 0.25 * upgradeLevel(state, 'ring-energy');
+    const maxCurrent = MAX_CURRENT_MA * (1 + 0.2 * upgradeLevel(state, 'beam-current'));
     a.cavities.forEach((c, i) => {
-      c.detune += ctx.rng.noise(DETUNE_DRIFT * Math.sqrt(dt) * 1.7);
+      c.detune += ctx.rng.noise(drift * Math.sqrt(dt) * 1.7);
       c.field = cavityField(c.detune);
       const low = c.field < MAX_FIELD * 0.9;
       const recovered = c.field > MAX_FIELD * 0.94;
@@ -272,7 +277,8 @@ export const acceleratorSystem: SimSystem = {
     a.loss = beamLoss(a);
     // The cryo plant needs power: if the reactor isn't making it, the ring warms up.
     const starved = state.output < POWER_IDLE_MW;
-    a.cryo = relax(a.cryo, CRYO_BASE_K + (a.beamOn ? a.loss * 60 : 0) + (starved ? 4 : 0), 900, dt);
+    const heating = a.beamOn ? a.loss * 60 * (1 - 0.25 * cryoLevel) : 0;
+    a.cryo = relax(a.cryo, CRYO_BASE_K + heating + (starved ? 4 : 0), 900, dt);
 
     if (a.beamOn) {
       const reason =
@@ -284,13 +290,13 @@ export const acceleratorSystem: SimSystem = {
       }
     }
 
-    a.energy = relax(a.energy, a.beamOn ? targetEnergy(a) : 0, a.beamOn ? 60 : 6, dt);
+    a.energy = relax(a.energy, a.beamOn ? targetEnergy(a, rampBonus) : 0, a.beamOn ? 60 : 6, dt);
     a.current = clamp(
-      relax(a.current, a.beamOn ? MAX_CURRENT_MA * (1 - a.loss * 10) : 0, a.beamOn ? 120 : 6, dt),
+      relax(a.current, a.beamOn ? maxCurrent * (1 - a.loss * 10) : 0, a.beamOn ? 120 : 6, dt),
       0,
-      MAX_CURRENT_MA,
+      maxCurrent,
     );
-    a.powerDraw = powerDraw(a);
+    a.powerDraw = powerDraw(a, cryoLevel);
     state.netOutput = state.output - a.powerDraw;
   },
 };

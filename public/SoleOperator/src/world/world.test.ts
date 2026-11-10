@@ -152,7 +152,20 @@ describe('objective runner', () => {
     expect(runner.currentStep?.id).toBe('make');
     bus.emit('sim', { type: 'produced', recipe: 'enrich-u', stock: 'enriched-u', total: 5 });
     expect(done).toEqual(['swap-cell-07', 'return-spent', 'retune-cavity-03', 'first-enrichment']);
-    expect(runner.progress.active).toBeNull();
+    // Then the business side: tablet, contract, scanner.
+    expect(runner.progress.active?.id).toBe('ops-online');
+    bus.emit('ui/opened', { panel: 'ops' });
+    bus.emit('sim', { type: 'contractAccepted', id: 1, title: 'x' });
+    bus.emit('sim', { type: 'purchased', item: 'hazmat', level: 1 }); // wrong item
+    expect(runner.currentStep?.id).toBe('scanner');
+    bus.emit('sim', { type: 'purchased', item: 'scanner', level: 1 });
+    bus.emit('ui/opened', { panel: 'scanner' });
+    expect(runner.progress.active?.id).toBe('clearance-2');
+    bus.emit('room/entered', { room: 'ring-s3' });
+    bus.emit('sim', { type: 'productionStarted', recipe: 'research' });
+    bus.emit('sim', { type: 'produced', recipe: 'research', stock: 'research', total: 60 });
+    bus.emit('sim', { type: 'clearanceRaised', level: 2 });
+    expect(done.slice(-2)).toEqual(['ops-online', 'clearance-2']);
   });
 
   it('a later step’s event completes the skipped steps before it', () => {

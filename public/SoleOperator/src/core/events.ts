@@ -43,6 +43,8 @@ export interface GameEvents {
   'objective/completed': { objective: string };
   toast: { text: string; detail?: string; level: ToastLevel };
   'game/saved': { slot: string; auto: boolean };
+  /** A HUD panel was opened (the ops tablet, the scanner). */
+  'ui/opened': { panel: string };
 }
 
 export type Listener<T> = (payload: T) => void;
