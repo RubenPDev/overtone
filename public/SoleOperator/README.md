@@ -15,7 +15,7 @@ Use Node 22 or newer. CI uses 22, and Vite 8 needs at least 20.19.
 ```sh
 cd public/SoleOperator
 npm install
-npm run dev        # http://localhost:5174/sole-operator/
+npm run dev        # http://localhost:5175/sole-operator/
 npm test           # vitest: sim, core, world and objective tests
 npm run typecheck  # tsc --noEmit (TypeScript 7)
 npm run build      # typecheck + production build into dist/
@@ -25,7 +25,7 @@ npm run format     # prettier
 
 Dev-only shortcuts:
 
-- `http://localhost:5174/sole-operator/?play` skips the title and starts a new game.
+- `http://localhost:5175/sole-operator/?play` skips the title and starts a new game.
 - `?play=fuel-storage` does the same and then teleports to that room.
 - Press <kbd>`</kbd> in game for the dev overlay: FPS and ticks, teleport, speed and single step,
   rod and coolant sliders, fault injection, scram, test toast, "complete step", and a bus event log.
