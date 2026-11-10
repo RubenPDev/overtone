@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: '/sole-operator/',
   plugins: [react()],
-  server: { port: 5174, strictPort: true },
+  server: { port: 5175, strictPort: true },
   preview: { port: 4174, strictPort: true },
   build: {
     target: 'es2022',
