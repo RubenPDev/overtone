@@ -1,13 +1,26 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { SeatedNpc } from '../../scene/Npc';
-import { GlowDecal } from '../../scene/parts';
+import { FloorText, GlowDecal } from '../../scene/parts';
+import {
+  AlarmBeacon,
+  Extinguisher,
+  FirstAid,
+  Pipe,
+  SecurityCamera,
+  Terminal,
+  VendingMachine,
+  WallClock,
+  WaterCooler,
+} from '../../scene/props';
+import { hazardTexture } from '../../scene/textures';
 import { PALETTE } from '../../styles/palette';
 import type { RoomContentsProps } from '../../world/types';
 import { ConsoleDesk } from './ConsoleDesk';
-import { DESK_ANGLES_DEG, DESK_RADIUS, workstations } from './index';
+import { CORE_BAY, DESK_ANGLES_DEG, DESK_RADIUS, PROPS, workstations } from './index';
 import { ReactorCore } from './ReactorCore';
-import { WallDisplay, drawCellMap, makeOutputDrawer } from './WallDisplay';
+import { RefuelMachine } from './RefuelMachine';
+import { WallDisplay, drawCellMap, drawRods, makeOutputDrawer } from './WallDisplay';
 
 function Plant({ x, z }: { x: number; z: number }) {
   const m = useMemo(
@@ -71,92 +84,219 @@ function RadiationSign({
   }, []);
   return (
     <mesh position={position} rotation={rotation}>
-      <planeGeometry args={[1.6, 1.6]} />
+      <planeGeometry args={[1.3, 1.3]} />
       <meshStandardMaterial map={tex} roughness={0.6} />
     </mesh>
   );
 }
 
-/** Reactor Control Room, greybox: core, console ring, staff, wall screens and the lighting. */
+/** Wall alarm panel: a grey cabinet with a row of status lamps. */
+function AlarmPanel({ x, z }: { x: number; z: number }) {
+  const m = useMemo(
+    () => ({
+      box: new THREE.MeshStandardMaterial({ color: '#cfd5dc', roughness: 0.5 }),
+      lamp: [PALETTE.player, PALETTE.amber, '#ff4d4d', PALETTE.cyan].map(
+        (c) =>
+          new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(1.8), toneMapped: false }),
+      ),
+    }),
+    [],
+  );
+  return (
+    <group position={[x, 1.6, z]}>
+      <mesh position={[0, 0, 0.12]} material={m.box} castShadow>
+        <boxGeometry args={[1.2, 0.9, 0.24]} />
+      </mesh>
+      {m.lamp.map((mat, i) => (
+        <mesh key={i} position={[-0.39 + i * 0.26, 0.18, 0.25]} material={mat}>
+          <cylinderGeometry args={[0.07, 0.07, 0.04, 12]} />
+        </mesh>
+      ))}
+      <mesh position={[0, -0.18, 0.25]}>
+        <boxGeometry args={[0.5, 0.18, 0.03]} />
+        <meshStandardMaterial color="#d7261e" />
+      </mesh>
+    </group>
+  );
+}
+
+/** Painted docking bay for the transfer cart. */
+function CartBay() {
+  const hatch = useMemo(() => {
+    const t = hazardTexture().clone();
+    t.needsUpdate = true;
+    t.repeat.set(3, 0.4);
+    return new THREE.MeshStandardMaterial({ map: t, roughness: 0.8, transparent: true, opacity: 0.85 });
+  }, []);
+  const line = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(PALETTE.hazard).multiplyScalar(1.2),
+        toneMapped: false,
+      }),
+    [],
+  );
+  const w = 1.8;
+  const d = 2.6;
+  return (
+    <group position={[CORE_BAY.x, 0.012, CORE_BAY.z]}>
+      {[
+        [0, -d / 2, w, 0.08],
+        [0, d / 2, w, 0.08],
+        [-w / 2, 0, 0.08, d],
+        [w / 2, 0, 0.08, d],
+      ].map(([x, z, a, b], i) => (
+        <mesh key={i} position={[x!, 0, z!]} rotation={[-Math.PI / 2, 0, 0]} material={line}>
+          <planeGeometry args={[a!, b!]} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0, -d / 2 - 0.3]} rotation={[-Math.PI / 2, 0, 0]} material={hatch}>
+        <planeGeometry args={[w, 0.45]} />
+      </mesh>
+      <FloorText
+        position={[w / 2 + 0.45, 0.01, 0]}
+        yaw={Math.PI / 2}
+        fontSize={0.3}
+        color="#f2b81f"
+        fillOpacity={0.8}
+      >
+        {CORE_BAY.label}
+      </FloorText>
+      <GlowDecal x={0} z={0} radius={1.8} color={PALETTE.hazard} intensity={0.18} />
+    </group>
+  );
+}
+
+/** Reactor Control Room: core, refuelling machine, console ring, staff, wall screens, safety kit and lighting. */
 export default function ControlRoomContents(_: RoomContentsProps) {
   const outputDrawer = useMemo(() => makeOutputDrawer(), []);
   return (
     <group>
       <ReactorCore />
+      <RefuelMachine />
+      <CartBay />
+      <Terminal x={PROPS.pedestal.x} z={PROPS.pedestal.z} yaw={Math.PI / 4} screen={PALETTE.amber} />
 
       {DESK_ANGLES_DEG.map((deg, i) => {
         const a = (deg * Math.PI) / 180;
         const dir = { x: Math.cos(a), z: Math.sin(a) };
+        const w = workstations[i]!;
         return (
           <group key={deg}>
-            <ConsoleDesk x={dir.x * DESK_RADIUS} z={dir.z * DESK_RADIUS} yaw={Math.atan2(dir.x, dir.z)} />
+            <ConsoleDesk
+              x={dir.x * DESK_RADIUS}
+              z={dir.z * DESK_RADIUS}
+              yaw={Math.atan2(dir.x, dir.z)}
+              seed={i}
+            />
             <GlowDecal
               x={dir.x * (DESK_RADIUS + 0.4)}
               z={dir.z * (DESK_RADIUS + 0.4)}
-              radius={2.6}
+              radius={2.8}
               color={PALETTE.amber}
-              intensity={0.22}
+              intensity={0.24}
             />
             <GlowDecal
               x={dir.x * (DESK_RADIUS - 0.1)}
               z={dir.z * (DESK_RADIUS - 0.1)}
-              radius={1.6}
+              radius={1.7}
               color={PALETTE.cyan}
-              intensity={0.22}
+              intensity={0.24}
             />
-            {workstations[i]!.staff && (
-              <SeatedNpc
-                x={workstations[i]!.position.x}
-                z={workstations[i]!.position.z}
-                yaw={workstations[i]!.facing}
-                seed={i}
+            {w.staff && <SeatedNpc x={w.position.x} z={w.position.z} yaw={w.facing} seed={i} />}
+            {!w.staff && (
+              <GlowDecal
+                x={w.position.x}
+                z={w.position.z}
+                radius={1.4}
+                color={PALETTE.player}
+                intensity={0.3}
               />
             )}
           </group>
         );
       })}
 
-      {/* Wall screens on the two back walls */}
+      {/* Back-wall screens */}
       <WallDisplay
         width={9}
-        height={3.4}
+        height={3.6}
         draw={drawCellMap}
-        position={[-15.75, 4.4, 8.6]}
+        position={[-15.7, 4.3, 8.6]}
+        rotation={[0, Math.PI / 2, 0]}
+      />
+      <WallDisplay
+        width={8}
+        height={3.6}
+        draw={drawRods}
+        position={[-15.7, 4.3, -9.2]}
         rotation={[0, Math.PI / 2, 0]}
       />
       <WallDisplay
         width={9}
-        height={3.4}
+        height={3.6}
         draw={outputDrawer}
-        position={[8.6, 4.4, -15.75]}
+        position={[8.6, 4.3, -15.7]}
         rotation={[0, 0, 0]}
       />
-      <RadiationSign position={[-8.5, 4.6, -15.76]} rotation={[0, 0, 0]} />
-      <RadiationSign position={[-15.76, 4.6, -8.5]} rotation={[0, Math.PI / 2, 0]} />
+      <RadiationSign position={[-13.4, 4.6, -15.76]} rotation={[0, 0, 0]} />
 
-      {[
-        [-14.6, -14.6],
-        [-14.6, 3.2],
-        [3.2, -14.6],
-        [-14.6, 14.4],
-        [14.4, -14.6],
-        [14.4, 14.4],
-      ].map(([x, z]) => (
-        <Plant key={`${x},${z}`} x={x!} z={z!} />
+      {/* Safety and amenities */}
+      <AlarmPanel x={PROPS.alarmPanel.x} z={PROPS.alarmPanel.z} />
+      <AlarmBeacon x={PROPS.alarmPanel.x} z={-15.6} y={2.6} />
+      <AlarmBeacon x={-15.55} z={0} y={7.6} yaw={Math.PI / 2} />
+      <AlarmBeacon x={0} z={-15.55} y={7.6} />
+      <VendingMachine {...PROPS.vending} />
+      <WaterCooler {...PROPS.cooler} />
+      {PROPS.extinguishers.map((e, i) => (
+        <Extinguisher key={i} {...e} />
+      ))}
+      <FirstAid x={PROPS.firstAid.x} z={PROPS.firstAid.z} />
+      <WallClock x={PROPS.clock.x} z={PROPS.clock.z + 0.02} y={5.7} />
+      <SecurityCamera x={-15.6} z={14.2} y={6.8} yaw={Math.PI / 2} />
+      <SecurityCamera x={14.2} z={-15.6} y={6.8} yaw={0} />
+
+      {/* Service pipes along the back walls */}
+      <Pipe axis="z" from={-15.6} to={15.6} y={7.35} offset={-15.5} band={PALETTE.cyan} />
+      <Pipe
+        axis="z"
+        from={-15.6}
+        to={15.6}
+        y={7.85}
+        offset={-15.45}
+        r={0.1}
+        color="#b7bfc8"
+        band={PALETTE.trim}
+      />
+      <Pipe axis="x" from={-15.6} to={15.6} y={7.35} offset={-15.5} band={PALETTE.cyan} />
+      <Pipe
+        axis="x"
+        from={-15.6}
+        to={15.6}
+        y={7.85}
+        offset={-15.45}
+        r={0.1}
+        color="#b7bfc8"
+        band={PALETTE.player}
+      />
+
+      {PROPS.plants.map(([x, z]) => (
+        <Plant key={`${x},${z}`} x={x} z={z} />
       ))}
 
-      {/* Warm lamp pools: two real lights for the key bounce, decals for the rest. */}
-      <pointLight position={[-10, 6.5, -10]} color="#ffc48a" intensity={22} distance={18} decay={1.4} />
-      <pointLight position={[10, 6.5, 10]} color="#ffc48a" intensity={16} distance={16} decay={1.4} />
+      {/* Warm lamp pools: a few real lights for bounce, decals for the rest. */}
+      <pointLight position={[-10, 6.5, -10]} color="#ffc48a" intensity={55} distance={22} decay={1.3} />
+      <pointLight position={[10, 6.5, 10]} color="#ffc48a" intensity={45} distance={20} decay={1.3} />
+      <pointLight position={[-10, 6.5, 10]} color="#ffd9b0" intensity={32} distance={18} decay={1.3} />
       {[
         [-10, -10],
         [10, 10],
         [-10, 10],
         [10, -10],
       ].map(([x, z]) => (
-        <GlowDecal key={`${x},${z}`} x={x!} z={z!} radius={6} color={PALETTE.amber} intensity={0.2} />
+        <GlowDecal key={`${x},${z}`} x={x!} z={z!} radius={6.5} color={PALETTE.amber} intensity={0.24} />
       ))}
-      {/* Walkway lines from each door to the core */}
+      {/* Walkway lines from each door toward the core */}
       {[
         [-12, 0, 8, 0.12],
         [0, -12, 0.12, 8],

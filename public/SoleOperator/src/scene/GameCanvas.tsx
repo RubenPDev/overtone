@@ -5,6 +5,7 @@ import { PALETTE } from '../styles/palette';
 import { IsoCamera } from './IsoCamera';
 import { Lighting } from './Lighting';
 import { PostFX } from './PostFX';
+import { ModeDriver } from './ModeDriver';
 import { SimDriver } from './SimDriver';
 import { SpaceStage } from './SpaceStage';
 
@@ -23,6 +24,7 @@ export default function GameCanvas() {
     >
       <color attach="background" args={[PALETTE.void]} />
       <SimDriver />
+      <ModeDriver />
       <IsoCamera />
       <Lighting />
       <SpaceStage />

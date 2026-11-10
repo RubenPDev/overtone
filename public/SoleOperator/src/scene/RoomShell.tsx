@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { isRoomBuilt } from '../rooms/registry';
 import { PALETTE } from '../styles/palette';
-import { FACING_VEC, STUB_LENGTH, doorPosition } from '../world/geometry';
+import { FACING_VEC, STUB_LENGTH, doorPosition, subtractRects } from '../world/geometry';
 import { doorState, type DoorState } from '../world/spaces';
 import type { Doorway, Facing, RoomDefinition } from '../world/types';
 import { FloorText, GlowDecal, WorldText, useEmissive } from './parts';
@@ -228,10 +228,29 @@ export function RoomShell({ room }: { room: RoomDefinition }) {
   const mats = useShellMaterials();
   const b = room.bounds;
   const w = b.maxX - b.minX;
-  const d = b.maxZ - b.minZ;
-  const cx = (b.minX + b.maxX) / 2;
-  const cz = (b.minZ + b.maxZ) / 2;
-  mats.floorMap.repeat.set(w / 2, d / 2);
+  mats.floorMap.repeat.set(1, 1);
+
+  // Floor and slab pieces around any pits; UVs are in world metres so tiles line up across pieces.
+  const pieces = useMemo(() => {
+    const outer = {
+      minX: b.minX - WALL_T,
+      maxX: b.maxX + WALL_T,
+      minZ: b.minZ - WALL_T,
+      maxZ: b.maxZ + WALL_T,
+    };
+    const holes = room.floorHoles ?? [];
+    const floor = subtractRects(b, holes).map((r) => {
+      const rw = r.maxX - r.minX;
+      const rd = r.maxZ - r.minZ;
+      const g = new THREE.PlaneGeometry(rw, rd);
+      const uv = g.getAttribute('uv') as THREE.BufferAttribute;
+      for (let i = 0; i < uv.count; i++)
+        uv.setXY(i, (r.minX + uv.getX(i) * rw) / 2, (-r.maxZ + uv.getY(i) * rd) / 2);
+      return { r, g };
+    });
+    const slab = subtractRects(outer, holes);
+    return { floor, slab };
+  }, [b, room.floorHoles]);
 
   const floorMat = useMemo(
     () =>
@@ -247,12 +266,25 @@ export function RoomShell({ room }: { room: RoomDefinition }) {
   return (
     <group>
       {/* Base slab: the room reads as a solid block floating in the dark. */}
-      <mesh position={[cx, -0.75, cz]} material={mats.slab}>
-        <boxGeometry args={[w + WALL_T * 2, 1.5, d + WALL_T * 2]} />
-      </mesh>
-      <mesh position={[cx, -0.01, cz]} rotation={[-Math.PI / 2, 0, 0]} material={floorMat} receiveShadow>
-        <planeGeometry args={[w, d]} />
-      </mesh>
+      {pieces.slab.map((r, i) => (
+        <mesh
+          key={`s${i}`}
+          position={[(r.minX + r.maxX) / 2, -0.75, (r.minZ + r.maxZ) / 2]}
+          material={mats.slab}
+        >
+          <boxGeometry args={[r.maxX - r.minX, 1.5, r.maxZ - r.minZ]} />
+        </mesh>
+      ))}
+      {pieces.floor.map(({ r, g }, i) => (
+        <mesh
+          key={`f${i}`}
+          geometry={g}
+          position={[(r.minX + r.maxX) / 2, -0.01, (r.minZ + r.maxZ) / 2]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          material={floorMat}
+          receiveShadow
+        />
+      ))}
       {(['-x', '-z', '+x', '+z'] as Facing[]).map((f) => (
         <Wall key={f} room={room} facing={f} mats={mats} />
       ))}

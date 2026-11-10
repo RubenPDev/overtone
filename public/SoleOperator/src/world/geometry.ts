@@ -29,6 +29,28 @@ export function rectUnion(rs: Rect[]): Rect {
   };
 }
 
+/** `base` minus `holes`, as a list of non-overlapping rects (for floors with pits cut out). */
+export function subtractRects(base: Rect, holes: Rect[]): Rect[] {
+  let parts: Rect[] = [base];
+  for (const h of holes) {
+    const next: Rect[] = [];
+    for (const r of parts) {
+      const ix = { minX: Math.max(r.minX, h.minX), maxX: Math.min(r.maxX, h.maxX) };
+      const iz = { minZ: Math.max(r.minZ, h.minZ), maxZ: Math.min(r.maxZ, h.maxZ) };
+      if (ix.minX >= ix.maxX || iz.minZ >= iz.maxZ) {
+        next.push(r);
+        continue;
+      }
+      if (r.minZ < iz.minZ) next.push({ ...r, maxZ: iz.minZ });
+      if (iz.maxZ < r.maxZ) next.push({ ...r, minZ: iz.maxZ });
+      if (r.minX < ix.minX) next.push({ minX: r.minX, maxX: ix.minX, ...iz });
+      if (ix.maxX < r.maxX) next.push({ minX: ix.maxX, maxX: r.maxX, ...iz });
+    }
+    parts = next;
+  }
+  return parts;
+}
+
 /** Centre of a doorway on its wall line, room-local. */
 export function doorPosition(bounds: Rect, door: Doorway): Vec2 {
   const c = rectCenter(bounds);
@@ -127,13 +149,13 @@ function pointInUnionWithMargin(rects: Rect[], p: Vec2, radius: number): boolean
 }
 
 /** Moves from `from` by `delta`, sliding along walls/obstacles instead of stopping dead. */
-export function slideMove(layout: SpaceLayout, from: Vec2, delta: Vec2): Vec2 {
+export function slideMove(layout: SpaceLayout, from: Vec2, delta: Vec2, radius = PLAYER_RADIUS): Vec2 {
   const full = { x: from.x + delta.x, z: from.z + delta.z };
-  if (isWalkable(layout, full)) return full;
+  if (isWalkable(layout, full, radius)) return full;
   const xOnly = { x: from.x + delta.x, z: from.z };
-  if (Math.abs(delta.x) > 1e-6 && isWalkable(layout, xOnly)) return xOnly;
+  if (Math.abs(delta.x) > 1e-6 && isWalkable(layout, xOnly, radius)) return xOnly;
   const zOnly = { x: from.x, z: from.z + delta.z };
-  if (Math.abs(delta.z) > 1e-6 && isWalkable(layout, zOnly)) return zOnly;
+  if (Math.abs(delta.z) > 1e-6 && isWalkable(layout, zOnly, radius)) return zOnly;
   return from;
 }
 

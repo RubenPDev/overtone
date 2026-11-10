@@ -92,7 +92,10 @@ describe('rooms and spaces', () => {
 });
 
 describe('objective runner', () => {
-  it('advances "Swap Fuel Cell 07" through bus events only', () => {
+  const craned = (burnup: number, to: 'cask' | 'pool') =>
+    ({ assembly: 'FA-31', burnup, from: 'hook', to }) as const;
+
+  it('advances "Swap Fuel Cell 07" through bus events only, then chains the return objective', () => {
     const bus = new EventBus<GameEvents>();
     const runner = new ObjectiveRunner(bus, OBJECTIVES);
     const done: string[] = [];
@@ -103,13 +106,25 @@ describe('objective runner', () => {
     bus.emit('interact', { room: 'control-room', interactable: 'npc-2', kind: 'npc' });
     expect(runner.currentStep?.id).toBe('check');
     bus.emit('interact', { room: 'control-room', interactable: 'core-panel', kind: 'core' });
-    expect(runner.currentStep?.id).toBe('fetch');
-    bus.emit('item/picked', { item: 'FA-31', room: 'fuel-storage' });
-    expect(runner.currentStep?.id).toBe('load');
+    expect(runner.currentStep?.id).toBe('cask');
+    bus.emit('fuel/craned', craned(0.97, 'cask')); // spent fuel doesn't count
+    expect(runner.currentStep?.id).toBe('cask');
+    bus.emit('fuel/craned', craned(0, 'cask'));
+    expect(runner.currentStep?.id).toBe('deliver');
+    bus.emit('cart/docked', { room: 'control-room', bay: 'core-bay', fresh: 0, spent: 0 }); // empty cart
+    expect(runner.currentStep?.id).toBe('deliver');
+    bus.emit('cart/docked', { room: 'control-room', bay: 'core-bay', fresh: 1, spent: 0 });
+    expect(runner.currentStep?.id).toBe('swap');
     bus.emit('sim', { type: 'cellLoaded', cell: 3, assembly: 'FA-32' });
-    expect(runner.currentStep?.id).toBe('load');
+    expect(runner.currentStep?.id).toBe('swap');
     bus.emit('sim', { type: 'cellLoaded', cell: 6, assembly: 'FA-31' });
     expect(done).toEqual(['swap-cell-07']);
+
+    // The side objective starts on its own.
+    expect(runner.progress.active?.id).toBe('return-spent');
+    bus.emit('cart/docked', { room: 'fuel-storage', bay: 'pool-dock', fresh: 0, spent: 1 });
+    bus.emit('fuel/craned', craned(0.96, 'pool'));
+    expect(done).toEqual(['swap-cell-07', 'return-spent']);
     expect(runner.progress.active).toBeNull();
   });
 
@@ -119,9 +134,9 @@ describe('objective runner', () => {
     const steps: number[] = [];
     bus.on('objective/step', (e) => steps.push(e.step));
     runner.start('swap-cell-07');
-    bus.emit('item/picked', { item: 'FA-31', room: 'fuel-storage' });
+    bus.emit('fuel/craned', craned(0, 'cask'));
     expect(steps).toEqual([0, 1]);
-    expect(runner.currentStep?.id).toBe('load');
+    expect(runner.currentStep?.id).toBe('deliver');
   });
 
   it('saves and restores progress', () => {
@@ -133,6 +148,6 @@ describe('objective runner', () => {
     a.dispose();
     const b = new ObjectiveRunner(new EventBus<GameEvents>(), OBJECTIVES);
     b.load(s);
-    expect(b.currentStep?.id).toBe('fetch');
+    expect(b.currentStep?.id).toBe('cask');
   });
 });

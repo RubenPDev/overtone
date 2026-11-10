@@ -77,3 +77,17 @@ export function installInput() {
   window.addEventListener('keyup', (e) => held.delete(e.code));
   window.addEventListener('blur', () => held.clear());
 }
+
+const S = Math.SQRT1_2;
+
+/** Screen-relative WASD/arrows → ground direction for the fixed iso camera (W = screen up). */
+export function keyboardDir(): { x: number; z: number } | null {
+  let x = 0;
+  let z = 0;
+  if (isDown('KeyW', 'ArrowUp')) ((x -= S), (z -= S));
+  if (isDown('KeyS', 'ArrowDown')) ((x += S), (z += S));
+  if (isDown('KeyD', 'ArrowRight')) ((x += S), (z -= S));
+  if (isDown('KeyA', 'ArrowLeft')) ((x -= S), (z += S));
+  const len = Math.hypot(x, z);
+  return len > 0 ? { x: x / len, z: z / len } : null;
+}

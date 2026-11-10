@@ -5,6 +5,7 @@ import { useWorld, type Arrival } from '../state/world';
 import { getCorridor, getNode, otherEnd } from '../world/facility';
 import { arrivalPoint } from '../world/geometry';
 import { corridorFrame, type Space } from '../world/spaces';
+import { cartEnteredRoom } from './cart';
 import { player } from './runtime';
 
 const FADE_MS = 380;
@@ -31,6 +32,7 @@ async function transition(title: string, subtitle: string, swap: () => Promise<v
 function mount(space: Space, arrival: Arrival) {
   player.pos = { ...arrival.position };
   player.yaw = arrival.facing;
+  if (space.kind === 'room') cartEnteredRoom(space.room);
   useWorld.setState((s) => ({ space, arrival, spaceVersion: s.spaceVersion + 1 }));
   useHud.setState({
     graphPos:

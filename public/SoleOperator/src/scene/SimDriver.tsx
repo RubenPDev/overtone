@@ -1,6 +1,8 @@
 import { useFrame } from '@react-three/fiber';
 import { useMemo } from 'react';
 import { createThrottle } from '../core/clock';
+import { bus } from '../core/events';
+import { GAME_SECONDS_PER_TICK, averageInsertion } from '../sim';
 import { player, simHost } from '../game/runtime';
 import { toHudSim, useHud } from '../state/hud';
 import { corridorT } from '../world/spaces';
@@ -22,11 +24,20 @@ export function SimDriver() {
 
   useFrame((_, dt) => {
     const n = simHost.frame(dt);
+    // Focus drains with game time (4% per game hour); coffee brings it back.
+    player.focus = Math.max(0, player.focus - (n * GAME_SECONDS_PER_TICK * 0.04) / 3600);
     counters.frames += 1;
     counters.ticks += n;
     if (statThrottle(dt)) {
       frameStats.fps = counters.frames;
       frameStats.tps = counters.ticks;
+      const st = simHost.state;
+      bus.emit('plant/sample', {
+        output: st.output,
+        thermalPower: st.thermalPower,
+        coreTemp: st.coreTemp,
+        rodsIn: averageInsertion(st),
+      });
       counters.frames = 0;
       counters.ticks = 0;
     }

@@ -30,7 +30,7 @@ function screenTexture() {
 }
 
 /** Placeholder control desk: local +z faces the seated operator. */
-export function ConsoleDesk({ x, z, yaw }: { x: number; z: number; yaw: number }) {
+export function ConsoleDesk({ x, z, yaw, seed = 0 }: { x: number; z: number; yaw: number; seed?: number }) {
   const m = useMemo(
     () => ({
       desk: new THREE.MeshStandardMaterial({ color: PALETTE.desk, roughness: 0.6 }),
@@ -46,9 +46,20 @@ export function ConsoleDesk({ x, z, yaw }: { x: number; z: number; yaw: number }
         emissive: PALETTE.trim,
         emissiveIntensity: 0.3,
       }),
+      mug: new THREE.MeshStandardMaterial({
+        color: ['#f4f6f8', '#d7261e', '#2f6fb0', '#f2b81f'][seed % 4],
+        roughness: 0.4,
+      }),
+      paper: new THREE.MeshStandardMaterial({ color: '#f1f3f5', roughness: 0.9 }),
+      keys: new THREE.MeshStandardMaterial({ color: '#2a3038', roughness: 0.6 }),
+      lamp: new THREE.MeshBasicMaterial({
+        color: new THREE.Color('#ffd9a0').multiplyScalar(2),
+        toneMapped: false,
+      }),
     }),
-    [],
+    [seed],
   );
+  const side = seed % 2 ? 1 : -1;
   return (
     <group position={[x, 0, z]} rotation={[0, yaw, 0]}>
       <mesh position={[0, 0.38, -0.05]} material={m.base} castShadow receiveShadow>
@@ -70,6 +81,24 @@ export function ConsoleDesk({ x, z, yaw }: { x: number; z: number; yaw: number }
           </mesh>
         </group>
       ))}
+      {/* Desk clutter: keyboard, coffee mug, papers and a small lamp. */}
+      <mesh position={[0, 0.83, 0.22]} material={m.keys}>
+        <boxGeometry args={[0.6, 0.025, 0.2]} />
+      </mesh>
+      <mesh position={[side * 0.95, 0.88, 0.25]} material={m.mug} castShadow>
+        <cylinderGeometry args={[0.055, 0.05, 0.13, 12]} />
+      </mesh>
+      <mesh position={[-side * 0.85, 0.825, 0.3]} rotation={[0, 0.3 * side, 0]} material={m.paper}>
+        <boxGeometry args={[0.3, 0.012, 0.4]} />
+      </mesh>
+      <group position={[-side * 1.18, 0.82, -0.3]}>
+        <mesh position={[0, 0.22, 0]} material={m.frame}>
+          <cylinderGeometry args={[0.015, 0.02, 0.44, 6]} />
+        </mesh>
+        <mesh position={[0, 0.44, 0.06]} rotation={[0.6, 0, 0]} material={m.lamp}>
+          <coneGeometry args={[0.08, 0.1, 10, 1, true]} />
+        </mesh>
+      </group>
     </group>
   );
 }

@@ -12,8 +12,19 @@ const DevOverlay = import.meta.env.DEV ? lazy(() => import('../dev/DevOverlay'))
 
 if (import.meta.env.DEV) {
   // Console / automation handle for dev builds: __soleOperator.player.path = [{ x: 20, z: 0 }]
-  void Promise.all([import('../game/runtime'), import('../core/events')]).then(([rt, ev]) => {
-    (window as unknown as Record<string, unknown>).__soleOperator = { ...rt, bus: ev.bus };
+  void Promise.all([
+    import('../game/runtime'),
+    import('../core/events'),
+    import('../game/refuel'),
+    import('../game/modes'),
+  ]).then(([rt, ev, refuel, modes]) => {
+    (window as unknown as Record<string, unknown>).__soleOperator = {
+      ...rt,
+      bus: ev.bus,
+      machine: refuel.machine,
+      enterMode: modes.enterMode,
+      exitMode: modes.exitMode,
+    };
   });
 }
 

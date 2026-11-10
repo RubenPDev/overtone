@@ -573,3 +573,211 @@
     height: 60px;
   }
 }
+
+/* ---- Control-mode panel (rod control, crane, refuelling machine) ------------------ */
+.mp {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: var(--gutter);
+  transform: translateX(-50%);
+  width: min(720px, calc(100vw - 32px));
+  padding: 14px 18px 12px;
+  display: grid;
+  gap: 10px;
+  pointer-events: auto;
+  background: linear-gradient(to top, rgba(6, 12, 18, 0.88), rgba(6, 12, 18, 0.62));
+  border-top: 2px solid var(--cyan);
+  clip-path: polygon(0 0, 100% 0, 100% 88%, 97% 100%, 0 100%);
+  animation: toast-in 0.2s ease-out;
+}
+.mp__head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.mp__eyebrow {
+  font: 600 11px/1 var(--font-head);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.mp__head h3 {
+  margin: 0;
+  font: 700 20px/1 var(--font-head);
+  letter-spacing: 0.04em;
+}
+.mp__head h3 small {
+  font: 500 14px var(--font-body);
+  color: var(--ink-dim);
+}
+.mp__close {
+  margin-left: auto;
+  font: 700 11px/1 var(--font-head);
+  padding: 5px 8px;
+  border: 1px solid rgba(200, 220, 235, 0.3);
+  background: transparent;
+  cursor: pointer;
+}
+.mp__readouts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-size: 14px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.mp__readouts b {
+  font: 700 16px var(--font-head);
+  color: var(--ink);
+}
+.mp__readouts .up b {
+  color: var(--amber);
+}
+.mp__readouts .down b {
+  color: var(--cyan);
+}
+.mp__rods {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 6px;
+}
+.rodcol {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 6px 0 4px;
+  background: rgba(200, 220, 235, 0.05);
+  border: 1px solid rgba(200, 220, 235, 0.12);
+  cursor: pointer;
+}
+.rodcol.is-on {
+  border-color: var(--cyan);
+  background: rgba(95, 227, 255, 0.12);
+  box-shadow: 0 0 12px rgba(95, 227, 255, 0.25) inset;
+}
+.rodcol__bar {
+  position: relative;
+  width: 10px;
+  height: 64px;
+  background: rgba(200, 220, 235, 0.12);
+}
+.rodcol__bar i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  background: var(--hazard);
+  box-shadow: 0 0 6px var(--hazard);
+}
+.rodcol b {
+  font: 700 13px var(--font-head);
+}
+.rodcol small {
+  font-size: 11px;
+  color: var(--ink-dim);
+  font-weight: 600;
+}
+.rodcol small.hot {
+  color: var(--amber);
+}
+.mp__rows {
+  display: grid;
+  gap: 6px;
+}
+.mp__rows > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+}
+.mp__rows > div > span:first-child {
+  width: 110px;
+  font: 600 11px/1 var(--font-head);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.mp__rows b {
+  font-weight: 600;
+}
+.mp__rows b.fresh {
+  color: #8dff6a;
+}
+.mp__rows b.spent {
+  color: var(--cyan);
+}
+.mp__meter {
+  flex: 1;
+  height: 8px;
+  transform: skewX(-24deg);
+  background: rgba(200, 220, 235, 0.14);
+}
+.mp__meter i {
+  display: block;
+  height: 100%;
+  background: var(--hazard);
+  box-shadow: 0 0 6px var(--hazard);
+}
+.mp__meter.is-progress i {
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+}
+.mp__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 18px;
+  font: 600 12px/1 var(--font-head);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.mp__steps li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.mp__steps i {
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  border: 2px solid currentColor;
+}
+.mp__steps li.done {
+  color: var(--player);
+}
+.mp__steps li.done i {
+  background: var(--player);
+}
+.mp__steps li.active {
+  color: var(--amber);
+}
+.mp__hint {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-dim);
+}
+.mp__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font: 600 11px/1 var(--font-head);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.mp__keys kbd {
+  font: 700 10px/1 var(--font-head);
+  padding: 3px 5px;
+  margin-right: 6px;
+  background: var(--ink);
+  color: #0b1118;
+  text-shadow: none;
+}
+@media (max-width: 900px) {
+  .mp__rods {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}

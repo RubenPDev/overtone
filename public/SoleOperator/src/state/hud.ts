@@ -76,6 +76,8 @@ interface HudState {
   objective: HudObjective | null;
   speed: GameSpeed;
   toasts: Toast[];
+  /** Alarms acknowledged at the alarm panel (beacons go steady instead of spinning). */
+  acked: string[];
 }
 
 export const useHud = create<HudState>()(() => ({
@@ -85,6 +87,7 @@ export const useHud = create<HudState>()(() => ({
   objective: null,
   speed: 1,
   toasts: [],
+  acked: [],
 }));
 
 let toastId = 0;

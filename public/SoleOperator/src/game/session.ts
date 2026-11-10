@@ -16,7 +16,9 @@ import { useApp } from '../state/app';
 import { pushToast, useHud, type HudObjective } from '../state/hud';
 import { useWorld } from '../state/world';
 import { arrivalPoint } from '../world/geometry';
-import { objectives, player, session, simHost } from './runtime';
+import { initialLogistics } from '../logistics';
+import { logistics, objectives, player, session, simHost, syncLogistics } from './runtime';
+import { exitMode } from './modes';
 import { placeInRoom } from './worldController';
 
 const storage = defaultStorage();
@@ -63,15 +65,17 @@ function resetCommon() {
   player.stamina = 1;
   player.focus = 0.88;
   player.locked = false;
-  useWorld.setState({ carrying: null, near: null, waypoint: null });
+  exitMode();
+  useWorld.setState({ near: null, waypoint: null });
   useHud.setState({ toasts: [] });
 }
 
 export function newGame() {
   session.seed = `unit-1-${Date.now().toString(36)}`;
-  session.assembliesTaken = 0;
   simHost.reset(session.seed);
   player.dose = 0;
+  logistics.state = initialLogistics();
+  syncLogistics();
   resetCommon();
   placeInRoom(START_ROOM);
   objectives.load({ active: null, step: 0, completed: [] });
@@ -96,8 +100,10 @@ export function continueGame(): boolean {
   session.seed = d.seed;
   simHost.restore(d.sim);
   resetCommon();
-  useWorld.setState({ carrying: d.world.carrying });
-  session.assembliesTaken = Number(d.world.carrying?.slice(3) ?? 30) - 30 || 0;
+  player.focus = d.world.focus;
+  player.dose = d.world.dose;
+  logistics.state = structuredClone(d.logistics);
+  syncLogistics();
   placeInRoom(d.world.room, { position: d.world.player, facing: player.yaw });
   objectives.load(d.objectives);
   setSpeed(1);
@@ -126,12 +132,20 @@ export function saveGame(slot: SaveSlot): boolean {
     savedAt: new Date().toISOString(),
     seed: session.seed,
     sim: simHost.snapshot(),
-    world: { ...world, carrying: useWorld.getState().carrying },
+    world: { ...world, focus: player.focus, dose: player.dose },
     objectives: objectives.save(),
+    logistics: saveLogistics(world.room),
   };
   const ok = writeSave(storage, slot, data);
   if (ok) bus.emit('game/saved', { slot, auto: slot === 'auto' });
   return ok;
+}
+
+/** A cart being pushed through a corridor is saved parked next to the player in the room they left. */
+function saveLogistics(room: string) {
+  const l = structuredClone(logistics.state);
+  if (l.cart.attached) l.cart.room = room;
+  return l;
 }
 
 function startAutosave() {
@@ -142,6 +156,7 @@ function startAutosave() {
 }
 
 export function quitToTitle() {
+  exitMode();
   saveGame('auto');
   if (autosaveTimer) clearInterval(autosaveTimer);
   autosaveTimer = null;

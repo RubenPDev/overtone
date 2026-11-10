@@ -52,9 +52,14 @@ export function IsoCamera() {
     const layout = stage.layout;
     // Base zoom: pixels per metre so the whole control room (core, ring of desks, back walls) fits at 1×.
     const base = Math.min(size.height / 36, size.width / 52);
-    zoom.current += (zoomGoal.current - zoom.current) * (1 - Math.exp(-dt * 10));
+    // Control modes frame their machine: look at the focus point and zoom in (scroll still works on top).
+    const focus = stage.focus;
+    const wantZoom = focus ? Math.max(zoomGoal.current, focus.zoom) : zoomGoal.current;
+    zoom.current += (wantZoom - zoom.current) * (1 - Math.exp(-dt * (focus ? 4 : 10)));
 
-    const goal = new THREE.Vector3(player.pos.x, 0, player.pos.z);
+    const goal = focus
+      ? new THREE.Vector3(focus.x, 0, focus.z)
+      : new THREE.Vector3(player.pos.x, 0, player.pos.z);
     if (layout) {
       const f = layout.frame;
       goal.x = THREE.MathUtils.clamp(goal.x, f.minX, f.maxX);
@@ -65,7 +70,7 @@ export function IsoCamera() {
       target.current.copy(goal);
       snapped.current = stage.version;
     } else {
-      target.current.lerp(goal, 1 - Math.exp(-dt * 5));
+      target.current.lerp(goal, 1 - Math.exp(-dt * (focus ? 3.5 : 5)));
     }
 
     camera.position.copy(target.current).add(OFFSET);

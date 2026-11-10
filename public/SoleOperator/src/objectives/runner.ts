@@ -99,6 +99,7 @@ export class ObjectiveRunner {
       this.active = null;
       this.step = 0;
       this.bus.emit('objective/completed', { objective: def.id });
+      if (def.next && this.defs.has(def.next)) return this.start(def.next);
     }
     this.changed();
   }

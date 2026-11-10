@@ -1,32 +1,24 @@
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { isDown } from '../game/input';
+import { CART_OFFSET, CART_SPEED, CART_SPRINT, cartInteractable, followPlayer } from '../game/cart';
+import { isDown, keyboardDir } from '../game/input';
 import { player } from '../game/runtime';
 import { arrive, enterCorridor } from '../game/worldController';
 import { useApp } from '../state/app';
+import { useLogistics } from '../state/logistics';
+import { useMode } from '../state/mode';
 import { useWorld } from '../state/world';
 import { PALETTE } from '../styles/palette';
-import { rectContains, slideMove } from '../world/geometry';
+import { isWalkable, rectContains, slideMove } from '../world/geometry';
 import type { Interactable } from '../world/types';
 import { glowTexture } from './textures';
 import { stage } from './stage';
 
 const WALK_SPEED = 4.2; // m/s: 140 m of corridor ≈ 33 s, as on the map
 const SPRINT_SPEED = 7;
-const S = Math.SQRT1_2;
-
-/** Screen-relative WASD → ground direction for the fixed iso camera. */
-function keyboardDir(): { x: number; z: number } | null {
-  let x = 0;
-  let z = 0;
-  if (isDown('KeyW', 'ArrowUp')) ((x -= S), (z -= S));
-  if (isDown('KeyS', 'ArrowDown')) ((x += S), (z += S));
-  if (isDown('KeyD', 'ArrowRight')) ((x += S), (z -= S));
-  if (isDown('KeyA', 'ArrowLeft')) ((x -= S), (z += S));
-  const len = Math.hypot(x, z);
-  return len > 0 ? { x: x / len, z: z / len } : null;
-}
+/** Collision radius while pushing the cart (it's wider than the Operator). */
+const PUSH_RADIUS = 0.85;
 
 function angleLerp(a: number, b: number, t: number) {
   const d = Math.atan2(Math.sin(b - a), Math.cos(b - a));
@@ -37,9 +29,12 @@ function angleLerp(a: number, b: number, t: number) {
 export function Player({
   interactables,
   coreAt,
+  roomId = null,
 }: {
   interactables: Interactable[];
   coreAt?: { x: number; z: number };
+  /** Room the player is in (null in corridors); used for the cart interactable. */
+  roomId?: string | null;
 }) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
@@ -50,7 +45,7 @@ export function Player({
   const ring = useRef<THREE.Mesh>(null);
   const phase = useRef(0);
   const fired = useRef(false);
-  const carrying = useWorld((s) => s.carrying);
+  const pushing = useLogistics((s) => s.cart.attached);
 
   const mats = useMemo(
     () => ({
@@ -77,11 +72,6 @@ export function Player({
         opacity: 0.55,
         depthWrite: false,
       }),
-      fuel: new THREE.MeshBasicMaterial({
-        color: new THREE.Color(PALETTE.cyan).multiplyScalar(2),
-        toneMapped: false,
-      }),
-      fuelCase: new THREE.MeshStandardMaterial({ color: '#9aa6b2', metalness: 0.6, roughness: 0.35 }),
     }),
     [],
   );
@@ -95,7 +85,8 @@ export function Player({
 
     // --- Movement -----------------------------------------------------------
     let dir: { x: number; z: number } | null = null;
-    if (!player.locked && !menuOpen) {
+    const controlling = useMode.getState().mode.kind !== 'walk';
+    if (!player.locked && !menuOpen && !controlling) {
       const k = keyboardDir();
       if (k) {
         dir = k;
@@ -111,7 +102,7 @@ export function Player({
     }
 
     const sprinting = !!dir && isDown('ShiftLeft', 'ShiftRight') && player.stamina > 0.02;
-    const speed = sprinting ? SPRINT_SPEED : WALK_SPEED;
+    const speed = pushing ? (sprinting ? CART_SPRINT : CART_SPEED) : sprinting ? SPRINT_SPEED : WALK_SPEED;
     player.stamina = THREE.MathUtils.clamp(player.stamina + (sprinting ? -0.16 : 0.09) * dt, 0, 1);
 
     if (dir) {
@@ -119,16 +110,30 @@ export function Player({
       const next = player.path[0];
       const remaining = next ? Math.hypot(next.x - player.pos.x, next.z - player.pos.z) : Infinity;
       const s = Math.min(step, remaining);
-      const moved = slideMove(layout, player.pos, { x: dir.x * s, z: dir.z * s });
+      let moved = slideMove(
+        layout,
+        player.pos,
+        { x: dir.x * s, z: dir.z * s },
+        pushing ? PUSH_RADIUS : undefined,
+      );
+      if (pushing) {
+        // The cart rides in front: don't let its nose go through a wall or into the pool.
+        const nose = {
+          x: moved.x + Math.sin(player.yaw) * CART_OFFSET,
+          z: moved.z + Math.cos(player.yaw) * CART_OFFSET,
+        };
+        if (!isWalkable(layout, nose, 0.55)) moved = player.pos;
+      }
       const actual = Math.hypot(moved.x - player.pos.x, moved.z - player.pos.z);
       if (actual < s * 0.2 && player.path.length) player.path = []; // blocked: give up the click target
       player.pos = moved;
       player.speed = actual / dt;
-      player.yaw = angleLerp(player.yaw, Math.atan2(dir.x, dir.z), 1 - Math.exp(-dt * 14));
+      player.yaw = angleLerp(player.yaw, Math.atan2(dir.x, dir.z), 1 - Math.exp(-dt * (pushing ? 5 : 14)));
     } else {
       player.speed = 0;
     }
 
+    if (pushing) followPlayer();
     g.position.set(player.pos.x, 0, player.pos.z);
     body.current!.rotation.y = player.yaw;
 
@@ -138,8 +143,8 @@ export function Player({
     const swing = moving ? Math.sin(phase.current) * Math.min(0.75, player.speed * 0.13) : 0;
     legL.current!.rotation.x = swing;
     legR.current!.rotation.x = -swing;
-    armL.current!.rotation.x = carrying ? -1.1 : -swing * 0.8;
-    armR.current!.rotation.x = carrying ? -1.1 : swing * 0.8;
+    armL.current!.rotation.x = pushing ? -1.25 : controlling ? -0.7 : -swing * 0.8;
+    armR.current!.rotation.x = pushing ? -1.25 : controlling ? -0.7 : swing * 0.8;
     body.current!.position.y = moving
       ? Math.abs(Math.sin(phase.current)) * 0.06
       : Math.sin(phase.current) * 0.012;
@@ -149,11 +154,13 @@ export function Player({
     // --- Nearest interactable (store write only when it changes) ----------------
     let best: Interactable | null = null;
     let bestD = Infinity;
-    for (const it of interactables) {
+    const cart = controlling ? null : cartInteractable(roomId);
+    for (const it of cart ? [...interactables, cart] : interactables) {
       const d = Math.hypot(it.position.x - player.pos.x, it.position.z - player.pos.z);
       if (d <= it.radius && d < bestD) ((best = it), (bestD = d));
     }
-    if (useWorld.getState().near?.id !== best?.id) useWorld.setState({ near: best });
+    const cur = useWorld.getState().near;
+    if (cur?.id !== best?.id || cur?.verb !== best?.verb) useWorld.setState({ near: best });
 
     // --- Space triggers (door stubs, corridor ends) ------------------------------
     if (!player.locked && !fired.current) {
@@ -227,16 +234,6 @@ export function Player({
         <mesh position={[0, 1.82, 0.04]} material={mats.hat}>
           <cylinderGeometry args={[0.27, 0.27, 0.03, 20]} />
         </mesh>
-        {carrying && (
-          <group position={[0, 1.05, 0.42]}>
-            <mesh material={mats.fuelCase} castShadow>
-              <boxGeometry args={[0.34, 0.34, 0.5]} />
-            </mesh>
-            <mesh position={[0, 0.18, 0]} material={mats.fuel}>
-              <boxGeometry args={[0.22, 0.02, 0.4]} />
-            </mesh>
-          </group>
-        )}
       </group>
     </group>
   );

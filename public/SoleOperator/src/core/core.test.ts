@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FixedStepClock, createThrottle } from './clock';
 import { EventBus, type GameEvents } from './events';
 import { SimHost } from './simHost';
+import { initialLogistics } from '../logistics';
 import { latestSave, migrate, readSave, writeSave, type SaveData, type StorageLike } from './save';
 
 class MemoryStorage implements StorageLike {
@@ -102,12 +103,13 @@ describe('save', () => {
   const sample = (savedAt: string): SaveData => {
     const host = new SimHost(new EventBus<GameEvents>(), 'save');
     return {
-      version: 1,
+      version: 2,
       savedAt,
       seed: 'save',
       sim: host.snapshot(),
-      world: { room: 'control-room', player: { x: 1, z: 2 }, carrying: null },
+      world: { room: 'control-room', player: { x: 1, z: 2 }, focus: 0.9, dose: 0.1 },
       objectives: { active: 'swap-cell-07', step: 0, completed: [] },
+      logistics: initialLogistics(),
     };
   };
 
@@ -130,6 +132,24 @@ describe('save', () => {
     storage.setItem('sole-operator:save:auto', '{not json');
     expect(latestSave(storage)?.slot).toBe('manual');
     expect(readSave(null, 'auto')).toBeNull();
+  });
+
+  it('migrates a real v1 save: a carried assembly ends up in the cart cask', () => {
+    const storage = new MemoryStorage();
+    const v2 = sample('2026-01-01T00:00:00Z');
+    const v1 = {
+      ...v2,
+      version: 1,
+      world: { room: 'fuel-storage', player: { x: 2, z: 0 }, carrying: 'FA-31' },
+      logistics: undefined,
+    };
+    storage.setItem('sole-operator:save:auto', JSON.stringify(v1));
+    const back = readSave(storage, 'auto')!;
+    expect(back.version).toBe(2);
+    expect(back.world).toEqual({ room: 'fuel-storage', player: { x: 2, z: 0 }, focus: 0.88, dose: 0 });
+    expect(back.logistics.cart.cask).toEqual([{ id: 'FA-31', burnup: 0 }]);
+    expect(back.logistics.cart.room).toBe('fuel-storage');
+    expect(back.logistics.pool.some((a) => a?.id === 'FA-31')).toBe(false);
   });
 
   it('upgrades old saves through the migration chain', () => {

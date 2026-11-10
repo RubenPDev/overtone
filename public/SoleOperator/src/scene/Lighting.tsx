@@ -1,6 +1,7 @@
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { useApp } from '../state/app';
 import { stage } from './stage';
 
@@ -49,9 +50,33 @@ export function Lighting() {
 
   return (
     <>
-      <hemisphereLight args={['#a9c9e0', '#3a2a20', 0.75]} />
-      <ambientLight intensity={0.12} color="#9fb6cc" />
-      <directionalLight ref={key} intensity={1.15} color="#ffe6cc" castShadow={shadows} />
+      <hemisphereLight args={['#cfe4f2', '#4a3c30', 1.05]} />
+      <ambientLight intensity={0.22} color="#b8cadb" />
+      <directionalLight ref={key} intensity={1.6} color="#fff0dd" castShadow={shadows} />
+      <SceneEnvironment />
     </>
   );
+}
+
+/**
+ * A soft studio environment generated on the GPU (no download): fills shadows
+ * with a little light and gives metal and glass something to reflect.
+ */
+function SceneEnvironment() {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  useEffect(() => {
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const room = new RoomEnvironment();
+    const env = pmrem.fromScene(room, 0.04).texture;
+    scene.environment = env;
+    scene.environmentIntensity = 0.42;
+    room.dispose();
+    return () => {
+      scene.environment = null;
+      env.dispose();
+      pmrem.dispose();
+    };
+  }, [gl, scene]);
+  return null;
 }

@@ -1,7 +1,9 @@
 import { bus } from '../core/events';
 import { SimHost } from '../core/simHost';
+import { initialLogistics, type LogisticsState } from '../logistics';
 import { ObjectiveRunner } from '../objectives/runner';
 import { OBJECTIVES } from '../objectives/definitions';
+import { useLogistics } from '../state/logistics';
 import type { Vec2 } from '../world/types';
 
 /**
@@ -29,6 +31,18 @@ export const player = {
 
 export const session = {
   seed: 'unit-1',
-  /** Number of fresh assemblies taken so far (FA-31, FA-32, …). */
-  assembliesTaken: 0,
 };
+
+/** Live fuel logistics (pool, crane, cart). Mutated in place; call syncLogistics() after a change. */
+export const logistics: { state: LogisticsState } = { state: initialLogistics() };
+
+/** Copies the logistics state into the React store (call after anything changes hands). */
+export function syncLogistics() {
+  const s = logistics.state;
+  const { x: _x, z: _z, yaw: _yaw, ...cart } = s.cart;
+  useLogistics.setState({
+    pool: s.pool.map((a) => (a ? { ...a } : null)),
+    holding: s.crane.holding ? { ...s.crane.holding } : null,
+    cart: { ...cart, cask: s.cart.cask.map((a) => ({ ...a })) },
+  });
+}

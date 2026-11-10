@@ -3,10 +3,12 @@ import { fireAction, type Action } from '../game/input';
 import { setSpeed } from '../game/session';
 import { useShallow } from 'zustand/react/shallow';
 import { useHud } from '../state/hud';
-import { useWorld } from '../state/world';
+import { useLogistics } from '../state/logistics';
+import { useMode } from '../state/mode';
 import { routeTo, type GraphPosition } from '../world/facility';
 import { Compass } from './Compass';
 import { Minimap } from './Minimap';
+import { ModePanel } from './ModePanel';
 import { fmt, formatClock, placeName } from './nav';
 import './hud.css';
 
@@ -230,13 +232,15 @@ const HOTKEYS: { action: Action; key: string; label: string; icon: string }[] = 
 ];
 
 function HotkeyBar() {
-  const carrying = useWorld((s) => s.carrying);
+  const refuelReady = useLogistics(
+    (s) => !s.cart.attached && s.cart.room === 'control-room' && s.cart.bay === 'core-bay',
+  );
   return (
     <nav className="hud-bc">
       {HOTKEYS.map((h) => (
         <button
           key={h.action}
-          className={`hotkey${h.action === 'refuel' && carrying ? ' is-active' : ''}`}
+          className={`hotkey${h.action === 'refuel' && refuelReady ? ' is-active' : ''}`}
           onClick={() => fireAction(h.action)}
         >
           <kbd>{h.key}</kbd>
@@ -296,6 +300,12 @@ function ClockAndSpeed() {
 }
 
 /** The in-game overlay. Each widget subscribes to just the store slice it shows. */
+/** Hotkeys while walking; the machine's panel while controlling one. */
+function BottomCentre() {
+  const walking = useMode((s) => s.mode.kind === 'walk');
+  return walking ? <HotkeyBar /> : <ModePanel />;
+}
+
 export default function Hud() {
   return (
     <div className="hud">
@@ -303,7 +313,7 @@ export default function Hud() {
       <Compass />
       <CoreVitals />
       <OperatorCard />
-      <HotkeyBar />
+      <BottomCentre />
       <ClockAndSpeed />
     </div>
   );

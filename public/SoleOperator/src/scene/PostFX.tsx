@@ -18,7 +18,7 @@ export function PostFX() {
           <Bloom
             mipmapBlur
             intensity={0.95}
-            luminanceThreshold={0.9}
+            luminanceThreshold={1.15}
             luminanceSmoothing={0.25}
             radius={0.72}
           />
@@ -26,7 +26,7 @@ export function PostFX() {
       </>
       <ToneMapping mode={ToneMappingMode.AGX} />
       <primitive object={grade} dispose={null} />
-      <Vignette offset={0.28} darkness={0.72} />
+      <Vignette offset={0.32} darkness={0.42} />
     </EffectComposer>
   );
 }

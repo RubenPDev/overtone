@@ -1,30 +1,65 @@
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { machine } from '../../game/refuel';
 import { simHost } from '../../game/runtime';
-import { useHud } from '../../state/hud';
-import { PALETTE } from '../../styles/palette';
 import { GlowDecal, WorldText } from '../../scene/parts';
 import { hazardTexture } from '../../scene/textures';
+import { useHud } from '../../state/hud';
+import { useMode } from '../../state/mode';
+import { PALETTE } from '../../styles/palette';
 import { PLINTH_RADIUS, TANK_RADIUS } from './index';
-import { CORE_RADIUS, CORE_Y, DRIVE_RING_R, DRIVE_RING_Y, buildCoreFaces } from './coreGeometry';
+import {
+  CORE_RADIUS,
+  CORE_Y,
+  DRIVE_RING_R,
+  DRIVE_RING_Y,
+  ROD_RETRACTED_T,
+  cassetteGeometry,
+  coreFaces,
+} from './coreGeometry';
 
 const TANK_BOTTOM = 0.5;
 const TANK_TOP = 7.1;
+const TUBULAR = 80;
+const RADIAL = 8;
 const up = new THREE.Vector3(0, 1, 0);
+const CYAN = new THREE.Color(PALETTE.cyan);
+const AMBER = new THREE.Color(PALETTE.amber);
+
+/** How far along its path a rod's tip is for an insertion (0 = out, 1 = in the port). */
+export function rodTipT(insertion: number) {
+  return ROD_RETRACTED_T + (1 - ROD_RETRACTED_T) * insertion;
+}
 
 /**
  * The reactor: a dodecahedral core of 12 fuel cells in a glass cylinder of
- * water, one control rod per port curving up to the drive ring. Rods and port
- * glow read the sim directly in useFrame; only cell warnings re-render (5 Hz max).
+ * water. Each control rod slides along its guide tube from the drive ring
+ * into its port; rods, tips, port glow and cassettes all follow the sim in
+ * useFrame. Only cell burn-up colours and rod selection re-render (rarely).
  */
 export function ReactorCore() {
-  const faces = useMemo(() => buildCoreFaces(), []);
-  const hotCells = useHud((s) =>
-    s.sim ? s.sim.cells.map((c) => (!c.loaded ? 'e' : c.burnup > 0.9 ? 'h' : 'o')).join('') : '',
+  const faces = useMemo(() => coreFaces(), []);
+  const cellTone = useHud((s) =>
+    s.sim
+      ? s.sim.cells
+          .map((c) => (!c.loaded ? 'e' : c.burnup > 0.9 ? 'h' : c.burnup < 0.15 ? 'f' : 'o'))
+          .join('')
+      : '',
   );
-  const collars = useRef<(THREE.Mesh | null)[]>([]);
+  const selected = useMode((s) =>
+    s.mode.kind === 'rods'
+      ? s.mode.bank
+        ? -2
+        : s.mode.selected
+      : s.mode.kind === 'refuel'
+        ? s.refuel.cell
+        : -1,
+  );
+  const rodMeshes = useRef<(THREE.Mesh | null)[]>([]);
+  const tips = useRef<(THREE.Mesh | null)[]>([]);
   const drives = useRef<(THREE.Mesh | null)[]>([]);
+  const cassettes = useRef<(THREE.Mesh | null)[]>([]);
   const light = useRef<THREE.PointLight>(null);
   const water = useRef<THREE.MeshStandardMaterial>(null);
 
@@ -33,85 +68,173 @@ export function ReactorCore() {
     hz.needsUpdate = true;
     hz.repeat.set(26, 1);
     return {
-      plinth: new THREE.MeshStandardMaterial({ color: '#2a323c', roughness: 0.7, metalness: 0.3 }),
+      plinth: new THREE.MeshStandardMaterial({ color: '#36404c', roughness: 0.6, metalness: 0.35 }),
       hazard: new THREE.MeshStandardMaterial({ map: hz, roughness: 0.6 }),
-      steel: new THREE.MeshStandardMaterial({ color: PALETTE.steel, roughness: 0.35, metalness: 0.7 }),
-      steelDark: new THREE.MeshStandardMaterial({ color: PALETTE.steelDark, roughness: 0.5, metalness: 0.6 }),
-      rod: new THREE.MeshStandardMaterial({ color: '#c9d3dd', roughness: 0.25, metalness: 0.8 }),
+      steel: new THREE.MeshStandardMaterial({ color: PALETTE.steel, roughness: 0.3, metalness: 0.8 }),
+      steelDark: new THREE.MeshStandardMaterial({
+        color: PALETTE.steelDark,
+        roughness: 0.45,
+        metalness: 0.7,
+      }),
+      guide: new THREE.MeshStandardMaterial({
+        color: '#6f8796',
+        roughness: 0.2,
+        metalness: 0.3,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+      }),
       gantry: new THREE.MeshStandardMaterial({ color: PALETTE.gantry, roughness: 0.5, metalness: 0.25 }),
       glass: new THREE.MeshPhysicalMaterial({
-        color: '#cdf3ff',
+        color: '#d6f6ff',
         transparent: true,
-        opacity: 0.14,
-        roughness: 0.05,
+        opacity: 0.12,
+        roughness: 0.04,
         metalness: 0,
         clearcoat: 1,
+        envMapIntensity: 1.6,
         depthWrite: false,
         side: THREE.DoubleSide,
       }),
       surface: new THREE.MeshBasicMaterial({
         color: new THREE.Color(PALETTE.cyan).multiplyScalar(1.4),
         transparent: true,
-        opacity: 0.55,
+        opacity: 0.5,
         toneMapped: false,
         depthWrite: false,
       }),
       core: new THREE.MeshStandardMaterial({
-        color: '#b9dce8',
-        roughness: 0.35,
-        metalness: 0.45,
+        color: '#9fc9d8',
+        roughness: 0.3,
+        metalness: 0.55,
         flatShading: true,
         emissive: '#1f6f88',
-        emissiveIntensity: 0.55,
+        emissiveIntensity: 0.5,
       }),
       edge: new THREE.LineBasicMaterial({
         color: new THREE.Color(PALETTE.cyan).multiplyScalar(2.2),
         toneMapped: false,
       }),
-      port: new THREE.MeshBasicMaterial({
-        color: new THREE.Color(PALETTE.cyan).multiplyScalar(3),
-        toneMapped: false,
-      }),
-      portHot: new THREE.MeshBasicMaterial({
-        color: new THREE.Color(PALETTE.amber).multiplyScalar(3),
-        toneMapped: false,
-      }),
-      portEmpty: new THREE.MeshBasicMaterial({ color: '#1a2630' }),
+      portEmpty: new THREE.MeshBasicMaterial({ color: '#16222b' }),
       driveCap: new THREE.MeshStandardMaterial({
         color: '#d8423a',
         roughness: 0.4,
         emissive: '#d8423a',
-        emissiveIntensity: 0.3,
+        emissiveIntensity: 0.35,
+      }),
+      tip: new THREE.MeshBasicMaterial({
+        color: new THREE.Color(PALETTE.hazard).multiplyScalar(2.2),
+        toneMapped: false,
       }),
     };
   }, []);
 
-  const coreGeo = useMemo(() => new THREE.DodecahedronGeometry(CORE_RADIUS, 0), []);
-  const edgeGeo = useMemo(() => new THREE.EdgesGeometry(coreGeo), [coreGeo]);
-  const rodGeos = useMemo(
-    () => faces.map((f) => new THREE.TubeGeometry(f.rodCurve, 48, 0.075, 8, false)),
+  // Per-rod materials so the selected rod can glow; per-port materials so each port's glow follows its rod.
+  const rodMats = useMemo(
+    () =>
+      faces.map(
+        () =>
+          new THREE.MeshStandardMaterial({
+            color: '#e4ecf3',
+            roughness: 0.2,
+            metalness: 0.75,
+            emissive: '#000000',
+          }),
+      ),
     [faces],
   );
+  const portMats = useMemo(
+    () => faces.map(() => new THREE.MeshBasicMaterial({ color: CYAN.clone(), toneMapped: false })),
+    [faces],
+  );
+  const cassetteMats = useMemo(
+    () => ({
+      f: new THREE.MeshStandardMaterial({
+        color: '#e7fbff',
+        emissive: '#8ff0ff',
+        emissiveIntensity: 0.55,
+        roughness: 0.3,
+        metalness: 0.4,
+        side: THREE.DoubleSide,
+      }),
+      o: new THREE.MeshStandardMaterial({
+        color: '#8fb6c6',
+        emissive: '#2a8fae',
+        emissiveIntensity: 0.35,
+        roughness: 0.35,
+        metalness: 0.5,
+        side: THREE.DoubleSide,
+      }),
+      h: new THREE.MeshStandardMaterial({
+        color: '#d7a46e',
+        emissive: '#ff8a2a',
+        emissiveIntensity: 0.6,
+        roughness: 0.4,
+        metalness: 0.4,
+        side: THREE.DoubleSide,
+      }),
+    }),
+    [],
+  );
+
+  const coreGeo = useMemo(() => new THREE.DodecahedronGeometry(CORE_RADIUS, 0), []);
+  const edgeGeo = useMemo(() => new THREE.EdgesGeometry(coreGeo), [coreGeo]);
+  const guideGeos = useMemo(
+    () => faces.map((f) => new THREE.TubeGeometry(f.rodCurve, TUBULAR, 0.12, RADIAL, false)),
+    [faces],
+  );
+  const rodGeos = useMemo(
+    () => faces.map((f) => new THREE.TubeGeometry(f.rodCurve, TUBULAR, 0.08, RADIAL, false)),
+    [faces],
+  );
+  const cassetteGeos = useMemo(() => faces.map((f) => cassetteGeometry(f)), [faces]);
+
+  // Selection glow (re-render only when the selection changes).
+  rodMats.forEach((mat, i) => {
+    const on = selected === -2 || faces[i]!.cell === selected;
+    mat.emissive.set(on ? PALETTE.cyan : '#000000');
+    mat.emissiveIntensity = on ? 0.9 : 0;
+  });
 
   useFrame((state) => {
     const s = simHost.state;
-    // Collar slides along the first part of each rod path with insertion (0 = out at the drive, 1 = in the port).
+    const refuelling = useMode.getState().mode.kind === 'refuel';
+    const powerFactor = Math.min(1.5, s.thermalPower / 3700);
+
     faces.forEach((f, i) => {
       const rod = s.rods[f.cell]!;
-      const collar = collars.current[i];
-      if (collar) {
-        const t = THREE.MathUtils.lerp(0.42, 0.02, rod.insertion);
-        collar.position.copy(f.rodCurve.getPointAt(t));
-        collar.quaternion.setFromUnitVectors(up, f.rodCurve.getTangentAt(t));
+      const t = rodTipT(rod.insertion);
+      // Draw the rod tube only from the drive down to the tip.
+      rodGeos[i]!.setDrawRange(0, Math.round(t * TUBULAR) * RADIAL * 6);
+      const tip = tips.current[i];
+      if (tip) {
+        tip.position.copy(f.rodCurve.getPointAt(Math.min(t, 0.999)));
+        tip.quaternion.setFromUnitVectors(up, f.rodCurve.getTangentAt(Math.min(t, 0.999)));
       }
       const drive = drives.current[i];
-      if (drive) drive.position.y = DRIVE_RING_Y + 0.35 + (1 - rod.insertion) * 0.35;
+      if (drive) drive.position.y = DRIVE_RING_Y + 0.45 + (1 - rod.insertion) * 0.4;
+
+      // Port glow: brighter as the rod withdraws and the cell works harder.
+      const cell = s.cells[f.cell]!;
+      const hot = cell.loaded && cell.burnup > 0.9;
+      const glow = cell.loaded ? (0.5 + 2.8 * (1 - rod.insertion)) * (0.4 + 0.6 * powerFactor) : 0.05;
+      portMats[i]!.color.copy(hot ? AMBER : CYAN).multiplyScalar(glow);
+
+      // Cassette: present when the cell is loaded, except while the arm is carrying it away or seating a new one.
+      const cas = cassettes.current[i];
+      if (cas) {
+        let visible = cell.loaded;
+        if (refuelling && machine.cell === f.cell) {
+          if (machine.phase === 'extract' && machine.progress > 0.55) visible = false;
+          if (machine.phase === 'load' && machine.progress > 0.7) visible = true;
+        }
+        cas.visible = visible;
+      }
     });
-    // Cherenkov glow breathes with thermal power.
-    const p = Math.min(1.6, s.thermalPower / 3700);
+
     const flicker = 1 + Math.sin(state.clock.elapsedTime * 7.3) * 0.015;
-    if (light.current) light.current.intensity = (14 + 38 * p) * flicker;
-    if (water.current) water.current.emissiveIntensity = (0.25 + 0.55 * p) * flicker;
+    if (light.current) light.current.intensity = (30 + 60 * powerFactor) * flicker;
+    if (water.current) water.current.emissiveIntensity = (0.3 + 0.55 * powerFactor) * flicker;
   });
 
   return (
@@ -124,35 +247,49 @@ export function ReactorCore() {
         <cylinderGeometry args={[PLINTH_RADIUS + 0.02, PLINTH_RADIUS + 0.12, 0.42, 64, 1, true]} />
       </mesh>
 
-      {/* Core and ports */}
+      {/* Core, cassettes and ports */}
       <group position={[0, CORE_Y, 0]}>
         <mesh geometry={coreGeo} material={m.core} castShadow />
         <lineSegments geometry={edgeGeo} material={m.edge} />
       </group>
+      {faces.map((f, i) => (
+        <mesh
+          key={`c${i}`}
+          ref={(el) => void (cassettes.current[i] = el)}
+          geometry={cassetteGeos[i]}
+          material={cassetteMats[(cellTone[f.cell] ?? 'o') as 'f' | 'o' | 'h'] ?? cassetteMats.o}
+        />
+      ))}
       {faces.map((f, i) => {
-        const state = hotCells[f.cell] ?? 'o';
         const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), f.normal);
+        const empty = cellTone[f.cell] === 'e';
         return (
-          <group key={i} position={f.center.clone().addScaledVector(f.normal, 0.02)} quaternion={q}>
-            <mesh material={state === 'h' ? m.portHot : state === 'e' ? m.portEmpty : m.port}>
-              <torusGeometry args={[0.36, 0.06, 8, 24]} />
+          <group key={`p${i}`} position={f.center.clone().addScaledVector(f.normal, 0.09)} quaternion={q}>
+            <mesh material={empty ? m.portEmpty : portMats[i]}>
+              <torusGeometry args={[0.3, 0.055, 8, 24]} />
             </mesh>
             <mesh material={m.steelDark}>
-              <circleGeometry args={[0.24, 20]} />
+              <circleGeometry args={[0.2, 20]} />
             </mesh>
           </group>
         );
       })}
 
-      {/* Rods, collars (insertion indicator) and drives */}
+      {/* Rods: guide tube (full path) + rod (drawn down to its tip) + tip + drive */}
       {faces.map((f, i) => (
-        <group key={i}>
-          <mesh geometry={rodGeos[i]} material={m.rod} castShadow />
-          <mesh ref={(el) => void (collars.current[i] = el)} material={m.steel}>
-            <cylinderGeometry args={[0.14, 0.14, 0.32, 10]} />
+        <group key={`r${i}`}>
+          <mesh geometry={guideGeos[i]} material={m.guide} renderOrder={1} />
+          <mesh
+            ref={(el) => void (rodMeshes.current[i] = el)}
+            geometry={rodGeos[i]}
+            material={rodMats[i]}
+            castShadow
+          />
+          <mesh ref={(el) => void (tips.current[i] = el)} material={m.tip}>
+            <cylinderGeometry args={[0.13, 0.13, 0.34, 12]} />
           </mesh>
           <mesh position={[f.drive.x, DRIVE_RING_Y + 0.2, f.drive.z]} material={m.steelDark} castShadow>
-            <cylinderGeometry args={[0.22, 0.22, 0.5, 12]} />
+            <cylinderGeometry args={[0.24, 0.24, 0.55, 12]} />
           </mesh>
           <mesh
             ref={(el) => void (drives.current[i] = el)}
@@ -173,7 +310,7 @@ export function ReactorCore() {
           emissive={PALETTE.cyan}
           emissiveIntensity={0.5}
           transparent
-          opacity={0.3}
+          opacity={0.26}
           depthWrite={false}
           side={THREE.DoubleSide}
         />
@@ -230,18 +367,18 @@ export function ReactorCore() {
         ref={light}
         position={[0, CORE_Y, 0]}
         color={PALETTE.cyan}
-        intensity={40}
-        distance={26}
-        decay={1.3}
+        intensity={60}
+        distance={30}
+        decay={1.2}
       />
-      <GlowDecal x={0} z={0} radius={13} color={PALETTE.cyan} intensity={0.42} />
+      <GlowDecal x={0} z={0} radius={13} color={PALETTE.cyan} intensity={0.45} />
       <GlowDecal x={0} z={0} radius={7.5} color={PALETTE.cyan} intensity={0.55} y={0.52} />
       <WorldText
         position={[0, 0.03, PLINTH_RADIUS + 0.7]}
         rotation={[-Math.PI / 2, 0, 0]}
         fontSize={0.32}
         color="#f2b81f"
-        fillOpacity={0.7}
+        fillOpacity={0.75}
       >
         REACTOR CORE · 12-CELL DODECAHEDRAL
       </WorldText>

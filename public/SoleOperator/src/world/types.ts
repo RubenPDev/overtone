@@ -35,13 +35,32 @@ export interface Doorway {
 
 /** What happens when the player presses E on an interactable. Handled in game/interactions.ts. */
 export type InteractAction =
-  /** Inspect a core cell; if the player carries a fresh assembly, swap it in instead. */
+  /** Inspect a core cell; with the transfer cart docked and fresh fuel in its cask, start refuelling. */
   | { type: 'corePort'; cell: number }
-  | { type: 'takeAssembly' }
+  /** Operator console: rod control mode. */
+  | { type: 'rodControl' }
+  /** Fuel crane console: crane control mode. */
+  | { type: 'crane' }
+  /** Fuel inventory terminal: list the pool. */
+  | { type: 'inventory' }
   | { type: 'talk'; line: string }
-  /** Placeholder until console UIs exist. */
-  | { type: 'console'; console: number }
+  /** Vending machine: coffee restores focus. */
+  | { type: 'vending' }
+  /** Water cooler: restores stamina. */
+  | { type: 'water' }
+  /** Alarm panel: acknowledge active alarms. */
+  | { type: 'alarmPanel' }
   | { type: 'message'; text: string; detail?: string };
+
+/** A floor bay where the transfer cart docks (snaps in when parked nearby). */
+export interface CartBay {
+  id: string;
+  label: string;
+  x: number;
+  z: number;
+  /** Cart heading when docked (radians, 0 = facing +z). */
+  yaw: number;
+}
 
 export interface Interactable {
   id: string;
@@ -99,6 +118,12 @@ export interface RoomDefinition {
   obstacles: Obstacle[];
   /** Floor lettering, e.g. 'CONTROL ROOM 01'. */
   floorLabel?: string;
+  /** Parts of the floor cut away (pits, pools). The room's Contents draws what's below. */
+  floorHoles?: Rect[];
+  /** Docking bays for the fuel transfer cart. */
+  cartBays?: CartBay[];
+  /** Where the camera looks (and how close) while a control mode is active in this room. */
+  focus?: Partial<Record<'rods' | 'crane' | 'refuel', { x: number; z: number; zoom: number }>>;
   /** Lazy-loaded scene contents (props, lights, NPCs). The shell (floor, walls, doors) is generic. */
   load: () => Promise<{ default: ComponentType<RoomContentsProps> }>;
 }
