@@ -29,7 +29,8 @@ const FORBIDDEN = [
 describe('sim architecture', () => {
   it('has no React/Three/DOM/non-deterministic imports or calls', () => {
     const offences: string[] = [];
-    for (const [file, src] of Object.entries(sources)) {
+    for (const [file, raw] of Object.entries(sources)) {
+      const src = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
       for (const rule of FORBIDDEN) if (rule.test(src)) offences.push(`${file}: ${rule}`);
     }
     expect(offences).toEqual([]);
