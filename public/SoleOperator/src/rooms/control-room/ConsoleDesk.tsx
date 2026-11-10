@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
+import { glow, std } from '../../scene/materials';
 import { PALETTE } from '../../styles/palette';
 
 let screenTex: THREE.CanvasTexture | null = null;
@@ -29,33 +30,25 @@ function screenTexture() {
   return screenTex;
 }
 
-/** Placeholder control desk: local +z faces the seated operator. */
+let screenMat: THREE.MeshBasicMaterial | null = null;
+
+/** Placeholder control desk: local +z faces the seated operator. Materials are shared so desks bake together. */
 export function ConsoleDesk({ x, z, yaw, seed = 0 }: { x: number; z: number; yaw: number; seed?: number }) {
   const m = useMemo(
     () => ({
-      desk: new THREE.MeshStandardMaterial({ color: PALETTE.desk, roughness: 0.6 }),
-      base: new THREE.MeshStandardMaterial({ color: '#c3cbd4', roughness: 0.7 }),
-      frame: new THREE.MeshStandardMaterial({ color: '#1b222b', roughness: 0.5 }),
-      screen: new THREE.MeshBasicMaterial({
+      desk: std({ color: PALETTE.desk, roughness: 0.6 }),
+      base: std({ color: '#c3cbd4', roughness: 0.7 }),
+      frame: std({ color: '#1b222b', roughness: 0.5 }),
+      screen: (screenMat ??= new THREE.MeshBasicMaterial({
         map: screenTexture(),
         color: new THREE.Color(1.6, 1.6, 1.6),
         toneMapped: false,
-      }),
-      trim: new THREE.MeshStandardMaterial({
-        color: PALETTE.trim,
-        emissive: PALETTE.trim,
-        emissiveIntensity: 0.3,
-      }),
-      mug: new THREE.MeshStandardMaterial({
-        color: ['#f4f6f8', '#d7261e', '#2f6fb0', '#f2b81f'][seed % 4],
-        roughness: 0.4,
-      }),
-      paper: new THREE.MeshStandardMaterial({ color: '#f1f3f5', roughness: 0.9 }),
-      keys: new THREE.MeshStandardMaterial({ color: '#2a3038', roughness: 0.6 }),
-      lamp: new THREE.MeshBasicMaterial({
-        color: new THREE.Color('#ffd9a0').multiplyScalar(2),
-        toneMapped: false,
-      }),
+      })),
+      trim: std({ color: PALETTE.trim, emissive: PALETTE.trim, emissiveIntensity: 0.3 }),
+      mug: std({ color: ['#f4f6f8', '#d7261e', '#2f6fb0', '#f2b81f'][seed % 4]!, roughness: 0.4 }),
+      paper: std({ color: '#f1f3f5', roughness: 0.9 }),
+      keys: std({ color: '#2a3038', roughness: 0.6 }),
+      lamp: glow('#ffd9a0', 2),
     }),
     [seed],
   );

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { isFresh } from '../../logistics';
 import { machine } from '../../game/refuel';
 import { useMode } from '../../state/mode';
+import { Baked } from '../../scene/Baked';
 import { PALETTE } from '../../styles/palette';
 import { CORE_BAY } from './index';
 import { ARM_HOME, DRIVE_RING_Y, faceForCell } from './coreGeometry';
@@ -70,12 +71,11 @@ export function RefuelMachine() {
       steel: new THREE.MeshStandardMaterial({ color: '#c3ccd6', roughness: 0.25, metalness: 0.85 }),
       dark: new THREE.MeshStandardMaterial({ color: PALETTE.steelDark, roughness: 0.4, metalness: 0.7 }),
       yellow: new THREE.MeshStandardMaterial({ color: PALETTE.gantry, roughness: 0.5, metalness: 0.3 }),
-      glass: new THREE.MeshPhysicalMaterial({
+      glass: new THREE.MeshStandardMaterial({
         color: '#d8f7ff',
         transparent: true,
         opacity: 0.22,
         roughness: 0.05,
-        clearcoat: 1,
         depthWrite: false,
       }),
       cassette: new THREE.MeshStandardMaterial({
@@ -155,25 +155,27 @@ export function RefuelMachine() {
       </group>
 
       {/* Transfer chute: glass tube with steel collars, a hopper over the bay and a support post */}
-      <mesh geometry={chuteGeo} material={m.glass} renderOrder={5} />
-      {rings.map((t) => {
-        const p = CHUTE.getPointAt(t);
-        const q = new THREE.Quaternion().setFromUnitVectors(up, CHUTE.getTangentAt(t));
-        return (
-          <mesh key={t} position={p} quaternion={q} material={m.dark}>
-            <cylinderGeometry args={[0.32, 0.32, 0.12, 14]} />
-          </mesh>
-        );
-      })}
-      <mesh position={[CORE_BAY.x, 2.25, CORE_BAY.z]} material={m.dark} castShadow>
-        <cylinderGeometry args={[0.32, 0.55, 0.4, 14, 1, true]} />
-      </mesh>
-      <mesh position={[CORE_BAY.x + 1.2, 4.6, CORE_BAY.z]} material={m.yellow} castShadow>
-        <boxGeometry args={[0.24, 9.2, 0.24]} />
-      </mesh>
-      <mesh position={[CORE_BAY.x + 0.6, 6.2, CORE_BAY.z]} material={m.yellow}>
-        <boxGeometry args={[1.2, 0.16, 0.16]} />
-      </mesh>
+      <Baked>
+        <mesh geometry={chuteGeo} material={m.glass} renderOrder={5} />
+        {rings.map((t) => {
+          const p = CHUTE.getPointAt(t);
+          const q = new THREE.Quaternion().setFromUnitVectors(up, CHUTE.getTangentAt(t));
+          return (
+            <mesh key={t} position={p} quaternion={q} material={m.dark}>
+              <cylinderGeometry args={[0.32, 0.32, 0.12, 14]} />
+            </mesh>
+          );
+        })}
+        <mesh position={[CORE_BAY.x, 2.25, CORE_BAY.z]} material={m.dark} castShadow>
+          <cylinderGeometry args={[0.32, 0.55, 0.4, 14, 1, true]} />
+        </mesh>
+        <mesh position={[CORE_BAY.x + 1.2, 4.6, CORE_BAY.z]} material={m.yellow} castShadow>
+          <boxGeometry args={[0.24, 9.2, 0.24]} />
+        </mesh>
+        <mesh position={[CORE_BAY.x + 0.6, 6.2, CORE_BAY.z]} material={m.yellow}>
+          <boxGeometry args={[1.2, 0.16, 0.16]} />
+        </mesh>
+      </Baked>
 
       <group ref={capsule} visible={false}>
         <mesh material={m.steel}>

@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef, type RefObject } from 'react';
 import * as THREE from 'three';
+import { std } from './materials';
 
 const COATS = ['#eef2f5', '#e6ebef', '#f3f5f7'];
 const HAIR = ['#2b2018', '#5a3b22', '#151515', '#8c6239', '#c9c3b8'];
@@ -29,14 +30,11 @@ export function SeatedNpc({
   const head = useRef<THREE.Mesh>(null);
   const mats = useMemo(
     () => ({
-      coat: new THREE.MeshStandardMaterial({
-        color: outfit === 'worker' ? OVERALLS : COATS[seed % COATS.length],
-        roughness: 0.8,
-      }),
-      trousers: new THREE.MeshStandardMaterial({ color: '#2a2f38', roughness: 0.9 }),
-      skin: new THREE.MeshStandardMaterial({ color: SKIN[seed % SKIN.length], roughness: 0.8 }),
-      hair: new THREE.MeshStandardMaterial({ color: HAIR[(seed * 3) % HAIR.length], roughness: 0.9 }),
-      chair: new THREE.MeshStandardMaterial({ color: '#2d3540', roughness: 0.7 }),
+      coat: std({ color: outfit === 'worker' ? OVERALLS : COATS[seed % COATS.length]!, roughness: 0.8 }),
+      trousers: std({ color: '#2a2f38', roughness: 0.9 }),
+      skin: std({ color: SKIN[seed % SKIN.length]!, roughness: 0.8 }),
+      hair: std({ color: HAIR[(seed * 3) % HAIR.length]!, roughness: 0.9 }),
+      chair: std({ color: '#2d3540', roughness: 0.7 }),
     }),
     [seed, outfit],
   );
@@ -72,7 +70,7 @@ export function SeatedNpc({
           <boxGeometry args={[0.13, 0.55, 0.14]} />
         </mesh>
       ))}
-      <mesh ref={head} position={[0, 1.44, 0]} material={mats.skin} castShadow>
+      <mesh ref={head} position={[0, 1.44, 0]} material={mats.skin} castShadow userData={{ noBake: true }}>
         <sphereGeometry args={[0.18, 14, 10]} />
       </mesh>
       <mesh position={[0, 1.53, -0.03]} material={mats.hair}>

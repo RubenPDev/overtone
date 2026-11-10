@@ -13,6 +13,26 @@ import { stage } from './stage';
 export function Lighting() {
   const shadows = useApp((s) => s.settings.quality === 'high');
   const key = useRef<THREE.DirectionalLight>(null);
+  const gl = useThree((s) => s.gl);
+
+  // Shadow map refresh at half the frame rate (still 60 Hz at 120 fps): the shadow
+  // pass redraws every caster, and nothing in the scene moves fast enough to show it.
+  const shadowFrame = useRef(0);
+  const shadowVersion = useRef(-1);
+  useEffect(() => {
+    gl.shadowMap.autoUpdate = false;
+    gl.shadowMap.needsUpdate = true;
+    return () => {
+      gl.shadowMap.autoUpdate = true;
+    };
+  }, [gl]);
+  useFrame(() => {
+    shadowFrame.current += 1;
+    if (shadowFrame.current % 2 === 0 || shadowVersion.current !== stage.version) {
+      gl.shadowMap.needsUpdate = true;
+      shadowVersion.current = stage.version;
+    }
+  });
 
   useEffect(() => {
     const l = key.current;

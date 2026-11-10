@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
+import { Baked } from '../../scene/Baked';
+import { std } from '../../scene/materials';
 import { SeatedNpc } from '../../scene/Npc';
 import { FloorText, GlowDecal } from '../../scene/parts';
 import {
@@ -23,13 +25,10 @@ import { RefuelMachine } from './RefuelMachine';
 import { WallDisplay, drawCellMap, drawRods, makeOutputDrawer } from './WallDisplay';
 
 function Plant({ x, z }: { x: number; z: number }) {
-  const m = useMemo(
-    () => ({
-      pot: new THREE.MeshStandardMaterial({ color: '#e9edf1', roughness: 0.6 }),
-      leaf: new THREE.MeshStandardMaterial({ color: '#4caf50', roughness: 0.8, flatShading: true }),
-    }),
-    [],
-  );
+  const m = {
+    pot: std({ color: '#e9edf1', roughness: 0.6 }),
+    leaf: std({ color: '#4caf50', roughness: 0.8, flatShading: true }),
+  };
   return (
     <group position={[x, 0, z]}>
       <mesh position={[0, 0.35, 0]} material={m.pot} castShadow>
@@ -174,128 +173,133 @@ export default function ControlRoomContents(_: RoomContentsProps) {
     <group>
       <ReactorCore />
       <RefuelMachine />
-      <CartBay />
-      <Terminal x={PROPS.pedestal.x} z={PROPS.pedestal.z} yaw={Math.PI / 4} screen={PALETTE.amber} />
+      {/* Everything static in here is merged into a few draw calls. */}
+      <Baked>
+        <CartBay />
+        <Terminal x={PROPS.pedestal.x} z={PROPS.pedestal.z} yaw={Math.PI / 4} screen={PALETTE.amber} />
 
-      {DESK_ANGLES_DEG.map((deg, i) => {
-        const a = (deg * Math.PI) / 180;
-        const dir = { x: Math.cos(a), z: Math.sin(a) };
-        const w = workstations[i]!;
-        return (
-          <group key={deg}>
-            <ConsoleDesk
-              x={dir.x * DESK_RADIUS}
-              z={dir.z * DESK_RADIUS}
-              yaw={Math.atan2(dir.x, dir.z)}
-              seed={i}
-            />
-            <GlowDecal
-              x={dir.x * (DESK_RADIUS + 0.4)}
-              z={dir.z * (DESK_RADIUS + 0.4)}
-              radius={2.8}
-              color={PALETTE.amber}
-              intensity={0.24}
-            />
-            <GlowDecal
-              x={dir.x * (DESK_RADIUS - 0.1)}
-              z={dir.z * (DESK_RADIUS - 0.1)}
-              radius={1.7}
-              color={PALETTE.cyan}
-              intensity={0.24}
-            />
-            {w.staff && <SeatedNpc x={w.position.x} z={w.position.z} yaw={w.facing} seed={i} />}
-            {!w.staff && (
-              <GlowDecal
-                x={w.position.x}
-                z={w.position.z}
-                radius={1.4}
-                color={PALETTE.player}
-                intensity={0.3}
+        {DESK_ANGLES_DEG.map((deg, i) => {
+          const a = (deg * Math.PI) / 180;
+          const dir = { x: Math.cos(a), z: Math.sin(a) };
+          const w = workstations[i]!;
+          return (
+            <group key={deg}>
+              <ConsoleDesk
+                x={dir.x * DESK_RADIUS}
+                z={dir.z * DESK_RADIUS}
+                yaw={Math.atan2(dir.x, dir.z)}
+                seed={i}
               />
-            )}
-          </group>
-        );
-      })}
+              <GlowDecal
+                x={dir.x * (DESK_RADIUS + 0.4)}
+                z={dir.z * (DESK_RADIUS + 0.4)}
+                radius={2.8}
+                color={PALETTE.amber}
+                intensity={0.24}
+              />
+              <GlowDecal
+                x={dir.x * (DESK_RADIUS - 0.1)}
+                z={dir.z * (DESK_RADIUS - 0.1)}
+                radius={1.7}
+                color={PALETTE.cyan}
+                intensity={0.24}
+              />
+              {w.staff && <SeatedNpc x={w.position.x} z={w.position.z} yaw={w.facing} seed={i} />}
+              {!w.staff && (
+                <GlowDecal
+                  x={w.position.x}
+                  z={w.position.z}
+                  radius={1.4}
+                  color={PALETTE.player}
+                  intensity={0.3}
+                />
+              )}
+            </group>
+          );
+        })}
 
-      {/* Back-wall screens */}
-      <WallDisplay
-        width={9}
-        height={3.6}
-        draw={drawCellMap}
-        position={[-15.7, 4.3, 8.6]}
-        rotation={[0, Math.PI / 2, 0]}
-      />
-      <WallDisplay
-        width={8}
-        height={3.6}
-        draw={drawRods}
-        position={[-15.7, 4.3, -9.2]}
-        rotation={[0, Math.PI / 2, 0]}
-      />
-      <WallDisplay
-        width={9}
-        height={3.6}
-        draw={outputDrawer}
-        position={[8.6, 4.3, -15.7]}
-        rotation={[0, 0, 0]}
-      />
-      <RadiationSign position={[-13.4, 4.6, -15.76]} rotation={[0, 0, 0]} />
+        {/* Back-wall screens */}
+        <WallDisplay
+          width={9}
+          height={3.6}
+          draw={drawCellMap}
+          position={[-15.7, 4.3, 8.6]}
+          rotation={[0, Math.PI / 2, 0]}
+        />
+        <WallDisplay
+          width={8}
+          height={3.6}
+          draw={drawRods}
+          position={[-15.7, 4.3, -9.2]}
+          rotation={[0, Math.PI / 2, 0]}
+        />
+        <WallDisplay
+          width={9}
+          height={3.6}
+          draw={outputDrawer}
+          position={[8.6, 4.3, -15.7]}
+          rotation={[0, 0, 0]}
+        />
+        <RadiationSign position={[-13.4, 4.6, -15.76]} rotation={[0, 0, 0]} />
 
-      {/* Safety and amenities */}
-      <AlarmPanel x={PROPS.alarmPanel.x} z={PROPS.alarmPanel.z} />
+        {/* Safety and amenities */}
+        <AlarmPanel x={PROPS.alarmPanel.x} z={PROPS.alarmPanel.z} />
+        <VendingMachine {...PROPS.vending} />
+        <WaterCooler {...PROPS.cooler} />
+        {PROPS.extinguishers.map((e, i) => (
+          <Extinguisher key={i} {...e} />
+        ))}
+        <FirstAid x={PROPS.firstAid.x} z={PROPS.firstAid.z} />
+
+        {/* Service pipes along the back walls */}
+        <Pipe axis="z" from={-15.6} to={15.6} y={7.35} offset={-15.5} band={PALETTE.cyan} />
+        <Pipe
+          axis="z"
+          from={-15.6}
+          to={15.6}
+          y={7.85}
+          offset={-15.45}
+          r={0.1}
+          color="#b7bfc8"
+          band={PALETTE.trim}
+        />
+        <Pipe axis="x" from={-15.6} to={15.6} y={7.35} offset={-15.5} band={PALETTE.cyan} />
+        <Pipe
+          axis="x"
+          from={-15.6}
+          to={15.6}
+          y={7.85}
+          offset={-15.45}
+          r={0.1}
+          color="#b7bfc8"
+          band={PALETTE.player}
+        />
+
+        {PROPS.plants.map(([x, z]) => (
+          <Plant key={`${x},${z}`} x={x} z={z} />
+        ))}
+      </Baked>
+
+      {/* Animated props stay out of the bake. */}
       <AlarmBeacon x={PROPS.alarmPanel.x} z={-15.6} y={2.6} />
       <AlarmBeacon x={-15.55} z={0} y={7.6} yaw={Math.PI / 2} />
       <AlarmBeacon x={0} z={-15.55} y={7.6} />
-      <VendingMachine {...PROPS.vending} />
-      <WaterCooler {...PROPS.cooler} />
-      {PROPS.extinguishers.map((e, i) => (
-        <Extinguisher key={i} {...e} />
-      ))}
-      <FirstAid x={PROPS.firstAid.x} z={PROPS.firstAid.z} />
       <WallClock x={PROPS.clock.x} z={PROPS.clock.z + 0.02} y={5.7} />
       <SecurityCamera x={-15.6} z={14.2} y={6.8} yaw={Math.PI / 2} />
       <SecurityCamera x={14.2} z={-15.6} y={6.8} yaw={0} />
 
-      {/* Service pipes along the back walls */}
-      <Pipe axis="z" from={-15.6} to={15.6} y={7.35} offset={-15.5} band={PALETTE.cyan} />
-      <Pipe
-        axis="z"
-        from={-15.6}
-        to={15.6}
-        y={7.85}
-        offset={-15.45}
-        r={0.1}
-        color="#b7bfc8"
-        band={PALETTE.trim}
-      />
-      <Pipe axis="x" from={-15.6} to={15.6} y={7.35} offset={-15.5} band={PALETTE.cyan} />
-      <Pipe
-        axis="x"
-        from={-15.6}
-        to={15.6}
-        y={7.85}
-        offset={-15.45}
-        r={0.1}
-        color="#b7bfc8"
-        band={PALETTE.player}
-      />
-
-      {PROPS.plants.map(([x, z]) => (
-        <Plant key={`${x},${z}`} x={x} z={z} />
-      ))}
-
-      {/* Warm lamp pools: a few real lights for bounce, decals for the rest. */}
-      <pointLight position={[-10, 6.5, -10]} color="#ffc48a" intensity={55} distance={22} decay={1.3} />
-      <pointLight position={[10, 6.5, 10]} color="#ffc48a" intensity={45} distance={20} decay={1.3} />
-      <pointLight position={[-10, 6.5, 10]} color="#ffd9b0" intensity={32} distance={18} decay={1.3} />
-      {[
-        [-10, -10],
-        [10, 10],
-        [-10, 10],
-        [10, -10],
-      ].map(([x, z]) => (
-        <GlowDecal key={`${x},${z}`} x={x!} z={z!} radius={6.5} color={PALETTE.amber} intensity={0.24} />
-      ))}
+      {/* One real warm light for bounce (every extra light costs every lit pixel); decals do the rest. */}
+      <pointLight position={[-6, 6.5, -6]} color="#ffc48a" intensity={70} distance={30} decay={1.2} />
+      <Baked>
+        {[
+          [-10, -10],
+          [10, 10],
+          [-10, 10],
+          [10, -10],
+        ].map(([x, z]) => (
+          <GlowDecal key={`${x},${z}`} x={x!} z={z!} radius={7} color={PALETTE.amber} intensity={0.3} />
+        ))}
+      </Baked>
       {/* Walkway lines from each door toward the core */}
       {[
         [-12, 0, 8, 0.12],

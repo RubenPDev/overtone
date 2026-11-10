@@ -3,7 +3,8 @@ import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { hook, targetUnderHook } from '../../game/crane';
 import { logistics, player } from '../../game/runtime';
-import { POOL_SLOTS, isFresh, slotName, type Assembly } from '../../logistics';
+import { POOL_SLOTS, isFresh, type Assembly } from '../../logistics';
+import { Baked } from '../../scene/Baked';
 import { SeatedNpc, StandingNpc, WalkingNpc } from '../../scene/Npc';
 import { FloorText, GlowDecal, WorldText } from '../../scene/parts';
 import { AlarmBeacon, EyewashStation, Extinguisher, Pipe, SecurityCamera, Terminal } from '../../scene/props';
@@ -75,14 +76,12 @@ function Pool() {
       }),
       floor: new THREE.MeshStandardMaterial({ map: floorTiles, color: '#8fc6d8', roughness: 0.5 }),
       rack: new THREE.MeshStandardMaterial({ color: '#3f5563', roughness: 0.5, metalness: 0.6 }),
-      water: new THREE.MeshPhysicalMaterial({
+      water: new THREE.MeshStandardMaterial({
         color: '#2bb6e0',
         transparent: true,
         opacity: 0.42,
         roughness: 0.08,
         metalness: 0,
-        clearcoat: 1,
-        envMapIntensity: 1.4,
         emissive: '#0f6f8f',
         emissiveIntensity: 0.35,
         depthWrite: false,
@@ -155,15 +154,6 @@ function Pool() {
             <mesh position={[0, 1.6, 0]} material={m.rack}>
               <boxGeometry args={[0.95, 0.06, 0.95]} />
             </mesh>
-            <WorldText
-              position={[0, 1.66, 0.6]}
-              rotation={[-Math.PI / 2, 0, 0]}
-              fontSize={0.2}
-              color="#cfefff"
-              fillOpacity={0.7}
-            >
-              {slotName(i)}
-            </WorldText>
           </group>
         );
       })}
@@ -355,19 +345,21 @@ function BridgeCrane() {
 
   return (
     <group>
-      {/* Runway rails on columns */}
-      {CRANE.railZ.map((z) => (
-        <group key={z}>
-          <mesh position={[(railX0 + railX1) / 2, CRANE.railY, z]} material={m.yellow} castShadow>
-            <boxGeometry args={[railX1 - railX0, 0.35, 0.35]} />
-          </mesh>
-          {[railX0 + 0.2, railX1 - 0.2].map((x) => (
-            <mesh key={x} position={[x, CRANE.railY / 2, z]} material={m.yellow} castShadow>
-              <boxGeometry args={[0.32, CRANE.railY, 0.32]} />
+      {/* Runway rails on columns (static, baked) */}
+      <Baked>
+        {CRANE.railZ.map((z) => (
+          <group key={z}>
+            <mesh position={[(railX0 + railX1) / 2, CRANE.railY, z]} material={m.yellow} castShadow>
+              <boxGeometry args={[railX1 - railX0, 0.35, 0.35]} />
             </mesh>
-          ))}
-        </group>
-      ))}
+            {[railX0 + 0.2, railX1 - 0.2].map((x) => (
+              <mesh key={x} position={[x, CRANE.railY / 2, z]} material={m.yellow} castShadow>
+                <boxGeometry args={[0.32, CRANE.railY, 0.32]} />
+              </mesh>
+            ))}
+          </group>
+        ))}
+      </Baked>
       {/* Bridge (moves in x) carrying the trolley (moves in z) */}
       <group ref={bridge}>
         <mesh
@@ -484,52 +476,8 @@ export default function FuelStorageContents(_: RoomContentsProps) {
   );
   return (
     <group>
-      <Pool />
       <RackedAssemblies />
       <BridgeCrane />
-
-      {/* Cask dock */}
-      <group position={[POOL_DOCK.x, 0.012, POOL_DOCK.z]}>
-        {[
-          [0, -1.3, 1.8, 0.08],
-          [0, 1.3, 1.8, 0.08],
-          [-0.9, 0, 0.08, 2.6],
-          [0.9, 0, 0.08, 2.6],
-        ].map(([x, z, a, b], i) => (
-          <mesh key={i} position={[x!, 0, z!]} rotation={[-Math.PI / 2, 0, 0]} material={dockLine}>
-            <planeGeometry args={[a!, b!]} />
-          </mesh>
-        ))}
-        <FloorText
-          position={[1.3, 0.01, 0]}
-          yaw={Math.PI / 2}
-          fontSize={0.3}
-          color="#f2b81f"
-          fillOpacity={0.8}
-        >
-          {POOL_DOCK.label}
-        </FloorText>
-      </group>
-
-      {/* Terminals and staff */}
-      <Terminal x={PROPS.craneConsole.x} z={PROPS.craneConsole.z} yaw={Math.PI / 2} screen={PALETTE.amber} />
-      <WorldText
-        position={[PROPS.craneConsole.x, 2.15, PROPS.craneConsole.z]}
-        rotation={[0, Math.PI / 4, 0]}
-        fontSize={0.22}
-        color="#f2b81f"
-      >
-        CRANE CONTROL
-      </WorldText>
-      <Terminal x={PROPS.inventoryDesk.x} z={PROPS.inventoryDesk.z} yaw={0} screen="#8dff6a" />
-      <Terminal x={PROPS.inventoryDesk.x + 1.1} z={PROPS.inventoryDesk.z} yaw={0} screen={PALETTE.cyan} />
-      <SeatedNpc
-        x={WORKERS.seated.x}
-        z={WORKERS.seated.z}
-        yaw={WORKERS.seated.yaw}
-        seed={3}
-        outfit="worker"
-      />
       <StandingNpc
         x={WORKERS.standing.x}
         z={WORKERS.standing.z}
@@ -539,43 +487,97 @@ export default function FuelStorageContents(_: RoomContentsProps) {
         clipboard
       />
       <WalkingNpc path={WORKERS.patrol} seed={8} outfit="worker" />
-
-      {/* Safety, storage and services */}
-      <EyewashStation x={PROPS.eyewash.x} z={PROPS.eyewash.z} yaw={0} />
-      <Extinguisher x={PROPS.extinguisher.x} z={PROPS.extinguisher.z} yaw={Math.PI / 2} />
-      <PortalMonitor />
-      {PROPS.casks.map(([x, z]) => (
-        <DryCask key={`${x},${z}`} x={x} z={z} />
-      ))}
       <AlarmBeacon x={-13.55} z={-4.5} y={6.6} yaw={Math.PI / 2} />
       <AlarmBeacon x={5} z={-10.55} y={5.0} />
       <SecurityCamera x={-13.6} z={9.5} y={6.0} yaw={Math.PI / 2} />
       <SecurityCamera x={12.8} z={-10.6} y={6.0} yaw={0} />
-      <Pipe axis="z" from={-10.6} to={10.6} y={6.95} offset={-13.5} band={PALETTE.cyan} />
-      <Pipe axis="x" from={-13.6} to={13.6} y={6.95} offset={-10.5} band={PALETTE.player} />
-      <Pipe
-        axis="x"
-        from={-13.6}
-        to={13.6}
-        y={6.5}
-        offset={-10.55}
-        r={0.09}
-        color="#b7bfc8"
-        band={PALETTE.trim}
-      />
 
-      {/* Lighting */}
-      <pointLight position={[6, 6, 4]} color="#ffd9b0" intensity={45} distance={20} decay={1.3} />
-      <pointLight position={[-6, 6, 6]} color="#ffd0a0" intensity={30} distance={16} decay={1.3} />
-      <GlowDecal x={6} z={4} radius={7} color={PALETTE.amber} intensity={0.22} />
-      <GlowDecal x={-6} z={6} radius={6} color={PALETTE.amber} intensity={0.18} />
-      <GlowDecal
-        x={PROPS.inventoryDesk.x}
-        z={PROPS.inventoryDesk.z + 1}
-        radius={2.4}
-        color="#8dff6a"
-        intensity={0.2}
-      />
+      {/* Everything static below is merged into a few draw calls. */}
+      <Baked>
+        <Pool />
+
+        {/* Cask dock */}
+        <group position={[POOL_DOCK.x, 0.012, POOL_DOCK.z]}>
+          {[
+            [0, -1.3, 1.8, 0.08],
+            [0, 1.3, 1.8, 0.08],
+            [-0.9, 0, 0.08, 2.6],
+            [0.9, 0, 0.08, 2.6],
+          ].map(([x, z, a, b], i) => (
+            <mesh key={i} position={[x!, 0, z!]} rotation={[-Math.PI / 2, 0, 0]} material={dockLine}>
+              <planeGeometry args={[a!, b!]} />
+            </mesh>
+          ))}
+          <FloorText
+            position={[1.3, 0.01, 0]}
+            yaw={Math.PI / 2}
+            fontSize={0.3}
+            color="#f2b81f"
+            fillOpacity={0.8}
+          >
+            {POOL_DOCK.label}
+          </FloorText>
+        </group>
+
+        {/* Terminals and staff */}
+        <Terminal
+          x={PROPS.craneConsole.x}
+          z={PROPS.craneConsole.z}
+          yaw={Math.PI / 2}
+          screen={PALETTE.amber}
+        />
+        <WorldText
+          position={[PROPS.craneConsole.x, 2.15, PROPS.craneConsole.z]}
+          rotation={[0, Math.PI / 4, 0]}
+          fontSize={0.22}
+          color="#f2b81f"
+        >
+          CRANE CONTROL
+        </WorldText>
+        <Terminal x={PROPS.inventoryDesk.x} z={PROPS.inventoryDesk.z} yaw={0} screen="#8dff6a" />
+        <Terminal x={PROPS.inventoryDesk.x + 1.1} z={PROPS.inventoryDesk.z} yaw={0} screen={PALETTE.cyan} />
+        <SeatedNpc
+          x={WORKERS.seated.x}
+          z={WORKERS.seated.z}
+          yaw={WORKERS.seated.yaw}
+          seed={3}
+          outfit="worker"
+        />
+
+        {/* Safety, storage and services */}
+        <EyewashStation x={PROPS.eyewash.x} z={PROPS.eyewash.z} yaw={0} />
+        <Extinguisher x={PROPS.extinguisher.x} z={PROPS.extinguisher.z} yaw={Math.PI / 2} />
+        <PortalMonitor />
+        {PROPS.casks.map(([x, z]) => (
+          <DryCask key={`${x},${z}`} x={x} z={z} />
+        ))}
+        <Pipe axis="z" from={-10.6} to={10.6} y={6.95} offset={-13.5} band={PALETTE.cyan} />
+        <Pipe axis="x" from={-13.6} to={13.6} y={6.95} offset={-10.5} band={PALETTE.player} />
+        <Pipe
+          axis="x"
+          from={-13.6}
+          to={13.6}
+          y={6.5}
+          offset={-10.55}
+          r={0.09}
+          color="#b7bfc8"
+          band={PALETTE.trim}
+        />
+      </Baked>
+
+      {/* One warm light plus the pool light; decals fake the rest. */}
+      <pointLight position={[3, 6, 3]} color="#ffd9b0" intensity={55} distance={26} decay={1.2} />
+      <Baked>
+        <GlowDecal x={6} z={4} radius={7} color={PALETTE.amber} intensity={0.26} />
+        <GlowDecal x={-6} z={6} radius={6} color={PALETTE.amber} intensity={0.24} />
+        <GlowDecal
+          x={PROPS.inventoryDesk.x}
+          z={PROPS.inventoryDesk.z + 1}
+          radius={2.4}
+          color="#8dff6a"
+          intensity={0.2}
+        />
+      </Baked>
     </group>
   );
 }

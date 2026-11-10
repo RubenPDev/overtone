@@ -7,6 +7,7 @@ import { PALETTE } from '../styles/palette';
 import { FACING_VEC, STUB_LENGTH, doorPosition, subtractRects } from '../world/geometry';
 import { doorState, type DoorState } from '../world/spaces';
 import type { Doorway, Facing, RoomDefinition } from '../world/types';
+import { Baked } from './Baked';
 import { FloorText, GlowDecal, WorldText, useEmissive } from './parts';
 import { fadeTexture, floorTexture, hazardTexture } from './textures';
 
@@ -277,7 +278,7 @@ function AutoDoor({
             ref={ref}
             position={[0, DOOR_H / 2, (i ? 1 : -1) * (width / 4)]}
             material={panel}
-            castShadow
+            userData={{ noBake: true }}
           >
             <boxGeometry args={[0.12, DOOR_H, width / 2]} />
             <mesh position={[-0.07, DOOR_H * 0.12, 0]} material={glass}>
@@ -289,7 +290,7 @@ function AutoDoor({
     );
   return (
     <group ref={arm} position={[-0.3, 0.95, -width / 2]}>
-      <mesh position={[0, 0, width / 2]} material={mats.hazard} castShadow>
+      <mesh position={[0, 0, width / 2]} material={mats.hazard} userData={{ noBake: true }}>
         <boxGeometry args={[0.1, 0.1, width - 0.2]} />
       </mesh>
     </group>
@@ -337,7 +338,7 @@ export function RoomShell({ room }: { room: RoomDefinition }) {
   );
 
   return (
-    <group>
+    <Baked>
       {/* Base slab: the room reads as a solid block floating in the dark. */}
       {pieces.slab.map((r, i) => (
         <mesh
@@ -381,6 +382,6 @@ export function RoomShell({ room }: { room: RoomDefinition }) {
           {room.floorLabel}
         </FloorText>
       )}
-    </group>
+    </Baked>
   );
 }

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { player, simHost } from '../game/runtime';
 import { useHud } from '../state/hud';
 import { PALETTE } from '../styles/palette';
+import { glow as sharedGlow, std } from './materials';
 import { WorldText } from './parts';
 
 /**
@@ -12,14 +13,11 @@ import { WorldText } from './parts';
  */
 type Placed = { x: number; z: number; yaw?: number; y?: number };
 
-const glow = (c: string, k = 2.2) =>
-  new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k), toneMapped: false });
+const glow = (c: string, k = 2.2) => sharedGlow(c, k);
 
+/** Shared (cached) standard material, so identical props batch together inside <Baked>. */
 function useStd(color: string, roughness = 0.6, metalness = 0.1) {
-  return useMemo(
-    () => new THREE.MeshStandardMaterial({ color, roughness, metalness }),
-    [color, roughness, metalness],
-  );
+  return std({ color, roughness, metalness });
 }
 
 /** Coffee vending machine with a glowing front. */
@@ -146,7 +144,6 @@ export function SecurityCamera({ x, z, y = 6.4, yaw = 0, range = 22 }: Placed & 
   const led = useRef<THREE.MeshBasicMaterial>(null);
   const body = useStd('#e4e8ec', 0.4, 0.2);
   const dark = useStd('#20262d', 0.4, 0.3);
-  const world = useMemo(() => new THREE.Vector3(), []);
   useFrame((s, dt) => {
     const h = head.current;
     if (!h) return;
@@ -163,7 +160,6 @@ export function SecurityCamera({ x, z, y = 6.4, yaw = 0, range = 22 }: Placed & 
     h.rotation.y += (goal - h.rotation.y) * (1 - Math.exp(-dt * 3));
     h.rotation.x += (pitch - h.rotation.x) * (1 - Math.exp(-dt * 3));
     led.current?.color.set('#ff2a2a').multiplyScalar(Math.sin(s.clock.elapsedTime * 4) > 0 ? 2.5 : 0.3);
-    h.getWorldPosition(world);
   });
   return (
     <group position={[x, y, z]} rotation={[0, yaw, 0]}>
