@@ -1,0 +1,83 @@
+.dev {
+  position: fixed;
+  z-index: 60;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 300px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+  font:
+    12px/1.3 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  color: #cfe8f2;
+  background: rgba(4, 8, 12, 0.88);
+  border: 1px solid rgba(95, 227, 255, 0.35);
+}
+.dev-chip {
+  position: fixed;
+  z-index: 60;
+  top: 50%;
+  right: 0;
+  padding: 4px 8px;
+  font:
+    11px ui-monospace,
+    monospace;
+  color: #5fe3ff;
+  background: rgba(4, 8, 12, 0.8);
+  border: 1px solid rgba(95, 227, 255, 0.35);
+  border-right: 0;
+  cursor: pointer;
+}
+.dev__head {
+  font-weight: 700;
+  color: #5fe3ff;
+}
+.dev__head small {
+  color: #64768a;
+  font-weight: 400;
+  margin-left: 6px;
+}
+.dev__stats {
+  color: #6dffb6;
+}
+.dev__row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.dev__row > span {
+  width: 60px;
+  color: #9fb0c2;
+}
+.dev button {
+  font: inherit;
+  padding: 3px 6px;
+  background: #13212c;
+  border: 1px solid #2c4252;
+  color: inherit;
+  cursor: pointer;
+}
+.dev button.on {
+  background: #5fe3ff;
+  color: #0b1118;
+}
+.dev__slider {
+  display: grid;
+  gap: 2px;
+}
+.dev__slider input {
+  width: 100%;
+}
+.dev__log {
+  max-height: 140px;
+  overflow: hidden;
+  color: #9fb0c2;
+  border-top: 1px solid #2c4252;
+  padding-top: 6px;
+  word-break: break-all;
+}

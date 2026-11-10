@@ -55,7 +55,9 @@ button {
   inset: 0;
   display: grid;
   place-items: center;
-  font: 600 14px/1 system-ui, sans-serif;
+  font:
+    600 14px/1 system-ui,
+    sans-serif;
   letter-spacing: 0.5em;
   color: #5fe3ff;
   background: #0b1118;

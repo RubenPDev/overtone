@@ -17,8 +17,18 @@ export default defineConfig({
         // screen and HUD code stay small and load first.
         codeSplitting: {
           groups: [
-            { name: 'three', test: /node_modules[\\/](three|postprocessing)[\\/]/ },
-            { name: 'r3f', test: /node_modules[\\/](@react-three|three-stdlib|troika|camera-controls|maath)/ },
+            // React + zustand are needed by the title screen; keep them out of the 3D chunks.
+            {
+              name: 'react',
+              test: /node_modules[\\/](react|react-dom|scheduler|zustand|use-sync-external-store)[\\/]/,
+              priority: 3,
+            },
+            { name: 'three', test: /node_modules[\\/](three|postprocessing)[\\/]/, priority: 2 },
+            {
+              name: 'r3f',
+              test: /node_modules[\\/](@react-three|three-stdlib|troika|camera-controls|maath|its-fine|suspend-react)/,
+              priority: 1,
+            },
           ],
         },
       },

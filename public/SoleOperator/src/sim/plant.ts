@@ -19,7 +19,15 @@ import { netReactivity, reactivitySystem } from './systems/reactivity';
 import { rodsSystem } from './systems/rods';
 import { thermalSystem } from './systems/thermal';
 import { turbineSystem } from './systems/turbine';
-import type { ControlRod, FuelCell, PlantCommand, PlantSim, PlantState, SimEvent, SimSnapshot } from './types';
+import type {
+  ControlRod,
+  FuelCell,
+  PlantCommand,
+  PlantSim,
+  PlantState,
+  SimEvent,
+  SimSnapshot,
+} from './types';
 
 export const SIM_SCHEMA = 1;
 
@@ -109,7 +117,8 @@ function validCell(n: number): boolean {
 
 function applyCommand(state: PlantState, cmd: PlantCommand, emit: (e: SimEvent) => void): void {
   const reject = (reason: string) => emit({ type: 'commandRejected', command: cmd.type, reason });
-  const rodsLocked = () => state.scrammed && (reject('Rods are latched in after a scram. Reset first.'), true);
+  const rodsLocked = () =>
+    state.scrammed && (reject('Rods are latched in after a scram. Reset first.'), true);
 
   switch (cmd.type) {
     case 'setRodTarget':

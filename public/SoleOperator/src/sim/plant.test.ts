@@ -122,6 +122,19 @@ describe('plant sim v0', () => {
     expect(run(sim, 1).some((e) => e.type === 'cellLoaded')).toBe(true);
   });
 
+  it('swapping the spent cell 07 with its rod held in stays below the 110% power alarm', () => {
+    const sim = createPlantSim({ seed: 9 });
+    sim.enqueue({ type: 'setRodTarget', rod: 6, insertion: 1 });
+    run(sim, 120);
+    sim.enqueue({ type: 'unloadCell', cell: 6 });
+    sim.enqueue({ type: 'loadCell', cell: 6, assembly: 'FA-31' });
+    const events = run(sim, 1500);
+    const s = sim.getState();
+    expect(s.thermalPower).toBeGreaterThan(NOMINAL_THERMAL_MW); // fresh fuel is more reactive
+    expect(s.thermalPower).toBeLessThan(NOMINAL_THERMAL_MW * 1.1);
+    expect(events.some((e) => e.type === 'alarm')).toBe(false);
+  });
+
   it('is deterministic for a seed, and snapshot/restore resumes identically', () => {
     const script = (sim: PlantSim) => {
       sim.enqueue({ type: 'nudgeRod', rod: 1, delta: -0.05 });

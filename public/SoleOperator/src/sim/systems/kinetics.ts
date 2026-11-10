@@ -29,7 +29,12 @@ export const kineticsSystem: SimSystem = {
       MIN_FISSION_MW,
       MAX_FISSION_MW,
     );
-    state.decayHeat = relax(state.decayHeat, state.fissionPower * DECAY_HEAT_FRACTION, DECAY_HEAT_TAU, ctx.dt);
+    state.decayHeat = relax(
+      state.decayHeat,
+      state.fissionPower * DECAY_HEAT_FRACTION,
+      DECAY_HEAT_TAU,
+      ctx.dt,
+    );
     state.thermalPower = state.fissionPower + state.decayHeat;
 
     // Relative change per game minute, smoothed over ~half a minute.

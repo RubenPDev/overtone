@@ -1,0 +1,95 @@
+import { create } from 'zustand';
+import type { GameSpeed } from '../core/clock';
+import type { ToastLevel } from '../core/events';
+import { averageInsertion, coreStatus, type Criticality, type PlantState, type Stability } from '../sim';
+import type { GraphPosition } from '../world/facility';
+
+/** The slice of plant state the HUD shows, copied from the sim a few times per second. */
+export interface HudSim {
+  tick: number;
+  time: number;
+  thermalPower: number;
+  output: number;
+  coreTemp: number;
+  pressure: number;
+  reactivity: number;
+  keff: number;
+  rodsIn: number;
+  rods: number[];
+  cells: { loaded: boolean; burnup: number }[];
+  coolantFlow: number;
+  turbineVibration: number;
+  scrammed: boolean;
+  alarms: string[];
+  criticality: Criticality;
+  stability: Stability;
+}
+
+export function toHudSim(s: Readonly<PlantState>): HudSim {
+  return {
+    tick: s.tick,
+    time: s.time,
+    thermalPower: s.thermalPower,
+    output: s.output,
+    coreTemp: s.coreTemp,
+    pressure: s.pressure,
+    reactivity: s.reactivity,
+    keff: s.keff,
+    rodsIn: averageInsertion(s),
+    rods: s.rods.map((r) => r.insertion),
+    cells: s.cells.map((c) => ({ loaded: c.loaded, burnup: c.burnup })),
+    coolantFlow: s.coolantFlow,
+    turbineVibration: s.turbineVibration,
+    scrammed: s.scrammed,
+    alarms: [...s.alarms],
+    ...coreStatus(s),
+  };
+}
+
+export interface HudPlayer {
+  x: number;
+  z: number;
+  yaw: number;
+  stamina: number;
+  focus: number;
+  dose: number;
+}
+
+export interface HudObjective {
+  title: string;
+  kind: 'main' | 'side';
+  steps: { text: string; detail?: string; state: 'done' | 'active' | 'todo' }[];
+  target: { room: string; interactable?: string } | null;
+}
+
+export interface Toast {
+  id: number;
+  text: string;
+  detail?: string;
+  level: ToastLevel;
+}
+
+interface HudState {
+  sim: HudSim | null;
+  player: HudPlayer;
+  graphPos: GraphPosition;
+  objective: HudObjective | null;
+  speed: GameSpeed;
+  toasts: Toast[];
+}
+
+export const useHud = create<HudState>()(() => ({
+  sim: null,
+  player: { x: 0, z: 0, yaw: 0, stamina: 1, focus: 0.88, dose: 0 },
+  graphPos: { room: 'control-room' },
+  objective: null,
+  speed: 1,
+  toasts: [],
+}));
+
+let toastId = 0;
+export function pushToast(t: Omit<Toast, 'id'>, ms = 4200): void {
+  const id = ++toastId;
+  useHud.setState((s) => ({ toasts: [...s.toasts.slice(-3), { ...t, id }] }));
+  setTimeout(() => useHud.setState((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })), ms);
+}
