@@ -11,7 +11,14 @@ import { currentRoomId } from './worldController';
 /** Rods being driven by held W/S in rod mode (released when the key or selection changes). */
 const rodDrive = { dir: 0 as -1 | 0 | 1, rods: [] as number[] };
 
+/**
+ * The E press that opens a mode must not also act inside it. Machine keys stay
+ * disarmed until E has been released once after entering.
+ */
+export const modeInput = { armed: true };
+
 export function enterMode(mode: Mode) {
+  modeInput.armed = false;
   const roomId = currentRoomId();
   const focus = roomId && mode.kind !== 'walk' ? getRoom(roomId).focus?.[mode.kind] : undefined;
   stage.focus = focus ?? null;
@@ -84,7 +91,7 @@ export function installModeKeys(): () => void {
       else return;
       useMode.setState({ mode: { ...m, selected, bank: false } });
     } else if (m.kind === 'crane') {
-      if (e.code === 'KeyE') startCraneCycle();
+      if (e.code === 'KeyE' && modeInput.armed) startCraneCycle();
     } else if (m.kind === 'refuel') {
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') selectRefuelCell(-1);
       if (e.code === 'ArrowRight' || e.code === 'KeyD') selectRefuelCell(1);

@@ -176,6 +176,6 @@ export const fuelStorage: RoomDefinition = {
   obstacles,
   floorHoles: [POOL],
   cartBays: [POOL_DOCK],
-  focus: { crane: { x: POOL_CENTER.x + 1.6, z: POOL_CENTER.z + 0.6, zoom: 1.45 } },
+  focus: { crane: { x: POOL_CENTER.x + 1.6, z: POOL_CENTER.z + 0.6, zoom: 1.75 } },
   load: () => import('./Contents'),
 };

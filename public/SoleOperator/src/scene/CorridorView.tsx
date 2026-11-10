@@ -6,6 +6,7 @@ import { PALETTE } from '../styles/palette';
 import { getNode } from '../world/facility';
 import { CORRIDOR_WIDTH, type CorridorFrame } from '../world/spaces';
 import { FloorText, GlowDecal, WorldText, useEmissive } from './parts';
+import { Extinguisher, Pipe } from './props';
 import { floorTexture } from './textures';
 
 const BACK_H = 4.2;
@@ -84,6 +85,21 @@ export function CorridorView({ frame }: { frame: CorridorFrame }) {
           <boxGeometry args={[L + 6, 0.06, 0.42]} />
         </mesh>
 
+        {/* Service runs along the back wall, extinguishers every 50 m */}
+        <Pipe axis="x" from={-3} to={L + 3} y={3.55} offset={backSide * (half - 0.12)} band={PALETTE.cyan} />
+        <Pipe
+          axis="x"
+          from={-3}
+          to={L + 3}
+          y={3.15}
+          offset={backSide * (half - 0.1)}
+          r={0.08}
+          color="#b7bfc8"
+          band={PALETTE.trim}
+        />
+        {Array.from({ length: Math.floor(L / 50) }, (_, i) => (i + 1) * 50 - 25).map((t) => (
+          <Extinguisher key={t} x={t} z={backSide * (half - 0.02)} yaw={backSide > 0 ? Math.PI : 0} />
+        ))}
         {lamps.map((t) => (
           <group key={t}>
             <mesh position={[t, BACK_H - 0.4, backSide * (half - 0.05)]} material={lamp}>

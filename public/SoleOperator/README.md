@@ -29,21 +29,44 @@ Dev-only shortcuts:
 - `?play=fuel-storage` does the same and then teleports to that room.
 - Press <kbd>`</kbd> in game for the dev overlay: FPS and ticks, teleport, speed and single step,
   rod and coolant sliders, fault injection, scram, test toast, "complete step", and a bus event log.
-- In the browser console, `__soleOperator` exposes `player`, `simHost`, `objectives` and `bus`.
+- In the browser console, `__soleOperator` exposes `player`, `simHost`, `objectives`, `bus`,
+  `logistics`, the refuelling `machine` and `enterMode`/`exitMode`.
 
 None of these ship: they sit behind `import.meta.env.DEV` and are removed from production builds.
 
 ### Controls
 
-| Key | Action |
-| --- | --- |
-| Click floor / WASD | Move (WASD is screen-relative), Shift to sprint (uses stamina) |
-| E | Interact with what the prompt shows |
-| M | Facility map (pauses) |
-| Esc | Pause menu |
-| 1 / 2 / 3, P or Space | Game speed 1×/2×/3×, pause toggle |
-| Scroll | Zoom (clamped) |
-| Q / R / F | Inspect / Refuel / Rods tools (placeholders) |
+| Key                   | Action                                                                        |
+| --------------------- | ----------------------------------------------------------------------------- |
+| Click floor / WASD    | Move (WASD is screen-relative), Shift to sprint (uses stamina)                |
+| E                     | Interact with what the prompt shows (talk, use, push/park the transfer cart…) |
+| M                     | Facility map (pauses)                                                         |
+| Esc                   | Leave a control mode, else pause menu                                         |
+| 1 / 2 / 3, P or Space | Game speed 1×/2×/3×, pause toggle                                             |
+| Scroll                | Zoom (clamped)                                                                |
+| F                     | Rod control (in Reactor Control)                                              |
+| R                     | Refuelling machine (when the cart is docked in the core bay)                  |
+| Q                     | Inspect tool (placeholder)                                                    |
+
+Control modes (the Operator stands still, the camera frames the machine, and a panel replaces the
+hotkey bar):
+
+| Mode               | Opened from                                                | Keys                                                                             |
+| ------------------ | ---------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Rod control        | Operator console, or F                                     | ←/→ or 1–9, 0, -, = select · hold W withdraw · hold S insert · B bank (all rods) |
+| Fuel crane         | Crane console in Fuel Rod Storage                          | WASD drive the bridge crane · E lower, grab or release, raise                    |
+| Refuelling machine | Refuelling machine (core panel) with the cart docked, or R | ←/→ cell · hold S rod in · hold E extract, then hold E load                      |
+
+### The fuel loop
+
+1. Inspect cell 07 at the refuelling machine (burn-up 96%).
+2. In Fuel Rod Storage, use the crane to lift a fresh assembly (green top) from the pool rack into
+   the cask on the transfer cart at the cask dock.
+3. Push the cart (E) along corridor C-1 and park it in the cart bay next to the core (it snaps in).
+4. Run the refuelling machine: rod in → extract (the spent cassette rides the glass chute down
+   into the cask) → load (the fresh one rides up and the arm seats it).
+5. The rod stays fully in, because fresh fuel adds reactivity. Bring power back with rod control.
+6. Side objective: take the spent assembly back and crane it into the pool.
 
 ## Deploy
 
@@ -73,12 +96,16 @@ src/
   core/       Engine glue, no React: fixed-step clock, typed event bus, SimHost, save/load
   world/      Room/space types, facility graph and routing, collision, Navigator seam
   rooms/      One folder per room + registry.ts
-  objectives/ Data-defined objectives and the bus-driven ObjectiveRunner
+  logistics/  Pure TS fuel logistics: pool rack, crane hook, transfer-cart cask (tested)
+  objectives/ Data-defined objectives (with chaining) and the bus-driven ObjectiveRunner
   game/       Runtime singletons, session (new/continue/save), world controller
-              (corridors and transitions), interactions, input and hotkeys
-  scene/      React Three Fiber: canvas, iso camera, lighting, post FX, room shell,
-              corridor view, player, NPC placeholder, SimDriver
-  state/      zustand stores React reads: app (screens, settings), world, hud
+              (corridors and transitions), interactions, input and hotkeys,
+              control modes (modes.ts), crane, refuelling machine, transfer cart
+  scene/      React Three Fiber: canvas, iso camera, lighting (+ procedural environment map),
+              post FX, room shell (floor holes, auto doors), corridor view, player, NPCs
+              (seated/standing/walking), transfer cart, shared props (props.tsx),
+              SimDriver and ModeDriver (the per-frame loops)
+  state/      zustand stores React reads: app, world, hud, mode, logistics
   hud/        The in-game overlay (compass, minimap, vitals…), styled in hud.css
   app/        Screens: loading, title, settings, pause, facility map, game view
   dev/        Dev overlay (dev builds only)
@@ -107,11 +134,13 @@ src/
    next room's code. Reaching the far end fades into that room. Doors to rooms that aren't built
    yet show a "sealed" shutter; the accelerator is "locked" by clearance.
 5. **One bus** (`core/events.ts`, typed by `GameEvents`) connects everything. `cmd/*` channels are
-   requests (`cmd/sim` reaches the plant); the rest are facts (`sim`, `interact`, `item/picked`,
-   `room/entered`…). Objectives, toasts, autosave and the dev log all listen there.
+   requests (`cmd/sim` reaches the plant); the rest are facts (`sim`, `interact`, `fuel/craned`,
+   `cart/docked`, `room/entered`, `plant/sample`…). Objectives, toasts, autosave and the dev log all listen there.
 6. **Saves** are versioned JSON in `localStorage` (`sole-operator:save:auto|manual`). There's an
    autosave every 2 minutes and on entering a room, plus a manual save from the pause menu. When
    the shape changes, bump `SAVE_VERSION` and add `MIGRATIONS[oldVersion]` in `core/save.ts`.
+   Saves are at v2: v2 added fuel logistics, and the v1 → v2 migration puts an assembly the player
+   was carrying into the cart's cask.
 7. **Quality:** High gives bloom, PCF shadows, 4× MSAA and DPR up to 2. Low turns those off and
    keeps the grade. Touch devices with small screens start on Low.
 
@@ -144,6 +173,27 @@ interactables are on walkable floor. Run `npm test`.
 New interaction types go in the `InteractAction` union (world/types.ts) and the switch in
 `game/interactions.ts`. A brand-new room (not one of the 7) also needs a node and corridor in
 `world/facility.ts`.
+
+### Interactables and props
+
+- **New interactable:** add it to the room definition's `interactables` with an `action`. For a new
+  kind of action, extend `InteractAction` in world/types.ts and handle it in `game/interactions.ts`.
+  Every press is also announced on the bus as `interact`, so objectives can react without code.
+- **Environment props** (vending machine, water cooler, extinguisher, first aid, wall clock, alarm
+  beacon, security camera, pipes, terminals, eyewash) are in `scene/props.tsx`. Wall-mounted props
+  take a `yaw` that points their front into the room (0 on a -z wall, π/2 on a -x wall). Put them
+  against the back walls: the camera only sees the backs of things against the low front walls.
+- **Pits and pools:** list them in `floorHoles`. The shell cuts them out of the floor and slab, and
+  the room's Contents draws what's below.
+
+## How to add a control mode
+
+1. Add the mode to the `Mode` union in `state/mode.ts` (plus any panel readout state).
+2. Put its logic in `game/<mode>.ts` as plain mutable state and an update function.
+3. Call it from `scene/ModeDriver.tsx` (held keys) and `installModeKeys` in `game/modes.ts`
+   (one-shot keys). Check `modeInput.armed` so the E that opened the mode doesn't also act in it.
+4. Give the room a camera framing in `RoomDefinition.focus`, and add a panel to `hud/ModePanel.tsx`.
+5. Open it from an interactable with `enterMode`. Esc already leaves any mode.
 
 ## How to add a new sim system
 
@@ -191,8 +241,9 @@ rods 5% changes power by about 17%, and the response is overdamped.
   from each room's geometry.
 - **NPCs:** `RoomDefinition.workstations` holds seats and roles; `scene/Npc.tsx` is a seated
   placeholder. TODO: schedules, walking (cafeteria breaks), reacting to `sim` alarms on the bus.
-- **Tools:** Q/R/F are stubs in `game/hotkeys.ts`. TODO: rod panel (the swap currently leaves the
-  rod fully in for the player to withdraw), refuelling machine, inspect mode.
+- **Tools:** Q (inspect mode) is still a stub in `game/hotkeys.ts`.
+- **Fuel:** assembly ids and burn-up flow between the sim (cells) and logistics (pool, cask). TODO:
+  fresh-fuel deliveries, a cooling timer for spent fuel in the pool, crane collisions.
 - **Screens:** the map's STAFF / RESEARCH / LOGBOOK tabs are disabled stubs.
 - **Sim:** xenon, coolant pumps, turbine trip, cooling chambers and water reserves; move dosimetry
   (now a placeholder in `scene/Player.tsx`) into the sim.

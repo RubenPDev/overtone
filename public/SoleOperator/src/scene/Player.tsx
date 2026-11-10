@@ -155,7 +155,7 @@ export function Player({
     let best: Interactable | null = null;
     let bestD = Infinity;
     const cart = controlling ? null : cartInteractable(roomId);
-    for (const it of cart ? [...interactables, cart] : interactables) {
+    for (const it of controlling ? [] : cart ? [...interactables, cart] : interactables) {
       const d = Math.hypot(it.position.x - player.pos.x, it.position.z - player.pos.z);
       if (d <= it.radius && d < bestD) ((best = it), (bestD = d));
     }

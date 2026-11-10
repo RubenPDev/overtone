@@ -1,5 +1,7 @@
-import { useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { player } from '../game/runtime';
 import { isRoomBuilt } from '../rooms/registry';
 import { PALETTE } from '../styles/palette';
 import { FACING_VEC, STUB_LENGTH, doorPosition, subtractRects } from '../world/geometry';
@@ -157,6 +159,7 @@ function DoorDressing({
           <boxGeometry args={[WALL_T + 0.12, 0.2, door.width + 0.46]} />
         </mesh>
       )}
+      {state === 'open' && <AutoDoor width={door.width} back={back} at={p} mats={mats} />}
       {/* Status lamp over the door. */}
       <mesh position={[-WALL_T / 2 - 0.05, back ? DOOR_H + 0.45 : FRONT_H + 0.5, 0]} material={lamp}>
         <boxGeometry args={[0.08, 0.14, 0.9]} />
@@ -219,6 +222,76 @@ function DoorDressing({
           </FloorText>
         </group>
       )}
+    </group>
+  );
+}
+
+/**
+ * Doors that open as the Operator approaches: sliding panels in tall back walls,
+ * a lifting barrier arm in cut-down front walls. Local frame: +x outward, z along the wall.
+ */
+function AutoDoor({
+  width,
+  back,
+  at,
+  mats,
+}: {
+  width: number;
+  back: boolean;
+  at: { x: number; z: number };
+  mats: Mats;
+}) {
+  const left = useRef<THREE.Mesh>(null);
+  const right = useRef<THREE.Mesh>(null);
+  const arm = useRef<THREE.Group>(null);
+  const open = useRef(0);
+  const panel = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: '#9aa7b4', roughness: 0.35, metalness: 0.55 }),
+    [],
+  );
+  const glass = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#7fd8f0',
+        roughness: 0.1,
+        metalness: 0.2,
+        transparent: true,
+        opacity: 0.45,
+      }),
+    [],
+  );
+  useFrame((_, dt) => {
+    const near = Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < 5.5;
+    open.current += ((near ? 1 : 0) - open.current) * (1 - Math.exp(-dt * 6));
+    const o = open.current;
+    if (left.current) left.current.position.z = -width / 4 - o * (width / 2 - 0.05);
+    if (right.current) right.current.position.z = width / 4 + o * (width / 2 - 0.05);
+    if (arm.current) arm.current.rotation.x = -o * (Math.PI / 2 - 0.1);
+  });
+  if (back)
+    return (
+      <group>
+        {[left, right].map((ref, i) => (
+          <mesh
+            key={i}
+            ref={ref}
+            position={[0, DOOR_H / 2, (i ? 1 : -1) * (width / 4)]}
+            material={panel}
+            castShadow
+          >
+            <boxGeometry args={[0.12, DOOR_H, width / 2]} />
+            <mesh position={[-0.07, DOOR_H * 0.12, 0]} material={glass}>
+              <boxGeometry args={[0.02, 0.9, width / 2 - 0.5]} />
+            </mesh>
+          </mesh>
+        ))}
+      </group>
+    );
+  return (
+    <group ref={arm} position={[-0.3, 0.95, -width / 2]}>
+      <mesh position={[0, 0, width / 2]} material={mats.hazard} castShadow>
+        <boxGeometry args={[0.1, 0.1, width - 0.2]} />
+      </mesh>
     </group>
   );
 }

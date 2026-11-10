@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { createThrottle } from '../core/clock';
 import { updateCrane } from '../game/crane';
 import { isDown, keyboardDir } from '../game/input';
-import { installModeKeys, setRodDrive } from '../game/modes';
+import { installModeKeys, modeInput, setRodDrive } from '../game/modes';
 import { publishRefuel, updateRefuel } from '../game/refuel';
 import { useApp } from '../state/app';
 import { useMode } from '../state/mode';
@@ -21,6 +21,7 @@ export function ModeDriver() {
     const dt = Math.min(rawDt, 0.1);
     const mode = useMode.getState().mode;
     const menu = useApp.getState().overlay !== null;
+    if (!modeInput.armed && !isDown('KeyE')) modeInput.armed = true;
 
     if (mode.kind === 'rods') {
       const up = !menu && isDown('KeyW', 'ArrowUp');
@@ -31,7 +32,7 @@ export function ModeDriver() {
     } else if (mode.kind === 'crane') {
       updateCrane(dt, menu ? null : keyboardDir());
     } else if (mode.kind === 'refuel') {
-      updateRefuel(dt, !menu && isDown('KeyE'), !menu && isDown('KeyS', 'ArrowDown'));
+      updateRefuel(dt, !menu && modeInput.armed && isDown('KeyE'), !menu && isDown('KeyS', 'ArrowDown'));
       if (throttle(dt)) publishRefuel();
     }
   });
