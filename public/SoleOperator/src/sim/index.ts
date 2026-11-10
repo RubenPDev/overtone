@@ -37,4 +37,18 @@ export {
   upgradeLevel,
 } from './economy';
 export type { MarketItem, UpgradeCategory, UpgradeDef } from './economy';
+export {
+  SYNC_RPM,
+  VIB_GOOD,
+  VIB_ALERT,
+  VIB_TRIP,
+  MAX_WEIGHT_G,
+  PUMP_HOT_C,
+  PUMP_TRIP_C,
+  BEARING_COUPLING,
+  MM_S_PER_GRAM,
+  bearingVibration,
+  residual,
+  createTurbineState,
+} from './turbine';
 export { TANK_CAPACITY, BASE_TANKS, MAX_TANKS, VALVE_CLOSED, createWaterState, isOnline } from './water';

@@ -8,6 +8,7 @@ import {
   type Criticality,
   type EconState,
   type WaterState,
+  type TurbineState,
   type PlantState,
   type Stability,
 } from '../sim';
@@ -37,6 +38,7 @@ export interface HudSim {
   accel: AccelState;
   econ: EconState;
   water: WaterState;
+  turbine: TurbineState;
 }
 
 export function toHudSim(s: Readonly<PlantState>): HudSim {
@@ -69,6 +71,13 @@ export function toHudSim(s: Readonly<PlantState>): HudSim {
       contracts: s.econ.contracts.map((c) => ({ ...c })),
     },
     water: { ...s.water, tanks: s.water.tanks.map((t) => ({ ...t })) },
+    turbine: {
+      ...s.turbine,
+      imbalance: { ...s.turbine.imbalance },
+      weight: s.turbine.weight ? { ...s.turbine.weight } : null,
+      bearings: [...s.turbine.bearings],
+      feedPump: { ...s.turbine.feedPump },
+    },
     ...coreStatus(s),
   };
 }

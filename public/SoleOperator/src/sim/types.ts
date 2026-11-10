@@ -55,6 +55,28 @@ export interface PlantState {
   accel: AccelState;
   econ: EconState;
   water: WaterState;
+  turbine: TurbineState;
+}
+
+// --- Turbine B ---------------------------------------------------------------------------
+
+export interface TurbineState {
+  rpm: number;
+  /** LP rotor imbalance vector, grams at the balance radius (x = cos, y = sin of the phase). */
+  imbalance: { x: number; y: number };
+  /** Balance weight fitted by the crew (angle in degrees, mass in grams). */
+  weight: { angle: number; mass: number } | null;
+  /** Bearing vibration B1–B4, mm/s RMS. */
+  bearings: number[];
+  /** Protection trip (vibration); needs a reset once the rotor is balanced. */
+  tripped: boolean;
+  /** B3 under 2.8 mm/s (edge-triggers turbineBalanced). */
+  balanced: boolean;
+  /** Condenser pressure, bar absolute. */
+  vacuum: number;
+  lubeOilTemp: number;
+  /** Feed pump motor B: winding temperature, bearing lubrication 0..1. */
+  feedPump: { temp: number; lube: number; tripped: boolean; hot: boolean };
 }
 
 // --- Water reserve ---------------------------------------------------------------------
@@ -205,7 +227,12 @@ export type PlantCommand =
   | { type: 'grantCredits'; amount: number }
   | { type: 'turnValve'; tank: number; delta: number }
   | { type: 'repairTank'; tank: number }
-  | { type: 'startLeak'; tank: number; rate: number; angle?: number; height?: number };
+  | { type: 'startLeak'; tank: number; rate: number; angle?: number; height?: number }
+  | { type: 'fitBalanceWeight'; angle: number; mass: number }
+  | { type: 'setImbalance'; mass: number; phase: number }
+  | { type: 'serviceFeedPump' }
+  | { type: 'setFeedPumpLube'; lube: number; temp?: number }
+  | { type: 'resetTurbine' };
 
 export type SimEvent =
   | { type: 'alarm'; alarm: AlarmId }
@@ -237,7 +264,14 @@ export type SimEvent =
   | { type: 'tankInstalled'; tank: number }
   | { type: 'valveClosed'; tank: number }
   | { type: 'valveOpened'; tank: number }
-  | { type: 'reserveFalling' };
+  | { type: 'reserveFalling' }
+  | { type: 'turbineTrip'; reason: string }
+  | { type: 'turbineReset' }
+  | { type: 'turbineBalanced' }
+  | { type: 'weightFitted'; vibration: number }
+  | { type: 'feedPumpHot'; temp: number }
+  | { type: 'feedPumpTripped' }
+  | { type: 'feedPumpServiced' };
 
 export interface SimSnapshot {
   /** Bumped when PlantState's shape changes; save migrations key off it. */

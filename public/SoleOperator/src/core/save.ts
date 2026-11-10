@@ -3,6 +3,7 @@ import {
   Rng,
   createAccelState,
   createEconState,
+  createTurbineState,
   createWaterState,
   type RngState,
   type SimSnapshot,
@@ -108,7 +109,11 @@ export const MIGRATIONS: Record<number, Migration> = {
     return {
       ...old,
       version: 4,
-      sim: { ...sim, schema: 3, state: { ...sim.state, econ: createEconState(), water } },
+      sim: {
+        ...sim,
+        schema: 3,
+        state: { ...sim.state, econ: createEconState(), water, turbine: createTurbineState() },
+      },
     };
   },
 };

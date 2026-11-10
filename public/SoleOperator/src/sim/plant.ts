@@ -21,7 +21,7 @@ import { kineticsSystem } from './systems/kinetics';
 import { netReactivity, reactivitySystem } from './systems/reactivity';
 import { rodsSystem } from './systems/rods';
 import { thermalSystem } from './systems/thermal';
-import { turbineSystem } from './systems/turbine';
+import { applyTurbineCommand, createTurbineState, turbineSystem } from './turbine';
 import type {
   ControlRod,
   FuelCell,
@@ -122,6 +122,7 @@ export function createInitialState(rng: Rng, options: PlantSimOptions): PlantSta
     accel,
     econ: createEconState(),
     water: createWaterState(rng),
+    turbine: createTurbineState(),
   };
 }
 
@@ -129,7 +130,8 @@ function validCell(n: number): boolean {
   return Number.isInteger(n) && n >= 0 && n < CELL_COUNT;
 }
 
-function applyCommand(state: PlantState, cmd: PlantCommand, emit: (e: SimEvent) => void): void {
+function applyCommand(state: PlantState, cmd: PlantCommand, emit: (e: SimEvent) => void, rng: Rng): void {
+  if (applyTurbineCommand(state, cmd, emit, rng)) return;
   if (applyAccelCommand(state, cmd, emit)) return;
   if (applyEconCommand(state, cmd, emit)) return;
   if (applyWaterCommand(state, cmd, emit)) return;
@@ -192,14 +194,17 @@ function applyCommand(state: PlantState, cmd: PlantCommand, emit: (e: SimEvent) 
       state.coolantFlow = clamp(cmd.fraction, 0, 1.2);
       return;
     case 'injectFault':
-      if (cmd.fault === 'turbine-vibration')
-        state.turbineVibration = clamp(state.turbineVibration + cmd.severity, 0, 1);
       if (cmd.fault === 'cooling-loss')
         state.coolingEfficiency = clamp(state.coolingEfficiency - cmd.severity, 0, 1);
       return;
     case 'clearFaults':
-      state.turbineVibration = 0;
-      state.coolingEfficiency = 1;
+      {
+        state.turbine.imbalance = { x: 0, y: 0 };
+        state.turbine.weight = null;
+        state.turbine.tripped = false;
+        state.coolingEfficiency = 1;
+        return;
+      }
       return;
   }
 }
@@ -225,7 +230,7 @@ export function createPlantSim(options: PlantSimOptions): PlantSim {
       const emit = (e: SimEvent) => events.push(e);
       const commands = pending;
       pending = [];
-      for (const cmd of commands) applyCommand(state, cmd, emit);
+      for (const cmd of commands) applyCommand(state, cmd, emit, rng);
 
       const ctx: TickContext = { dt: GAME_SECONDS_PER_TICK, rng, emit };
       for (const system of SYSTEMS) system.step(state, ctx);
@@ -247,6 +252,9 @@ export function createPlantSim(options: PlantSimOptions): PlantSim {
       if (snapshot.schema !== SIM_SCHEMA) throw new Error(`Unsupported sim schema ${snapshot.schema}`);
       state = clone(snapshot.state);
       rng = Rng.fromState(snapshot.rng);
+      // Dev saves written while schema 3 was still growing may lack these parts.
+      state.water ??= createWaterState(rng);
+      state.turbine ??= createTurbineState();
       pending = clone(snapshot.pending);
     },
   };
