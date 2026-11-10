@@ -6,7 +6,10 @@ import { describeTarget, hook, targetUnderHook } from './crane';
 import { player, simHost } from './runtime';
 import { selectRefuelCell, startRefuel, stopRefuel } from './refuel';
 import { startCraneCycle } from './crane';
-import { currentRoomId } from './worldController';
+import { currentRoomId, shuttleTo } from './worldController';
+import { CAVITY_COUNT, RECIPES } from '../sim';
+import { sectorId } from '../rooms/ring';
+import { pushToast } from '../state/hud';
 
 /** Rods being driven by held W/S in rod mode (released when the key or selection changes). */
 const rodDrive = { dir: 0 as -1 | 0 | 1, rods: [] as number[] };
@@ -95,8 +98,47 @@ export function installModeKeys(): () => void {
     } else if (m.kind === 'refuel') {
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') selectRefuelCell(-1);
       if (e.code === 'ArrowRight' || e.code === 'KeyD') selectRefuelCell(1);
+    } else if (m.kind === 'rf') {
+      const pick = ROD_KEYS.indexOf(e.code);
+      let cavity = m.cavity;
+      if (pick >= 0 && pick < CAVITY_COUNT) cavity = pick;
+      else if (e.code === 'ArrowLeft' || e.code === 'KeyA')
+        cavity = (m.cavity + CAVITY_COUNT - 1) % CAVITY_COUNT;
+      else if (e.code === 'ArrowRight' || e.code === 'KeyD') cavity = (m.cavity + 1) % CAVITY_COUNT;
+      else return;
+      useMode.setState({ mode: { ...m, cavity } });
+    } else if (m.kind === 'production') {
+      const n = RECIPES.length;
+      if (e.code === 'ArrowUp' || e.code === 'KeyW')
+        useMode.setState({ mode: { ...m, index: (m.index + n - 1) % n } });
+      else if (e.code === 'ArrowDown' || e.code === 'KeyS')
+        useMode.setState({ mode: { ...m, index: (m.index + 1) % n } });
+      else if (e.code === 'KeyE' && modeInput.armed) {
+        const r = RECIPES[m.index]!;
+        const current = simHost.state.accel.recipe;
+        bus.emit('cmd/sim', { type: 'selectRecipe', recipe: current === r.id ? null : r.id });
+      } else if (e.code === 'KeyB')
+        bus.emit('cmd/sim', { type: 'accelBeam', on: !simHost.state.accel.beamOn });
+    } else if (m.kind === 'shuttle') {
+      if (e.code === 'ArrowUp' || e.code === 'KeyW')
+        useMode.setState({ mode: { ...m, index: (m.index + 7) % 8 } });
+      else if (e.code === 'ArrowDown' || e.code === 'KeyS')
+        useMode.setState({ mode: { ...m, index: (m.index + 1) % 8 } });
+      else if (e.code === 'KeyE' && modeInput.armed) rideShuttle(m.index + 1);
     }
   };
   window.addEventListener('keydown', onKey);
   return () => window.removeEventListener('keydown', onKey);
+}
+
+/** Ring shuttle: ride to sector k (1-8). */
+export function rideShuttle(k: number) {
+  const here = currentRoomId();
+  const target = sectorId(k);
+  if (here === target) {
+    pushToast({ level: 'info', text: 'Ring shuttle', detail: 'You are already in this sector.' });
+    return;
+  }
+  exitMode();
+  shuttleTo(target);
 }

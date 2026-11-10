@@ -8,16 +8,29 @@ import { ObjectiveRunner } from '../objectives/runner';
 import { OBJECTIVES } from '../objectives/definitions';
 
 describe('facility graph', () => {
-  it('matches the reference map distances', () => {
-    expect(TOTAL_CORRIDOR_M).toBe(1180);
+  it('matches the reference map distances, plus a 3.4 km ring with three access shafts', () => {
+    // Plant corridors C-1..C-6 (1,020 m) + A-1..A-3 (700 m) + 8 x 425 m ring.
+    expect(TOTAL_CORRIDOR_M).toBe(1020 + 700 + 3400);
     const d = shortestPaths('control-room');
     expect(d.get('fuel-storage')!.dist).toBe(140);
     expect(d.get('turbine-hall')!.dist).toBe(210);
     expect(d.get('water-containers')!.dist).toBe(180);
     expect(d.get('cafeteria')!.dist).toBe(330);
     expect(d.get('cooling-chambers')!.dist).toBe(330);
-    expect(d.get('particle-accelerator')!.dist).toBe(300);
     expect(d.get('cafeteria')!.via).toBe('C-4');
+    // Target Station: down A-1 from Fuel Rod Storage.
+    expect(d.get('ring-s6')!.dist).toBe(140 + 220);
+    // RF Station: under a kilometre via the water containers and A-2.
+    expect(d.get('ring-s1')!.dist).toBe(180 + 180 + 425);
+    expect(d.get('ring-s1')!.via).toBe('C-3');
+  });
+
+  it('the ring is a closed loop of eight sectors', () => {
+    const ring = CORRIDORS.filter((c) => c.kind === 'ring');
+    expect(ring).toHaveLength(8);
+    const d = shortestPaths('ring-s1');
+    expect(d.get('ring-s3')!.dist).toBe(2 * 425);
+    expect(d.get('ring-s7')!.dist).toBe(2 * 425); // the short way round
   });
 
   it('every corridor joins known nodes and every registered room is in the graph', () => {
@@ -44,12 +57,15 @@ describe('rooms and spaces', () => {
       }
   });
 
-  it('only doors to built rooms are open; the accelerator is locked', () => {
+  it('only doors to built rooms are open; Fuel Rod Storage opens onto the ring via A-1', () => {
     const cr = getRoom('control-room');
     const states = Object.fromEntries(cr.doorways.map((d) => [d.id, doorState(cr, d, isRoomBuilt)]));
     expect(states).toEqual({ fuel: 'open', turbine: 'sealed', water: 'sealed', south: 'sealed' });
     const fs = getRoom('fuel-storage');
-    expect(doorState(fs, fs.doorways[1]!, isRoomBuilt)).toBe('locked');
+    expect(doorState(fs, fs.doorways[1]!, isRoomBuilt)).toBe('open');
+    // Every ring sector is walkable both ways; access shafts to unbuilt plant rooms are sealed.
+    const s2 = getRoom('ring-s2');
+    expect(s2.doorways.map((d) => doorState(s2, d, isRoomBuilt))).toEqual(['open', 'open', 'sealed']);
   });
 
   it('blocks walls and the reactor plinth, but lets you walk out through an open door', () => {
@@ -125,6 +141,17 @@ describe('objective runner', () => {
     bus.emit('cart/docked', { room: 'fuel-storage', bay: 'pool-dock', fresh: 0, spent: 1 });
     bus.emit('fuel/craned', craned(0.96, 'pool'));
     expect(done).toEqual(['swap-cell-07', 'return-spent']);
+    // ...which chains straight into the accelerator work.
+    expect(runner.progress.active?.id).toBe('retune-cavity-03');
+    bus.emit('room/entered', { room: 'ring-s1' });
+    bus.emit('drone/scanned', { room: 'ring-s1', cavity: 2 });
+    bus.emit('sim', { type: 'cavityTuned', cavity: 2 });
+    expect(runner.progress.active?.id).toBe('first-enrichment');
+    bus.emit('sim', { type: 'productionStarted', recipe: 'enrich-u' });
+    bus.emit('sim', { type: 'produced', recipe: 'enrich-u', stock: 'enriched-u', total: 4 });
+    expect(runner.currentStep?.id).toBe('make');
+    bus.emit('sim', { type: 'produced', recipe: 'enrich-u', stock: 'enriched-u', total: 5 });
+    expect(done).toEqual(['swap-cell-07', 'return-spent', 'retune-cavity-03', 'first-enrichment']);
     expect(runner.progress.active).toBeNull();
   });
 

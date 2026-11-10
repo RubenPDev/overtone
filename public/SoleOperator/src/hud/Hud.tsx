@@ -5,10 +5,12 @@ import { useShallow } from 'zustand/react/shallow';
 import { useHud } from '../state/hud';
 import { useLogistics } from '../state/logistics';
 import { useMode } from '../state/mode';
-import { routeTo, type GraphPosition } from '../world/facility';
+import { getCorridor, routeTo, type GraphPosition } from '../world/facility';
 import { Compass } from './Compass';
 import { Minimap } from './Minimap';
 import { ModePanel } from './ModePanel';
+import { getRoom, isRoomBuilt } from '../rooms/registry';
+import { RingVitals } from './AccelPanels';
 import { fmt, formatClock, placeName } from './nav';
 import './hud.css';
 
@@ -123,6 +125,22 @@ function Bar({
   );
 }
 
+/** Level label: ring tunnels and sectors are on B4, the plant on B2. */
+function levelOf(pos: GraphPosition): string {
+  if ('room' in pos) return isRoomBuilt(pos.room) ? getRoom(pos.room).level : 'B2';
+  return getCorridor(pos.corridor).kind === 'service' || !getCorridor(pos.corridor).kind ? 'B2' : 'B4';
+}
+
+/** Core vitals at plant level, ring vitals on the accelerator (sector chambers and ring tunnels). */
+function TopRightVitals() {
+  const onRing = useHud((s) => {
+    const p = s.graphPos;
+    if ('room' in p) return p.room.startsWith('ring-');
+    return getCorridor(p.corridor).kind === 'ring';
+  });
+  return onRing ? <RingVitals /> : <CoreVitals />;
+}
+
 function CoreVitals() {
   const sim = useHud((s) => s.sim);
   if (!sim) return null;
@@ -133,11 +151,11 @@ function CoreVitals() {
         CORE · {sim.criticality} · {sim.stability}
       </div>
       <div className="vitals__big">
-        {fmt(sim.output)}
+        {fmt(sim.netOutput)}
         <small>MWe</small>
       </div>
       <div className="vitals__sub">
-        {fmt(sim.thermalPower)} MWt · k-eff {sim.keff.toFixed(4)}
+        {fmt(sim.thermalPower)} MWt · gross {fmt(sim.output)} · k {sim.keff.toFixed(4)}
       </div>
       <Bar
         label="Temp"
@@ -280,7 +298,9 @@ function ClockAndSpeed() {
         <div className="clock__day">
           DAY {c.day} · SHIFT {c.shift}
         </div>
-        <div className="clock__place">{placeName(pos)} · B2</div>
+        <div className="clock__place">
+          {placeName(pos)} · {levelOf(pos)}
+        </div>
         <div className="speed" role="group" aria-label="Game speed">
           {SPEEDS.map(({ s, label }) => (
             <button
@@ -311,7 +331,7 @@ export default function Hud() {
     <div className="hud">
       <ObjectiveTracker />
       <Compass />
-      <CoreVitals />
+      <TopRightVitals />
       <OperatorCard />
       <BottomCentre />
       <ClockAndSpeed />

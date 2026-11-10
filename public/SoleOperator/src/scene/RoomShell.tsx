@@ -67,7 +67,16 @@ function Wall({ room, facing, mats }: { room: RoomDefinition; facing: Facing; ma
         : facing === '+z'
           ? b.maxZ + WALL_T / 2
           : b.minZ - WALL_T / 2;
-  const [from, to] = alongX ? [b.minX - WALL_T, b.maxX + WALL_T] : [b.minZ - WALL_T, b.maxZ + WALL_T];
+  const [from, to] =
+    facing === '-z'
+      ? [b.minX - WALL_T, b.maxX + WALL_T]
+      : facing === '-x'
+        ? [b.minZ, b.maxZ + WALL_T]
+        : facing === '+z'
+          ? [b.minX, b.maxX + WALL_T]
+          : [b.minZ, b.maxZ];
+  // Trims on the -x wall stop short of the -z wall's trim so the two never overlap in the corner.
+  const trimFrom = facing === '-x' ? from + 0.12 : from;
   const doors = room.doorways.filter((d) => d.facing === facing);
   const holes = doors.map((d) => {
     const p = doorPosition(b, d);
@@ -102,9 +111,10 @@ function Wall({ room, facing, mats }: { room: RoomDefinition; facing: Facing; ma
       {wallSegments(from, to, holes).map(([a, c], i) => (
         <group key={i}>
           {box(a, c, 0, H, WALL_T, 0, mats.wall, 'w')}
-          {back && box(a, c, 0, 1.1, 0.08, WALL_T / 2 + 0.04, mats.wallDark, 'band')}
-          {back && box(a, c, 2.55, 2.7, 0.06, WALL_T / 2 + 0.03, mats.trim, 'trim')}
-          {!back && box(a, c, H - 0.08, H, WALL_T + 0.02, 0, mats.trim, 'cap')}
+          {back && box(Math.max(a, trimFrom), c, 0, 1.1, 0.08, WALL_T / 2 + 0.04, mats.wallDark, 'band')}
+          {back && box(Math.max(a, trimFrom), c, 2.55, 2.7, 0.06, WALL_T / 2 + 0.03, mats.trim, 'trim')}
+          {/* Cap sits proud of the wall top (not flush), so the two top faces never coincide. */}
+          {!back && box(a, c, H - 0.06, H + 0.025, WALL_T + 0.03, 0, mats.trim, 'cap')}
         </group>
       ))}
       {back &&
@@ -343,7 +353,7 @@ export function RoomShell({ room }: { room: RoomDefinition }) {
       {pieces.slab.map((r, i) => (
         <mesh
           key={`s${i}`}
-          position={[(r.minX + r.maxX) / 2, -0.75, (r.minZ + r.maxZ) / 2]}
+          position={[(r.minX + r.maxX) / 2, -0.79, (r.minZ + r.maxZ) / 2]}
           material={mats.slab}
         >
           <boxGeometry args={[r.maxX - r.minX, 1.5, r.maxZ - r.minZ]} />

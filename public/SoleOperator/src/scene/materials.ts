@@ -33,6 +33,52 @@ export function std(p: StdParams): THREE.MeshStandardMaterial {
   return m;
 }
 
+/**
+ * Cheap glass: unlit, transparent, brighter at grazing angles (fresnel rim).
+ * Large transparent surfaces drawn with lit PBR materials cost every light and
+ * the shadow map per layer per pixel; this costs almost nothing.
+ */
+export function fresnelGlass(
+  color = '#d6f6ff',
+  base = 0.04,
+  rim = 0.55,
+  side: THREE.Side = THREE.FrontSide,
+): THREE.ShaderMaterial {
+  const key = `glass|${color}|${base}|${rim}|${side}`;
+  let m = cache.get(key) as THREE.ShaderMaterial | undefined;
+  if (!m) {
+    m = new THREE.ShaderMaterial({
+      uniforms: { uColor: { value: new THREE.Color(color) }, uBase: { value: base }, uRim: { value: rim } },
+      vertexShader: /* glsl */ `
+        varying vec3 vN;
+        varying vec3 vV;
+        void main() {
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vN = normalize(normalMatrix * normal);
+          vV = normalize(-mv.xyz);
+          // Orthographic camera: every view ray is parallel to -Z.
+          if (projectionMatrix[3][3] == 1.0) vV = vec3(0.0, 0.0, 1.0);
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: /* glsl */ `
+        uniform vec3 uColor;
+        uniform float uBase;
+        uniform float uRim;
+        varying vec3 vN;
+        varying vec3 vV;
+        void main() {
+          float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 3.0);
+          gl_FragColor = vec4(uColor * (1.0 + f * 1.5), uBase + uRim * f);
+        }`,
+      transparent: true,
+      depthWrite: false,
+      side,
+    });
+    cache.set(key, m);
+  }
+  return m;
+}
+
 /** Unlit glowing material (pushed past 1 so it blooms). */
 export function glow(color: string, strength = 2.2): THREE.MeshBasicMaterial {
   const key = `glow|${color}|${strength}`;

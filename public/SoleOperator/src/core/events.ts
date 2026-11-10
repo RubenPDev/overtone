@@ -28,6 +28,8 @@ export interface GameEvents {
   /** The transfer cart was parked in a docking bay. */
   'cart/docked': { room: string; bay: string; fresh: number; spent: number };
   'cart/attached': { room: string };
+  /** The RF Station rail drone finished scanning a cavity. */
+  'drone/scanned': { room: string; cavity: number };
   'cart/parked': { room: string };
   /** The player switched control mode (walking, rod console, crane, refuelling machine). */
   'mode/changed': { mode: string };

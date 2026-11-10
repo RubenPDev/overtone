@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import { lazy } from 'react';
 import { controlRoom } from './control-room';
 import { fuelStorage } from './fuel-storage';
+import { ringSectors } from './ring';
 import type { RoomContentsProps, RoomDefinition } from '../world/types';
 
 /**
@@ -9,7 +10,7 @@ import type { RoomContentsProps, RoomDefinition } from '../world/types';
  * exports a RoomDefinition and a Contents.tsx, then add it to this list.
  * The id must match a node in world/facility.ts.
  */
-const ALL: RoomDefinition[] = [controlRoom, fuelStorage];
+const ALL: RoomDefinition[] = [controlRoom, fuelStorage, ...ringSectors];
 
 export const ROOMS: ReadonlyMap<string, RoomDefinition> = new Map(ALL.map((r) => [r.id, r]));
 

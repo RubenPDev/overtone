@@ -50,6 +50,63 @@ export interface PlantState {
   cells: FuelCell[];
   rods: ControlRod[];
   alarms: AlarmId[];
+  /** Output after the plant's own big consumers (the accelerator), MWe. */
+  netOutput: number;
+  accel: AccelState;
+}
+
+// --- Particle accelerator ------------------------------------------------------------
+
+export interface Cavity {
+  /** Distance from resonance, kHz. Drifts over time; tuning brings it back to 0. */
+  detune: number;
+  /** Accelerating field, MV/m (falls off as the cavity detunes). */
+  field: number;
+}
+
+/** Feedstock and products share one stock map; recipes consume and produce by id. */
+export type StockId =
+  | 'depleted-u'
+  | 'mo-targets'
+  | 'thorium'
+  | 'lithium-6'
+  | 'spent-fuel'
+  | 'deuterium'
+  | 'enriched-u'
+  | 'mo99'
+  | 'pu239'
+  | 'u233'
+  | 'transmuted'
+  | 'tritium'
+  | 'dt-fuel'
+  | 'he3'
+  | 'antimatter'
+  | 'research';
+
+export interface AccelState {
+  beamOn: boolean;
+  /** Set by an interlock trip; cleared when the beam is switched on again. */
+  tripped: boolean;
+  /** Beam energy, GeV. */
+  energy: number;
+  /** Beam current, mA. Beam power (MW) = energy (GeV) x current (mA). */
+  current: number;
+  /** Cryomodule temperature, K (superconducting at ~2 K; trips above 4.5 K). */
+  cryo: number;
+  /** Fraction of the beam lost per turn (0.004 = 0.4%). */
+  loss: number;
+  /** Electrical draw: cryo plant, magnets, RF, MWe. */
+  powerDraw: number;
+  cavities: Cavity[];
+  /** Recipe the beam is delivering to (null = beam circulating, nothing on target). */
+  recipe: string | null;
+  /** Fractional progress toward the next whole unit of the current recipe. */
+  progress: number;
+  stock: Record<StockId, number>;
+  /** Clearance level: recipes above it are locked. */
+  clearance: number;
+  /** Per-cavity "below 90% field" flags, for edge-triggered events. */
+  detuned: boolean[];
 }
 
 export type FaultKind = 'turbine-vibration' | 'cooling-loss';
@@ -64,7 +121,12 @@ export type PlantCommand =
   | { type: 'loadCell'; cell: CellIndex; assembly: string; burnup?: number }
   | { type: 'setCoolantFlow'; fraction: number }
   | { type: 'injectFault'; fault: FaultKind; severity: number }
-  | { type: 'clearFaults' };
+  | { type: 'clearFaults' }
+  | { type: 'accelBeam'; on: boolean }
+  | { type: 'tuneCavity'; cavity: number; deltaKHz: number }
+  | { type: 'selectRecipe'; recipe: string | null }
+  | { type: 'addStock'; stock: StockId; amount: number }
+  | { type: 'setClearance'; level: number };
 
 export type SimEvent =
   | { type: 'alarm'; alarm: AlarmId }
@@ -75,7 +137,15 @@ export type SimEvent =
   | { type: 'cellUnloaded'; cell: CellIndex; assembly: string | null; burnup: number }
   | { type: 'cellLoaded'; cell: CellIndex; assembly: string }
   | { type: 'cellSpent'; cell: CellIndex }
-  | { type: 'commandRejected'; command: PlantCommand['type']; reason: string };
+  | { type: 'commandRejected'; command: PlantCommand['type']; reason: string }
+  | { type: 'beamStarted' }
+  | { type: 'beamStopped' }
+  | { type: 'beamTrip'; reason: string }
+  | { type: 'cavityDetuned'; cavity: number }
+  | { type: 'cavityTuned'; cavity: number }
+  | { type: 'productionStarted'; recipe: string }
+  | { type: 'produced'; recipe: string; stock: StockId; total: number }
+  | { type: 'feedExhausted'; recipe: string };
 
 export interface SimSnapshot {
   /** Bumped when PlantState's shape changes; save migrations key off it. */

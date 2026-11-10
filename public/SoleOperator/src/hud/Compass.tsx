@@ -12,8 +12,11 @@ export function Compass() {
   const target = useHud((s) => s.objective?.target?.room ?? null);
   const waypoint = useWorld((s) => s.waypoint);
 
-  const markers = compassMarkers(pos, player)
-    .filter((m) => !m.locked || m.id === waypoint)
+  // The six nearest destinations, plus the objective target and waypoint wherever they are.
+  const all = compassMarkers(pos, player).filter((m) => !m.locked || m.id === waypoint);
+  const nearest = [...all].sort((p, q) => p.dist - q.dist).slice(0, 6);
+  const markers = all
+    .filter((m) => nearest.includes(m) || m.id === target || m.id === waypoint)
     .map((m) => ({ ...m, x: 50 + (Math.max(-SPAN, Math.min(SPAN, m.bearing)) / SPAN) * 46 }))
     .sort((a, b) => a.x - b.x || a.dist - b.dist);
   // Rooms reached through the same door share a bearing: fan them out, then keep the row on the strip.
@@ -36,7 +39,7 @@ export function Compass() {
           >
             <i />
             <b>{m.label}</b>
-            <span>{fmt(m.dist)} m</span>
+            <span>{m.dist >= 1000 ? `${(m.dist / 1000).toFixed(1)} km` : `${fmt(m.dist)} m`}</span>
           </div>
         );
       })}

@@ -94,34 +94,63 @@ export function WaterCooler({ x, z, yaw = 0 }: Placed) {
   );
 }
 
-/** Rotating alarm beacon: dim when all is well, spins when an alarm is unacknowledged, steady when acknowledged. */
-export function AlarmBeacon({ x, z, y = 7.0, yaw = 0 }: Placed) {
+/**
+ * Wall-mounted rotating alarm beacon. A backplate sits flush on the wall
+ * (local z = 0, local +z out of the wall), a short arm holds the housing, and
+ * the red lens points straight out from the wall. Dim when all is well, spins
+ * while an alarm is unacknowledged, glows steady once acknowledged.
+ */
+export function AlarmBeacon({ x, z, y = 4.5, yaw = 0 }: Placed) {
   const spinner = useRef<THREE.Group>(null);
   const lens = useRef<THREE.MeshBasicMaterial>(null);
   const beam = useRef<THREE.MeshBasicMaterial>(null);
   const housing = useStd('#2a3038', 0.5, 0.4);
-  useFrame((s, dt) => {
+  const plate = useStd('#9aa6b2', 0.4, 0.6);
+  useFrame((st, dt) => {
     const { sim, acked } = useHud.getState();
     const alarms = sim?.alarms ?? [];
     const unacked = alarms.some((a) => !acked.includes(a));
     const active = alarms.length > 0;
-    if (spinner.current) spinner.current.rotation.y += dt * (unacked ? 7 : 0);
-    const k = active ? (unacked ? 2.6 : 1.4 + Math.sin(s.clock.elapsedTime * 3) * 0.3) : 0.25;
+    if (spinner.current) spinner.current.rotation.z += dt * (unacked ? 7 : 0);
+    const k = active ? (unacked ? 2.6 : 1.4 + Math.sin(st.clock.elapsedTime * 3) * 0.3) : 0.25;
     lens.current?.color.set('#ff3b30').multiplyScalar(k);
-    if (beam.current) beam.current.opacity = unacked ? 0.35 : 0;
+    if (beam.current) beam.current.opacity = unacked ? 0.3 : 0;
   });
+  // Cylinders are built along +y; this turns them to point out of the wall (+z).
+  const outward: [number, number, number] = [Math.PI / 2, 0, 0];
   return (
     <group position={[x, y, z]} rotation={[0, yaw, 0]}>
-      <mesh position={[0, -0.1, 0]} material={housing}>
-        <cylinderGeometry args={[0.16, 0.2, 0.14, 12]} />
+      {/* Backplate flush with the wall, with four bolt heads */}
+      <mesh position={[0, 0, 0.02]} material={plate}>
+        <boxGeometry args={[0.36, 0.36, 0.04]} />
       </mesh>
-      <mesh position={[0, 0.08, 0]}>
-        <cylinderGeometry args={[0.13, 0.13, 0.24, 12]} />
+      {[-0.13, 0.13].flatMap((bx) =>
+        [-0.13, 0.13].map((by) => (
+          <mesh key={`${bx},${by}`} position={[bx, by, 0.045]} rotation={outward} material={housing}>
+            <cylinderGeometry args={[0.02, 0.02, 0.02, 6]} />
+          </mesh>
+        )),
+      )}
+      {/* Arm and housing */}
+      <mesh position={[0, 0, 0.1]} rotation={outward} material={housing}>
+        <cylinderGeometry args={[0.07, 0.09, 0.12, 12]} />
+      </mesh>
+      <mesh position={[0, 0, 0.2]} rotation={outward} material={housing}>
+        <cylinderGeometry args={[0.15, 0.15, 0.08, 16]} />
+      </mesh>
+      {/* Red lens dome pointing out of the wall */}
+      <mesh position={[0, 0, 0.3]} rotation={outward}>
+        <cylinderGeometry args={[0.12, 0.13, 0.14, 16]} />
         <meshBasicMaterial ref={lens} color="#ff3b30" toneMapped={false} />
       </mesh>
-      <group ref={spinner}>
-        <mesh position={[1.1, 0.08, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <coneGeometry args={[0.5, 2.0, 16, 1, true]} />
+      <mesh position={[0, 0, 0.375]} rotation={outward}>
+        <sphereGeometry args={[0.12, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshBasicMaterial color="#ff8a80" transparent opacity={0.55} toneMapped={false} />
+      </mesh>
+      {/* Rotating light sweep around the lens axis */}
+      <group ref={spinner} position={[0, 0, 0.32]}>
+        <mesh position={[0.9, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <coneGeometry args={[0.38, 1.6, 16, 1, true]} />
           <meshBasicMaterial
             ref={beam}
             color="#ff5040"

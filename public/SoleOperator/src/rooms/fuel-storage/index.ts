@@ -88,7 +88,7 @@ export const fuelStorage: RoomDefinition = {
   floorLabel: 'FUEL ROD STORAGE',
   doorways: [
     { id: 'control', facing: '+x', width: 4, corridor: 'C-1', sign: 'REACTOR CONTROL' },
-    { id: 'accelerator', facing: '-z', offset: 5, width: 4, corridor: 'C-7', sign: 'ACCELERATOR · L8' },
+    { id: 'ring', facing: '-z', offset: 5, width: 4, corridor: 'A-1', sign: 'ACCESS A-1 · RING B4' },
   ],
   spawn: { position: { x: 10, z: 0 }, facing: -Math.PI / 2 },
   interactables: [

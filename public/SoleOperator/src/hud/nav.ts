@@ -47,7 +47,7 @@ export interface CompassMarker {
 /** Compass markers: every other room with its walking distance and screen bearing. */
 export function compassMarkers(pos: GraphPosition, player: Vec2): CompassMarker[] {
   const here = 'room' in pos ? pos.room : null;
-  return NODES.filter((n) => n.kind === 'room' && n.id !== here).map((n) => {
+  return NODES.filter((n) => n.kind === 'room' && n.id !== here && (!n.sector || n.station)).map((n) => {
     const exit = exitPointToward(pos, n.id);
     const r = routeTo(pos, n.id);
     return {

@@ -487,8 +487,8 @@ export default function FuelStorageContents(_: RoomContentsProps) {
         clipboard
       />
       <WalkingNpc path={WORKERS.patrol} seed={8} outfit="worker" />
-      <AlarmBeacon x={-13.55} z={-4.5} y={6.6} yaw={Math.PI / 2} />
-      <AlarmBeacon x={5} z={-10.55} y={5.0} />
+      <AlarmBeacon x={-14} z={6} y={4.0} yaw={Math.PI / 2} />
+      <AlarmBeacon x={-1.2} z={-11} y={4.0} />
       <SecurityCamera x={-13.6} z={9.5} y={6.0} yaw={Math.PI / 2} />
       <SecurityCamera x={12.8} z={-10.6} y={6.0} yaw={0} />
 

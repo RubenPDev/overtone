@@ -11,7 +11,7 @@ import {
 import { FIRST_OBJECTIVE } from '../objectives/definitions';
 import type { ObjectiveProgress } from '../objectives/runner';
 import { START_ROOM, getRoom } from '../rooms/registry';
-import type { AlarmId } from '../sim';
+import { RECIPE_BY_ID, type AlarmId } from '../sim';
 import { useApp } from '../state/app';
 import { pushToast, useHud, type HudObjective } from '../state/hud';
 import { useWorld } from '../state/world';
@@ -196,6 +196,32 @@ bus.on('sim', (e) => {
         level: 'warn',
         text: `Cell ${String(e.cell + 1).padStart(2, '0')} spent`,
         detail: 'Burn-up past 98%.',
+      });
+    case 'beamTrip':
+      return pushToast({ level: 'alarm', text: 'Accelerator beam trip', detail: e.reason }, 6000);
+    case 'beamStarted':
+      return pushToast({ level: 'ok', text: 'Beam on', detail: 'Injecting from the linac.' });
+    case 'beamStopped':
+      return pushToast({ level: 'info', text: 'Beam off', detail: 'Ring cryo and magnets stay powered.' });
+    case 'cavityDetuned':
+      return pushToast({
+        level: 'warn',
+        text: `RF cavity ${String(e.cavity + 1).padStart(2, '0')} detuned`,
+        detail: 'Field below 90%. Beam loss rising.',
+      });
+    case 'cavityTuned':
+      return pushToast({ level: 'ok', text: `Cavity ${String(e.cavity + 1).padStart(2, '0')} on resonance` });
+    case 'productionStarted':
+      return pushToast({
+        level: 'ok',
+        text: 'Production run started',
+        detail: RECIPE_BY_ID.get(e.recipe)?.name,
+      });
+    case 'feedExhausted':
+      return pushToast({
+        level: 'warn',
+        text: 'Run stopped · out of feedstock',
+        detail: RECIPE_BY_ID.get(e.recipe)?.name,
       });
   }
 });

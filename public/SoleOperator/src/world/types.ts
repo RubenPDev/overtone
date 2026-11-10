@@ -48,6 +48,14 @@ export type InteractAction =
   | { type: 'vending' }
   /** Water cooler: restores stamina. */
   | { type: 'water' }
+  /** Ring shuttle stop: fast travel between accelerator sectors. */
+  | { type: 'shuttle' }
+  /** RF console: cavity tuning mode. */
+  | { type: 'rfConsole' }
+  /** Accelerator production console: recipes and beam. */
+  | { type: 'production' }
+  /** Rail drone dock: launch a cavity scan. */
+  | { type: 'droneDock' }
   /** Alarm panel: acknowledge active alarms. */
   | { type: 'alarmPanel' }
   | { type: 'message'; text: string; detail?: string };
@@ -123,7 +131,12 @@ export interface RoomDefinition {
   /** Docking bays for the fuel transfer cart. */
   cartBays?: CartBay[];
   /** Where the camera looks (and how close) while a control mode is active in this room. */
-  focus?: Partial<Record<'rods' | 'crane' | 'refuel', { x: number; z: number; zoom: number }>>;
+  focus?: Partial<
+    Record<
+      'rods' | 'crane' | 'refuel' | 'rf' | 'production' | 'shuttle',
+      { x: number; z: number; zoom: number }
+    >
+  >;
   /** Lazy-loaded scene contents (props, lights, NPCs). The shell (floor, walls, doors) is generic. */
   load: () => Promise<{ default: ComponentType<RoomContentsProps> }>;
 }

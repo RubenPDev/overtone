@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 import { createThrottle } from '../core/clock';
+import { bus } from '../core/events';
 import { updateCrane } from '../game/crane';
 import { isDown, keyboardDir } from '../game/input';
 import { installModeKeys, modeInput, setRodDrive } from '../game/modes';
@@ -15,6 +16,8 @@ import { useMode } from '../state/mode';
  */
 export function ModeDriver() {
   const throttle = useMemo(() => createThrottle(10), []);
+  const tuneThrottle = useMemo(() => createThrottle(10), []);
+  const tune = useMemo(() => ({ acc: 0 }), []);
   useEffect(() => installModeKeys(), []);
 
   useFrame((_, rawDt) => {
@@ -31,6 +34,16 @@ export function ModeDriver() {
       setRodDrive(dir, rods);
     } else if (mode.kind === 'crane') {
       updateCrane(dt, menu ? null : keyboardDir());
+    } else if (mode.kind === 'rf') {
+      // Hold W/S to sweep the selected cavity's frequency (Shift = fine). Sent to the sim at 10 Hz.
+      const up = !menu && isDown('KeyW', 'ArrowUp');
+      const down = !menu && isDown('KeyS', 'ArrowDown');
+      const rate = isDown('ShiftLeft', 'ShiftRight') ? 1.5 : 7;
+      tune.acc += (up ? rate : 0) * dt - (down ? rate : 0) * dt;
+      if (tuneThrottle(dt) && Math.abs(tune.acc) > 1e-4) {
+        bus.emit('cmd/sim', { type: 'tuneCavity', cavity: mode.cavity, deltaKHz: tune.acc });
+        tune.acc = 0;
+      }
     } else if (mode.kind === 'refuel') {
       updateRefuel(dt, !menu && modeInput.armed && isDown('KeyE'), !menu && isDown('KeyS', 'ArrowDown'));
       if (throttle(dt)) publishRefuel();

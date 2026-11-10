@@ -62,6 +62,70 @@ export const OBJECTIVES: ObjectiveDef[] = [
         completeOn: { channel: 'fuel/craned', where: (e) => e.to === 'pool' && e.burnup >= 0.5 },
       },
     ],
+    next: 'retune-cavity-03',
+  },
+  {
+    id: 'retune-cavity-03',
+    title: 'Re-tune RF Cavity 03',
+    kind: 'main',
+    next: 'first-enrichment',
+    steps: [
+      {
+        id: 'reach',
+        text: 'Reach the RF station in sector 1',
+        detail: 'Access A-1 from Fuel Rod Storage, then the ring shuttle',
+        target: { room: 'ring-s1', interactable: 'rf-console' },
+        completeOn: { channel: 'room/entered', where: (e) => e.room === 'ring-s1' },
+      },
+      {
+        id: 'scan',
+        text: 'Scan the cryomodule with the rail drone',
+        detail: 'Drone dock at the west end of the hall',
+        target: { room: 'ring-s1', interactable: 'drone-dock' },
+        completeOn: { channel: 'drone/scanned' },
+      },
+      {
+        id: 'tune',
+        text: 'Tune cavity 03 at the RF console',
+        detail: 'Sweep to resonance: detune under 1 kHz',
+        target: { room: 'ring-s1', interactable: 'rf-console' },
+        completeOn: { channel: 'sim', where: (e) => e.type === 'cavityTuned' && e.cavity === 2 },
+      },
+    ],
+  },
+  {
+    id: 'first-enrichment',
+    title: 'First Enrichment Run',
+    kind: 'main',
+    steps: [
+      {
+        id: 'reach',
+        text: 'Go to the Target Station in sector 6',
+        detail: 'Ring shuttle, or access A-1',
+        target: { room: 'ring-s6', interactable: 'production' },
+        completeOn: { channel: 'room/entered', where: (e) => e.room === 'ring-s6' },
+      },
+      {
+        id: 'start',
+        text: 'Start an enriched-uranium run',
+        detail: 'Target station console',
+        target: { room: 'ring-s6', interactable: 'production' },
+        completeOn: {
+          channel: 'sim',
+          where: (e) => e.type === 'productionStarted' && e.recipe === 'enrich-u',
+        },
+      },
+      {
+        id: 'make',
+        text: 'Produce 5 kg of enriched uranium',
+        detail: 'Keep the beam on and the cavities tuned',
+        target: { room: 'ring-s6', interactable: 'production' },
+        completeOn: {
+          channel: 'sim',
+          where: (e) => e.type === 'produced' && e.stock === 'enriched-u' && e.total >= 5,
+        },
+      },
+    ],
   },
 ];
 

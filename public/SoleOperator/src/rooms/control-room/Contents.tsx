@@ -281,9 +281,9 @@ export default function ControlRoomContents(_: RoomContentsProps) {
       </Baked>
 
       {/* Animated props stay out of the bake. */}
-      <AlarmBeacon x={PROPS.alarmPanel.x} z={-15.6} y={2.6} />
-      <AlarmBeacon x={-15.55} z={0} y={7.6} yaw={Math.PI / 2} />
-      <AlarmBeacon x={0} z={-15.55} y={7.6} />
+      {/* Beacons mount flush on the wall, beside (not over) the panel and the door signs. */}
+      <AlarmBeacon x={PROPS.alarmPanel.x + 1.15} z={-16} y={2.35} />
+      <AlarmBeacon x={-16} z={-3.7} y={4.6} yaw={Math.PI / 2} />
       <WallClock x={PROPS.clock.x} z={PROPS.clock.z + 0.02} y={5.7} />
       <SecurityCamera x={-15.6} z={14.2} y={6.8} yaw={Math.PI / 2} />
       <SecurityCamera x={14.2} z={-15.6} y={6.8} yaw={0} />

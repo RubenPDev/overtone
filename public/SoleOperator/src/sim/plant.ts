@@ -12,6 +12,7 @@ import {
 } from './constants';
 import { Rng } from './rng';
 import { clamp, type SimSystem, type TickContext } from './system';
+import { acceleratorSystem, applyAccelCommand, createAccelState, productionSystem } from './accelerator';
 import { alarmsSystem } from './systems/alarms';
 import { fuelSystem } from './systems/fuel';
 import { kineticsSystem } from './systems/kinetics';
@@ -29,7 +30,7 @@ import type {
   SimSnapshot,
 } from './types';
 
-export const SIM_SCHEMA = 1;
+export const SIM_SCHEMA = 2;
 
 /**
  * The tick pipeline, in order. Add a new system by writing a SimSystem and
@@ -42,6 +43,8 @@ export const SYSTEMS: readonly SimSystem[] = [
   fuelSystem,
   thermalSystem,
   turbineSystem,
+  acceleratorSystem,
+  productionSystem,
   alarmsSystem,
 ];
 
@@ -87,6 +90,8 @@ export function createInitialState(rng: Rng, options: PlantSimOptions): PlantSta
   const x = criticalInsertion(cells);
   const rods: ControlRod[] = Array.from({ length: CELL_COUNT }, () => ({ insertion: x, target: x }));
   const coreTemp = INLET_TEMP_C + CORE_DT_PER_MW * NOMINAL_THERMAL_MW;
+  const accel = createAccelState(rng);
+  const output = NOMINAL_THERMAL_MW * TURBINE_EFFICIENCY;
   return {
     tick: 0,
     time: START_TIME_S,
@@ -102,12 +107,14 @@ export function createInitialState(rng: Rng, options: PlantSimOptions): PlantSta
     coolantFlow: 1,
     coolingEfficiency: 1,
     steamPower: NOMINAL_THERMAL_MW,
-    output: NOMINAL_THERMAL_MW * TURBINE_EFFICIENCY,
+    output,
+    netOutput: output - accel.powerDraw,
     turbineVibration: 0,
     scrammed: false,
     cells,
     rods,
     alarms: [],
+    accel,
   };
 }
 
@@ -116,6 +123,7 @@ function validCell(n: number): boolean {
 }
 
 function applyCommand(state: PlantState, cmd: PlantCommand, emit: (e: SimEvent) => void): void {
+  if (applyAccelCommand(state, cmd, emit)) return;
   const reject = (reason: string) => emit({ type: 'commandRejected', command: cmd.type, reason });
   const rodsLocked = () =>
     state.scrammed && (reject('Rods are latched in after a scram. Reset first.'), true);

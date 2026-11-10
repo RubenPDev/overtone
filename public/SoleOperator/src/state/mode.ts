@@ -8,7 +8,10 @@ export type Mode =
   | { kind: 'walk' }
   | { kind: 'rods'; selected: number; bank: boolean }
   | { kind: 'crane' }
-  | { kind: 'refuel'; cell: number };
+  | { kind: 'refuel'; cell: number }
+  | { kind: 'rf'; cavity: number }
+  | { kind: 'production'; index: number }
+  | { kind: 'shuttle'; index: number };
 
 export type RefuelPhase = 'insert-rod' | 'extract' | 'load' | 'done';
 

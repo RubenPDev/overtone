@@ -103,7 +103,7 @@ describe('save', () => {
   const sample = (savedAt: string): SaveData => {
     const host = new SimHost(new EventBus<GameEvents>(), 'save');
     return {
-      version: 2,
+      version: 3,
       savedAt,
       seed: 'save',
       sim: host.snapshot(),
@@ -145,11 +145,27 @@ describe('save', () => {
     };
     storage.setItem('sole-operator:save:auto', JSON.stringify(v1));
     const back = readSave(storage, 'auto')!;
-    expect(back.version).toBe(2);
+    expect(back.version).toBe(3);
     expect(back.world).toEqual({ room: 'fuel-storage', player: { x: 2, z: 0 }, focus: 0.88, dose: 0 });
     expect(back.logistics.cart.cask).toEqual([{ id: 'FA-31', burnup: 0 }]);
     expect(back.logistics.cart.room).toBe('fuel-storage');
     expect(back.logistics.pool.some((a) => a?.id === 'FA-31')).toBe(false);
+  });
+
+  it('migrates a v2 save (no accelerator) to v3 and restores it', () => {
+    const storage = new MemoryStorage();
+    const v3 = sample('2026-01-01T00:00:00Z');
+    const { accel: _a, netOutput: _n, ...oldState } = v3.sim.state;
+    const v2 = { ...v3, version: 2, sim: { ...v3.sim, schema: 1, state: oldState } };
+    storage.setItem('sole-operator:save:auto', JSON.stringify(v2));
+    const back = readSave(storage, 'auto')!;
+    expect(back.version).toBe(3);
+    expect(back.sim.schema).toBe(2);
+    expect(back.sim.state.accel.cavities).toHaveLength(8);
+    const host = new SimHost(new EventBus<GameEvents>(), 'x');
+    host.restore(back.sim);
+    host.tick();
+    expect(Number.isFinite(host.state.netOutput)).toBe(true);
   });
 
   it('upgrades old saves through the migration chain', () => {

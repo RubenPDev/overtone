@@ -1,8 +1,9 @@
 /**
  * The plant layout: every room (built or not), junctions and corridors with their
  * in-world lengths. This feeds the compass, minimap, map screen and (later)
- * long-range pathfinding. Matches docs/design/facility-map-v2.png:
- * C-1..C-7 add up to 1,180 m of corridor.
+ * long-range pathfinding. Plant corridors C-1..C-6 follow docs/design/facility-map-v2.png;
+ * the accelerator ring (facility-map-v3, ring level B4) is eight 425 m tunnel
+ * segments around the whole plant, reached by access shafts A-1..A-3.
  *
  * `map` positions are in map-plane metres using the same axes as rooms
  * (+x screen down-right, +z screen down-left); they only affect drawing.
@@ -17,6 +18,10 @@ export interface FacilityNode {
   map: { x: number; z: number; w: number; d: number };
   /** Clearance level needed to enter (0 = none). */
   clearance?: number;
+  /** Ring sector number (1-8) for accelerator sector chambers. */
+  sector?: number;
+  /** Named ring stations show on the compass and map list; plain junction sectors don't. */
+  station?: boolean;
 }
 
 export interface Corridor {
@@ -25,7 +30,24 @@ export interface Corridor {
   b: string;
   /** Walking length in metres. */
   length: number;
+  /** Service corridors (plant level), access shafts down to the ring, or ring tunnel segments. */
+  kind?: 'service' | 'access' | 'ring';
 }
+
+/** Ring geometry on the map plane (drawing only). */
+export const RING_MAP = { cx: -10, cz: -20, r: 330 };
+export const RING_SEGMENT_M = 425;
+
+const RING_SECTORS = [
+  { name: 'RF Station · S1', short: 'RF STATION', accent: '#6dffb6', station: true },
+  { name: 'Ring Sector 2', short: 'S2', accent: '#a58cff', station: false },
+  { name: 'Detector Hall · S3', short: 'DETECTOR', accent: '#ff7ad9', station: true },
+  { name: 'Ring Sector 4', short: 'S4', accent: '#a58cff', station: false },
+  { name: 'Injector Linac · S5', short: 'LINAC', accent: '#f2d25f', station: true },
+  { name: 'Target Station · S6', short: 'TARGET', accent: '#5fe3ff', station: true },
+  { name: 'Beam Dump · S7', short: 'BEAM DUMP', accent: '#ff9a4a', station: true },
+  { name: 'Ring Sector 8', short: 'S8', accent: '#a58cff', station: false },
+];
 
 export const NODES: FacilityNode[] = [
   {
@@ -84,15 +106,27 @@ export const NODES: FacilityNode[] = [
     accent: '#5fe3d0',
     map: { x: 160, z: 175, w: 90, d: 90 },
   },
-  {
-    id: 'particle-accelerator',
-    kind: 'room',
-    name: 'Particle Accelerator',
-    short: 'ACCELERATOR',
-    accent: '#a58cff',
-    map: { x: -215, z: -190, w: 150, d: 140 },
-    clearance: 8,
-  },
+  ...RING_SECTORS.map((r, k): FacilityNode => {
+    // Sectors sit on a circle round the plant; S1 east (screen right), clockwise on screen.
+    const a = (k * Math.PI) / 4;
+    const right = { x: Math.SQRT1_2, z: -Math.SQRT1_2 };
+    const down = { x: Math.SQRT1_2, z: Math.SQRT1_2 };
+    return {
+      id: `ring-s${k + 1}`,
+      kind: 'room',
+      name: r.name,
+      short: r.short,
+      accent: r.accent,
+      sector: k + 1,
+      station: r.station,
+      map: {
+        x: RING_MAP.cx + RING_MAP.r * (Math.cos(a) * right.x + Math.sin(a) * down.x),
+        z: RING_MAP.cz + RING_MAP.r * (Math.cos(a) * right.z + Math.sin(a) * down.z),
+        w: r.station ? 34 : 16,
+        d: r.station ? 34 : 16,
+      },
+    };
+  }),
 ];
 
 export const CORRIDORS: Corridor[] = [
@@ -102,7 +136,18 @@ export const CORRIDORS: Corridor[] = [
   { id: 'C-4', a: 'control-room', b: 'junction-south', length: 170 },
   { id: 'C-5', a: 'junction-south', b: 'cafeteria', length: 160 },
   { id: 'C-6', a: 'junction-south', b: 'cooling-chambers', length: 160 },
-  { id: 'C-7', a: 'fuel-storage', b: 'particle-accelerator', length: 160 },
+  // Access shafts down to ring level B4.
+  { id: 'A-1', a: 'fuel-storage', b: 'ring-s6', length: 220, kind: 'access' },
+  { id: 'A-2', a: 'water-containers', b: 'ring-s2', length: 180, kind: 'access' },
+  { id: 'A-3', a: 'turbine-hall', b: 'ring-s8', length: 300, kind: 'access' },
+  // Ring tunnel: R-12 joins S1 and S2, ..., R-81 closes the loop.
+  ...Array.from({ length: 8 }, (_, k): Corridor => ({
+    id: `R-${k + 1}${((k + 1) % 8) + 1}`,
+    a: `ring-s${k + 1}`,
+    b: `ring-s${((k + 1) % 8) + 1}`,
+    length: RING_SEGMENT_M,
+    kind: 'ring',
+  })),
 ];
 
 const nodeById = new Map(NODES.map((n) => [n.id, n]));

@@ -5,6 +5,7 @@ import { isFresh } from '../../logistics';
 import { machine } from '../../game/refuel';
 import { useMode } from '../../state/mode';
 import { Baked } from '../../scene/Baked';
+import { fresnelGlass } from '../../scene/materials';
 import { PALETTE } from '../../styles/palette';
 import { CORE_BAY } from './index';
 import { ARM_HOME, DRIVE_RING_Y, faceForCell } from './coreGeometry';
@@ -71,13 +72,7 @@ export function RefuelMachine() {
       steel: new THREE.MeshStandardMaterial({ color: '#c3ccd6', roughness: 0.25, metalness: 0.85 }),
       dark: new THREE.MeshStandardMaterial({ color: PALETTE.steelDark, roughness: 0.4, metalness: 0.7 }),
       yellow: new THREE.MeshStandardMaterial({ color: PALETTE.gantry, roughness: 0.5, metalness: 0.3 }),
-      glass: new THREE.MeshStandardMaterial({
-        color: '#d8f7ff',
-        transparent: true,
-        opacity: 0.22,
-        roughness: 0.05,
-        depthWrite: false,
-      }),
+      glass: fresnelGlass('#d8f7ff', 0.06, 0.55),
       cassette: new THREE.MeshStandardMaterial({
         color: '#9fc0cf',
         emissive: '#2a8fae',

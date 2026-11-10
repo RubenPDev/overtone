@@ -1,7 +1,14 @@
 import { create } from 'zustand';
 import type { GameSpeed } from '../core/clock';
 import type { ToastLevel } from '../core/events';
-import { averageInsertion, coreStatus, type Criticality, type PlantState, type Stability } from '../sim';
+import {
+  averageInsertion,
+  coreStatus,
+  type AccelState,
+  type Criticality,
+  type PlantState,
+  type Stability,
+} from '../sim';
 import type { GraphPosition } from '../world/facility';
 
 /** The slice of plant state the HUD shows, copied from the sim a few times per second. */
@@ -23,6 +30,9 @@ export interface HudSim {
   alarms: string[];
   criticality: Criticality;
   stability: Stability;
+  netOutput: number;
+  /** Accelerator snapshot (copied, so the HUD never holds live sim objects). */
+  accel: AccelState;
 }
 
 export function toHudSim(s: Readonly<PlantState>): HudSim {
@@ -42,6 +52,13 @@ export function toHudSim(s: Readonly<PlantState>): HudSim {
     turbineVibration: s.turbineVibration,
     scrammed: s.scrammed,
     alarms: [...s.alarms],
+    netOutput: s.netOutput,
+    accel: {
+      ...s.accel,
+      cavities: s.accel.cavities.map((c) => ({ ...c })),
+      stock: { ...s.accel.stock },
+      detuned: [...s.accel.detuned],
+    },
     ...coreStatus(s),
   };
 }

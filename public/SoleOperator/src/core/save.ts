@@ -1,5 +1,5 @@
 import { initialLogistics, type LogisticsState } from '../logistics';
-import type { SimSnapshot } from '../sim';
+import { Rng, createAccelState, type RngState, type SimSnapshot } from '../sim';
 
 /**
  * Save games: versioned JSON in localStorage.
@@ -8,7 +8,7 @@ import type { SimSnapshot } from '../sim';
  * migration MIGRATIONS[oldVersion] that turns an old save into the next version.
  * Old saves then upgrade step by step on load.
  */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 const PREFIX = 'sole-operator:save:';
 
 export type SaveSlot = 'auto' | 'manual';
@@ -72,6 +72,22 @@ export const MIGRATIONS: Record<number, Migration> = {
       version: 2,
       world: { room: world.room, player: world.player, focus: 0.88, dose: 0 },
       logistics,
+    };
+  },
+  /**
+   * v2 → v3: the particle accelerator joined the sim (sim schema 2). Old saves get
+   * a freshly commissioned ring; the old 'particle-accelerator' room no longer exists.
+   */
+  2: (old) => {
+    const sim = old.sim as { schema: number; state: Record<string, unknown>; rng: RngState };
+    const accel = createAccelState(Rng.fromState(sim.rng));
+    const output = (sim.state.output as number) ?? 0;
+    const world = old.world as { room: string };
+    return {
+      ...old,
+      version: 3,
+      sim: { ...sim, schema: 2, state: { ...sim.state, accel, netOutput: output - accel.powerDraw } },
+      world: world.room === 'particle-accelerator' ? { ...world, room: 'fuel-storage' } : world,
     };
   },
 };

@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { machine } from '../../game/refuel';
 import { simHost } from '../../game/runtime';
 import { Baked } from '../../scene/Baked';
+import { fresnelGlass } from '../../scene/materials';
 import { GlowDecal, WorldText } from '../../scene/parts';
 import { hazardTexture } from '../../scene/textures';
 import { useMode } from '../../state/mode';
@@ -48,7 +49,7 @@ export function ReactorCore() {
   const ports = useRef<THREE.InstancedMesh>(null);
   const cassettes = useRef<THREE.InstancedMesh>(null);
   const light = useRef<THREE.PointLight>(null);
-  const water = useRef<THREE.MeshStandardMaterial>(null);
+  const water = useRef<THREE.MeshBasicMaterial>(null);
 
   const m = useMemo(() => {
     const hz = hazardTexture().clone();
@@ -63,24 +64,15 @@ export function ReactorCore() {
         roughness: 0.45,
         metalness: 0.7,
       }),
-      guide: new THREE.MeshStandardMaterial({
-        color: '#6f8796',
-        roughness: 0.2,
-        metalness: 0.3,
+      // Unlit transparents: the camera zooms right onto the tank, so these cover most of the screen.
+      guide: new THREE.MeshBasicMaterial({
+        color: '#8fb3c4',
         transparent: true,
-        opacity: 0.22,
+        opacity: 0.16,
         depthWrite: false,
       }),
       gantry: new THREE.MeshStandardMaterial({ color: PALETTE.gantry, roughness: 0.5, metalness: 0.25 }),
-      glass: new THREE.MeshStandardMaterial({
-        color: '#d6f6ff',
-        transparent: true,
-        opacity: 0.12,
-        roughness: 0.04,
-        metalness: 0,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      }),
+      glass: fresnelGlass('#d6f6ff', 0.03, 0.5),
       surface: new THREE.MeshBasicMaterial({
         color: new THREE.Color(PALETTE.cyan).multiplyScalar(1.4),
         transparent: true,
@@ -249,7 +241,8 @@ export function ReactorCore() {
 
     const flicker = 1 + Math.sin(state.clock.elapsedTime * 7.3) * 0.015;
     if (light.current) light.current.intensity = (30 + 60 * powerFactor) * flicker;
-    if (water.current) water.current.emissiveIntensity = (0.3 + 0.55 * powerFactor) * flicker;
+    if (water.current)
+      water.current.color.setRGB(0.12, 0.55, 0.78).multiplyScalar((0.75 + 0.45 * powerFactor) * flicker);
   });
 
   return (
@@ -259,7 +252,7 @@ export function ReactorCore() {
         <cylinderGeometry args={[PLINTH_RADIUS, PLINTH_RADIUS + 0.1, 0.5, 64]} />
       </mesh>
       <mesh position={[0, 0.25, 0]} material={m.hazard}>
-        <cylinderGeometry args={[PLINTH_RADIUS + 0.02, PLINTH_RADIUS + 0.12, 0.42, 64, 1, true]} />
+        <cylinderGeometry args={[PLINTH_RADIUS + 0.05, PLINTH_RADIUS + 0.15, 0.42, 64, 1, true]} />
       </mesh>
 
       {/* Core, cassettes and ports */}
@@ -325,15 +318,14 @@ export function ReactorCore() {
       {/* Water column, surface and glass */}
       <mesh position={[0, (TANK_BOTTOM + 6.5) / 2, 0]} renderOrder={2}>
         <cylinderGeometry args={[TANK_RADIUS - 0.08, TANK_RADIUS - 0.08, 6.5 - TANK_BOTTOM, 64, 1, true]} />
-        <meshStandardMaterial
+        <meshBasicMaterial
           ref={water}
-          color="#1b8db3"
-          emissive={PALETTE.cyan}
-          emissiveIntensity={0.5}
+          color="#2aa6cf"
           transparent
-          opacity={0.26}
+          opacity={0.22}
           depthWrite={false}
           side={THREE.DoubleSide}
+          toneMapped={false}
         />
       </mesh>
       <mesh position={[0, 6.5, 0]} rotation={[-Math.PI / 2, 0, 0]} material={m.surface} renderOrder={3}>

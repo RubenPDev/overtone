@@ -2,7 +2,7 @@ import { bus } from '../core/events';
 import { getRoom, isRoomBuilt, preloadRoom } from '../rooms/registry';
 import { useHud } from '../state/hud';
 import { useWorld, type Arrival } from '../state/world';
-import { getCorridor, getNode, otherEnd } from '../world/facility';
+import { getCorridor, getNode, otherEnd, routeTo } from '../world/facility';
 import { arrivalPoint } from '../world/geometry';
 import { corridorFrame, type Space } from '../world/spaces';
 import { cartEnteredRoom } from './cart';
@@ -14,7 +14,7 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let busy = false;
 
 /** Fade out, swap the mounted space, fade in. Input is locked throughout. */
-async function transition(title: string, subtitle: string, swap: () => Promise<void> | void) {
+async function transition(title: string, subtitle: string, swap: () => Promise<void> | void, holdMs = 0) {
   if (busy) return;
   busy = true;
   player.locked = true;
@@ -22,6 +22,7 @@ async function transition(title: string, subtitle: string, swap: () => Promise<v
   useWorld.setState({ transition: { phase: 'out', title, subtitle }, near: null });
   await wait(FADE_MS);
   await swap();
+  if (holdMs) await wait(holdMs);
   useWorld.setState((s) => ({ transition: { ...s.transition, phase: 'in' } }));
   await wait(FADE_MS + 200);
   useWorld.setState((s) => ({ transition: { ...s.transition, phase: 'idle' } }));
@@ -95,3 +96,24 @@ export function corridorDestination(): string | null {
 }
 
 bus.on('cmd/teleport', ({ room }) => teleport(room));
+
+/** Ring shuttle ride between accelerator sectors: a longer fade with the route on it. */
+export function shuttleTo(roomId: string) {
+  if (!isRoomBuilt(roomId)) return;
+  const fromId = currentRoomId();
+  const room = getRoom(roomId);
+  const dist = fromId ? routeTo({ room: fromId }, roomId).dist : 0;
+  const secs = Math.round(dist / 14);
+  const fromName = fromId ? getNode(fromId).short : '';
+  void transition(
+    'RING SHUTTLE',
+    `${fromName} → ${getNode(roomId).short} · ${(dist / 1000).toFixed(2)} km · ${secs} s`,
+    async () => {
+      await preloadRoom(roomId);
+      if (fromId) bus.emit('room/left', { room: fromId });
+      mount({ kind: 'room', room: roomId }, room.spawn);
+      bus.emit('room/entered', { room: roomId });
+    },
+    1400,
+  );
+}

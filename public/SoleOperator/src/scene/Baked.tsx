@@ -36,6 +36,7 @@ export function Baked({ children }: { children: ReactNode }) {
     group.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh || mesh.userData.noBake || !mesh.visible) return;
+      if ((mesh as THREE.InstancedMesh).isInstancedMesh) return; // already one draw call
       const material = mesh.material as THREE.Material & { isDerivedMaterial?: boolean };
       // Additive blending doesn't depend on draw order, so additive transparents (glow decals) merge safely.
       const orderFree = material.blending === THREE.AdditiveBlending;

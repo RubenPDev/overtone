@@ -7,6 +7,7 @@ import { getNode } from '../world/facility';
 import { CORRIDOR_WIDTH, type CorridorFrame } from '../world/spaces';
 import { FloorText, GlowDecal, WorldText, useEmissive } from './parts';
 import { Baked } from './Baked';
+import { RingTunnel } from './RingTunnel';
 import { Extinguisher, Pipe } from './props';
 import { floorTexture } from './textures';
 
@@ -18,7 +19,12 @@ const FRONT_H = 0.8;
  * pools every 10 m and distance markers every 20 m. TODO(art): corridor props,
  * pipes, signage variety, occasional NPC traffic.
  */
+/** Ring tunnels get the accelerator tunnel; everything else is a service corridor. */
 export function CorridorView({ frame }: { frame: CorridorFrame }) {
+  return frame.kind === 'ring' ? <RingTunnel frame={frame} /> : <ServiceCorridor frame={frame} />;
+}
+
+function ServiceCorridor({ frame }: { frame: CorridorFrame }) {
   const L = frame.length;
   const yaw = -Math.atan2(frame.dir.z, frame.dir.x); // local +x → walking direction
   // Which lateral side faces away from the camera (that one gets the tall wall).

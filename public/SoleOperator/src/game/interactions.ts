@@ -3,7 +3,9 @@ import { isFresh, slotName } from '../logistics';
 import { CORE_BAY } from '../rooms/control-room';
 import { pushToast, useHud } from '../state/hud';
 import type { Interactable } from '../world/types';
+import { RECIPES } from '../sim';
 import { attachCart, cartDockedAt, parkCart } from './cart';
+import { launchDrone } from './drone';
 import { enterMode } from './modes';
 import { logistics, player, simHost } from './runtime';
 import { currentRoomId } from './worldController';
@@ -120,6 +122,31 @@ export function interact(i: Interactable): void {
       );
       return;
     }
+    case 'shuttle': {
+      const sector = Number(room.replace('ring-s', '')) || 1;
+      return enterMode({ kind: 'shuttle', index: sector - 1 });
+    }
+    case 'rfConsole': {
+      const cav = simHost.state.accel.cavities;
+      let worst = 0;
+      cav.forEach((c, k) => {
+        if (c.field < cav[worst]!.field) worst = k;
+      });
+      return enterMode({ kind: 'rf', cavity: worst });
+    }
+    case 'production': {
+      const current = simHost.state.accel.recipe;
+      const index = Math.max(
+        0,
+        RECIPES.findIndex((r) =>
+          current ? r.id === current : i.id === 'research-console' ? r.id === 'research' : false,
+        ),
+      );
+      return enterMode({ kind: 'production', index });
+    }
+    case 'droneDock':
+      launchDrone();
+      return;
     case 'message':
       pushToast({ level: 'info', text: a.text, detail: a.detail });
       return;

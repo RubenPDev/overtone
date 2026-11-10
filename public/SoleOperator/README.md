@@ -56,6 +56,9 @@ hotkey bar):
 | Rod control        | Operator console, or F                                     | ←/→ or 1–9, 0, -, = select · hold W withdraw · hold S insert · B bank (all rods) |
 | Fuel crane         | Crane console in Fuel Rod Storage                          | WASD drive the bridge crane · E lower, grab or release, raise                    |
 | Refuelling machine | Refuelling machine (core panel) with the cart docked, or R | ←/→ cell · hold S rod in · hold E extract, then hold E load                      |
+| RF tuning          | RF console, RF Station (ring S1)                           | ←/→ or 1–8 cavity · hold W/S sweep frequency (Shift = fine)                      |
+| Production         | Target Station console (S6) or Detector control (S3)       | W/S select run · E start/stop · B beam on/off                                    |
+| Ring shuttle       | Shuttle stop in any ring sector                            | W/S select sector · E ride                                                       |
 
 ### The fuel loop
 
@@ -83,6 +86,44 @@ changes, update it there, in the CI copy step and in the homepage card's `href`.
 Bundle: the title screen loads only React (about 85 KB gzipped). three.js, R3F and postprocessing
 (about 310 KB gzipped) download behind the loading screen, and each room's contents is its own
 small lazy chunk.
+
+## The particle accelerator
+
+A 3.4 km superconducting ring runs under the whole plant (ring level B4), in
+eight 425 m tunnel segments (`R-12` … `R-81`) between eight sector chambers.
+Access shafts lead down from the plant: A-1 from Fuel Rod Storage to S6, A-2
+from Water Containers to S2, A-3 from the Turbine Hall to S8. Every sector has
+a shuttle stop for fast travel round the ring.
+
+| Sector     | Station                                                        |
+| ---------- | -------------------------------------------------------------- |
+| S1         | RF Station: 8 superconducting cavities, RF console, rail drone |
+| S3         | Detector Hall: collider runs for research data                 |
+| S5         | Injector Linac                                                 |
+| S6         | Target Station: production runs                                |
+| S7         | Beam Dump                                                      |
+| S2, S4, S8 | Junctions (S2 and S8 have access shafts)                       |
+
+**Model** (`sim/accelerator.ts`, pure TS, tested):
+
+- Cavity tuning drifts as a random walk (about 15 kHz per game day), which lowers each cavity's field.
+- Field sets beam energy (up to 1.2 GeV). Beam current falls as beam loss rises.
+- Beam loss heats the cryomodules. Interlocks trip the beam above 2% loss or 4.5 K.
+- Beam power (MW) = energy (GeV) × current (mA), and that power on target drives production.
+- The ring draws 30–45 MWe from the plant (`netOutput`). A reactor trip starves the cryo plant and the ring trips.
+
+**Recipes** (`RECIPES`, data only): enriched uranium, Mo-99 medical isotopes,
+collider research, Pu-239 and U-233 breeding, spent-fuel transmutation,
+tritium, D-T fusion fuel, helium-3 and antimatter. Each has inputs, a rate
+per MWh, a minimum beam energy and a clearance tier. The player starts at L3;
+higher tiers show as locked until the progression system exists.
+Antimatter also needs a ring energy upgrade (1.45 GeV).
+
+**Rooms:** `rooms/ring/index.ts` builds all eight sector chambers from one
+template (`makeSector`), so stations differ only by data and a component in
+`rooms/ring/Contents.tsx`. Ring corridors render as `scene/RingTunnel.tsx`.
+The beamline (`scene/Beamline.tsx`) is instanced: a 425 m tunnel costs a few
+dozen draw calls.
 
 ## Architecture
 
@@ -139,9 +180,9 @@ src/
 6. **Saves** are versioned JSON in `localStorage` (`sole-operator:save:auto|manual`). There's an
    autosave every 2 minutes and on entering a room, plus a manual save from the pause menu. When
    the shape changes, bump `SAVE_VERSION` and add `MIGRATIONS[oldVersion]` in `core/save.ts`.
-   Saves are at v2: v2 added fuel logistics, and the v1 → v2 migration puts an assembly the player
-   was carrying into the cart's cask.
-7. **Quality:** High gives bloom, PCF shadows, 4× MSAA and DPR up to 2. Low turns those off and
+   Saves are at v3. v2 added fuel logistics (the v1 → v2 migration puts a carried assembly into the
+   cart's cask). v3 added the accelerator (sim schema 2; the v2 → v3 migration commissions a fresh ring).
+7. **Quality:** High gives bloom, PCF shadows (refreshed at half rate), SMAA and DPR up to 1.5; an adaptive governor lowers resolution when frames run long. Low turns those off and
    keeps the grade. Touch devices with small screens start on Low.
 
 ## How to add a new room
