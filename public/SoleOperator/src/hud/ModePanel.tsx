@@ -1,6 +1,7 @@
 import { exitMode } from '../game/modes';
 import { ProductionPanel, RfPanel, ShuttlePanel } from './AccelPanels';
 import { TankPanel } from './WaterPanels';
+import { AnalyzePanel, BalancePanel, DeskPanel, ServicePanel } from './TurbinePanels';
 import { isFresh } from '../logistics';
 import { useHud } from '../state/hud';
 import { useLogistics } from '../state/logistics';
@@ -243,5 +244,9 @@ export function ModePanel() {
   if (mode.kind === 'production') return <ProductionPanel index={mode.index} />;
   if (mode.kind === 'shuttle') return <ShuttlePanel index={mode.index} />;
   if (mode.kind === 'tanks') return <TankPanel tank={mode.tank} />;
+  if (mode.kind === 'analyze') return <AnalyzePanel bearing={mode.bearing} />;
+  if (mode.kind === 'balance') return <BalancePanel angle={mode.angle} mass={mode.mass} />;
+  if (mode.kind === 'service') return <ServicePanel />;
+  if (mode.kind === 'tdesk') return <DeskPanel />;
   return null;
 }

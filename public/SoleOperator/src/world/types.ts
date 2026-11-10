@@ -58,6 +58,8 @@ export type InteractAction =
   | { type: 'droneDock' }
   /** Water tank service station (valve and weld patch) or the water ops panel (tank = -1). */
   | { type: 'tankStation'; tank: number }
+  /** Turbine hall jobs: bearing vibration analysis, LP rotor balancing, feed pump service, local desk. */
+  | { type: 'turbine'; task: 'analyze' | 'balance' | 'service' | 'tdesk'; bearing?: number }
   /** Alarm panel: acknowledge active alarms. */
   | { type: 'alarmPanel' }
   | { type: 'message'; text: string; detail?: string };
@@ -135,7 +137,17 @@ export interface RoomDefinition {
   /** Where the camera looks (and how close) while a control mode is active in this room. */
   focus?: Partial<
     Record<
-      'rods' | 'crane' | 'refuel' | 'rf' | 'production' | 'shuttle' | 'tanks' | 'turbine' | 'balance',
+      | 'rods'
+      | 'crane'
+      | 'refuel'
+      | 'rf'
+      | 'production'
+      | 'shuttle'
+      | 'tanks'
+      | 'analyze'
+      | 'balance'
+      | 'service'
+      | 'tdesk',
       { x: number; z: number; zoom: number }
     >
   >;

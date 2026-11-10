@@ -61,6 +61,10 @@ hotkey bar):
 | Production         | Target Station console (S6) or Detector control (S3)       | W/S select run · E start/stop · B beam on/off                                    |
 | Ring shuttle       | Shuttle stop in any ring sector                            | W/S select sector · E ride                                                       |
 | Tank service       | Any tank station or the water ops panel (Water Containers) | ←/→ tank · hold W/S open/close outlet valve · hold E weld a patch (valve closed) |
+| Vibration analysis | Any bearing station B1–B4 (Turbine Hall)                   | ←/→ bearing · hold E run the analysis (spectrum; phase with the analyzer)        |
+| Rotor balancing    | LP rotor station (Turbine Hall)                            | hold A/D weight angle · hold W/S mass (Shift = fine) · E crew fits the weight    |
+| Pump service       | Feed pump motor B (Turbine Hall)                           | hold E grease the bearings                                                       |
+| Turbine desk       | Turbine B local desk (Turbine Hall)                        | E reset a vibration trip (rotor must be balanced)                                |
 
 ### The fuel loop
 
@@ -140,6 +144,32 @@ leak sensors (leaks are reported with the tank number) and a bigger treatment tr
 The room (`rooms/water-containers`) keeps the tall tanks against the back walls so they never hide
 the floor. Each tank shows its level in a sight glass, a roof status lamp, and a valve wheel that turns
 with the valve; leaks jet water and spread a puddle until patched.
+
+## Turbine Hall
+
+`sim/turbine.ts` (pure TS, tested) models Turbine B. Vibration comes from imbalance on the LP rotor:
+a vector (grams at the balance radius, at a phase angle). Bearings B1–B4 each see it through their
+own coupling (B3, between the LP stages, most) and it scales with speed squared. A balance weight
+adds its own vector, so a weight opposite the heavy spot cancels it. Above 7.1 mm/s the alarm
+sounds; above 11 mm/s the protection trips the turbine, which coasts down until it is rebalanced and
+reset at the local desk. Feed pump motor B heats up as its bearing grease runs out (about six game
+days), and trips at 95 °C, which cuts output until it is serviced and has cooled. Condenser vacuum
+follows the heat sink. Turbine B carries half the unit's output.
+
+The hall (`rooms/turbine-hall`) follows the turbine hall mockup: tall windows on the back wall, the
+train on a railed plinth (HP turbine with steam chests, LP rotor A with its hood lifted off and set
+on the floor, LP B, generator B with its stator ring, exciter, lube oil skid), the condenser and feed
+pumps in front, crossover steam pipes, and a semi-gantry crane that travels the hall. The LP rotor
+spins with shaft speed and visibly shakes when it is out of balance. Floating callouts show the
+state of the key equipment.
+
+The job, as an objective (**Fix Turbine B Vibration**):
+
+1. Inspect bearing B3: hold E for the vibration spectrum. The 1× running-speed peak means
+   imbalance. With the vibration analyzer (Ops tablet, Tools) it also gives the heavy spot's phase.
+2. Rebalance LP rotor A with the crew: choose an angle and a mass, and press E to have it fitted.
+   Without the analyzer, find the angle with trial weights (worse means you are near the heavy spot).
+3. Service feed pump motor B.
 
 ## Progression and economy
 

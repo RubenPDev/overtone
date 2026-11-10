@@ -1,0 +1,63 @@
+/* Equipment callouts floating in the Turbine Hall (after the mockup's labels). */
+.callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 190px;
+  padding: 7px 12px 8px 8px;
+  transform: translate(-50%, -100%);
+  background: linear-gradient(160deg, rgba(10, 18, 26, 0.86), rgba(6, 11, 16, 0.86));
+  border-left: 2px solid var(--tone, #5fe3ff);
+  font-family: var(--font-body);
+  color: var(--ink, #eef4fa);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+.callout::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1px;
+  height: 18px;
+  background: var(--tone, #5fe3ff);
+  opacity: 0.7;
+}
+.callout b {
+  display: block;
+  font: 700 12px/1.1 var(--font-head);
+  letter-spacing: 0.12em;
+}
+.callout span {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--ink-dim, #9fb0c2);
+}
+.callout__icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  font: 700 11px/1 var(--font-head);
+  font-style: normal;
+  color: #0b1118;
+  background: var(--tone, #5fe3ff);
+}
+.callout__icon {
+  text-indent: 0;
+}
+.callout.is-ok {
+  --tone: #6dffb6;
+}
+.callout.is-info {
+  --tone: #5fe3ff;
+}
+.callout.is-warn {
+  --tone: #ffb35c;
+}
+.callout.is-bad {
+  --tone: #ff5d5d;
+}

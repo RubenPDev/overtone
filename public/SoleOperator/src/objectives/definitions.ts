@@ -211,6 +211,7 @@ export const OBJECTIVES: ObjectiveDef[] = [
     title: 'Leak in the Tank Farm',
     kind: 'main',
     reward: 6_000,
+    next: 'fix-turbine-b',
     steps: [
       {
         id: 'reach',
@@ -246,6 +247,42 @@ export const OBJECTIVES: ObjectiveDef[] = [
         detail: 'Hold W to reopen the valve',
         target: { room: 'water-containers', interactable: 'tank-3' },
         completeOn: { channel: 'sim', where: (e) => e.type === 'valveOpened' && e.tank === 2 },
+      },
+    ],
+  },
+  {
+    id: 'fix-turbine-b',
+    title: 'Fix Turbine B Vibration',
+    kind: 'main',
+    reward: 12_000,
+    steps: [
+      {
+        id: 'walk',
+        text: 'Walk to Turbine Hall B',
+        detail: 'Corridor C-2 from Reactor Control',
+        target: { room: 'turbine-hall', interactable: 'bearing-b3' },
+        completeOn: { channel: 'room/entered', where: (e) => e.room === 'turbine-hall' },
+      },
+      {
+        id: 'inspect',
+        text: 'Inspect bearing B3 on the shaft',
+        detail: 'Hold E · vibration analysis',
+        target: { room: 'turbine-hall', interactable: 'bearing-b3' },
+        completeOn: { channel: 'turbine/analyzed', where: (e) => e.bearing === 2 },
+      },
+      {
+        id: 'balance',
+        text: 'Rebalance the LP rotor with the crew',
+        detail: 'LP rotor station · B3 under 2.8 mm/s',
+        target: { room: 'turbine-hall', interactable: 'lp-rotor' },
+        completeOn: { channel: 'sim', where: (e) => e.type === 'turbineBalanced' },
+      },
+      {
+        id: 'pump',
+        text: 'Service feed pump motor B',
+        detail: 'Hold E at the pump',
+        target: { room: 'turbine-hall', interactable: 'feed-pump-b' },
+        completeOn: { channel: 'sim', where: (e) => e.type === 'feedPumpServiced' },
       },
     ],
   },

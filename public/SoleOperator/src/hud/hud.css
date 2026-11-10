@@ -1016,3 +1016,50 @@
 .vitals__big small.is-water {
   color: #4fb6ff;
 }
+
+/* ---- Turbine panels ------------------------------------------------------------------ */
+.mp__readouts .is-sel {
+  color: var(--cyan);
+}
+.mp__balance {
+  display: grid;
+  grid-template-columns: 110px 1fr 170px;
+  gap: 16px;
+  align-items: start;
+}
+.mp__polar {
+  width: 110px;
+  height: 110px;
+}
+.mp__trials {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+.mp__trials b {
+  color: var(--ink);
+}
+.mp__trials .is-ok b {
+  color: var(--player);
+}
+.mp__trials .is-warn b {
+  color: var(--amber);
+}
+.mp__trials .is-bad b {
+  color: var(--danger);
+}
+.mp__trials .is-empty {
+  color: var(--ink-faint);
+}
+@media (max-width: 760px) {
+  .mp__balance {
+    grid-template-columns: 90px 1fr;
+  }
+  .mp__trials {
+    display: none;
+  }
+}

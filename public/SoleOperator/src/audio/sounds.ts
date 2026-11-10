@@ -461,6 +461,50 @@ export function weldBed() {
   });
 }
 
+/**
+ * Steam turbine on load: a deep 50 Hz drone with its harmonics, the blade-pass
+ * whine, broadband steam roar, and a slow beating rumble that grows with
+ * vibration. `rate` follows shaft speed (1 = 3,000 rpm).
+ */
+export function turbineBed() {
+  return new Bed('amb', (_ctx, out, b) => {
+    const base = b.osc('sawtooth', 50);
+    const h2 = b.osc('sine', 100);
+    const lp = b.filter('lowpass', 260);
+    base.connect(b.gain(0.5)).connect(lp);
+    h2.connect(b.gain(0.6)).connect(lp);
+    lp.connect(out);
+    const whine = b.osc('sine', 1750);
+    const whine2 = b.osc('sine', 3500);
+    whine.connect(b.gain(0.06)).connect(out);
+    whine2.connect(b.gain(0.02)).connect(out);
+    const steam = b.noise('pink');
+    steam
+      .connect(b.filter('bandpass', 700, 0.45))
+      .connect(b.gain(0.9))
+      .connect(out);
+    const rumble = b.noise('brown');
+    const beat = b.lfoGain(3.2, 0, 0.6);
+    const vib = b.gain(0);
+    rumble.connect(b.filter('lowpass', 140)).connect(beat).connect(vib).connect(out);
+    b.params.f1 = base.frequency;
+    b.params.f2 = h2.frequency;
+    b.params.w1 = whine.frequency;
+    b.params.w2 = whine2.frequency;
+    b.params.vib = vib.gain;
+  });
+}
+
+/** A dry motor bearing: a thin, wavering squeal. */
+export function squealBed() {
+  return new Bed('sfx', (_ctx, out, b) => {
+    const o = b.osc('sine', 2300);
+    const wob = b.osc('sine', 0.7);
+    wob.connect(b.gain(90)).connect(o.frequency);
+    o.connect(b.lfoGain(11, 0.6, 0.4)).connect(out);
+  });
+}
+
 /** Ring shuttle: an electric drive spooling up. */
 export function shuttleRide() {
   tone({

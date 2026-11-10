@@ -13,6 +13,7 @@ import { getRoom, isRoomBuilt } from '../rooms/registry';
 import { RingVitals } from './AccelPanels';
 import { ScannerPanel } from './Scanner';
 import { WaterVitals } from './WaterPanels';
+import { TurbineVitals } from './TurbinePanels';
 import { fmt, formatClock, placeName } from './nav';
 import './hud.css';
 
@@ -139,10 +140,19 @@ function TopRightVitals() {
   const where = useHud((s) => {
     const p = s.graphPos;
     if ('room' in p)
-      return p.room.startsWith('ring-') ? 'ring' : p.room === 'water-containers' ? 'water' : 'core';
+      return p.room.startsWith('ring-')
+        ? 'ring'
+        : p.room === 'water-containers'
+          ? 'water'
+          : p.room === 'turbine-hall'
+            ? 'turbine'
+            : 'core';
     return getCorridor(p.corridor).kind === 'ring' ? 'ring' : 'core';
   });
-  return where === 'ring' ? <RingVitals /> : where === 'water' ? <WaterVitals /> : <CoreVitals />;
+  if (where === 'ring') return <RingVitals />;
+  if (where === 'water') return <WaterVitals />;
+  if (where === 'turbine') return <TurbineVitals />;
+  return <CoreVitals />;
 }
 
 function CoreVitals() {

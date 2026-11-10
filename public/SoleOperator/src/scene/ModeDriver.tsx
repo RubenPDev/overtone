@@ -9,6 +9,7 @@ import { publishRefuel, updateRefuel } from '../game/refuel';
 import { useApp } from '../state/app';
 import { useMode } from '../state/mode';
 import { VALVE_RATE, updateWeld, weld } from '../game/tanks';
+import { adjustWeight, job, updateAnalyze, updateFit, updateService } from '../game/turbine';
 
 /**
  * Runs the active control mode every frame: held keys drive rods, the crane
@@ -18,7 +19,7 @@ import { VALVE_RATE, updateWeld, weld } from '../game/tanks';
 export function ModeDriver() {
   const throttle = useMemo(() => createThrottle(10), []);
   const tuneThrottle = useMemo(() => createThrottle(10), []);
-  const tune = useMemo(() => ({ acc: 0 }), []);
+  const tune = useMemo(() => ({ acc: 0, acc2: 0 }), []);
   useEffect(() => installModeKeys(), []);
 
   useFrame((_, rawDt) => {
@@ -44,6 +45,33 @@ export function ModeDriver() {
       if (tuneThrottle(dt) && Math.abs(tune.acc) > 1e-4) {
         bus.emit('cmd/sim', { type: 'tuneCavity', cavity: mode.cavity, deltaKHz: tune.acc });
         tune.acc = 0;
+      }
+    } else if (mode.kind === 'analyze' || mode.kind === 'service' || mode.kind === 'balance') {
+      const holdE = !menu && modeInput.armed && isDown('KeyE');
+      if (mode.kind === 'analyze') updateAnalyze(dt, mode.bearing, holdE);
+      if (mode.kind === 'service') updateService(dt, holdE);
+      if (mode.kind === 'balance') {
+        // Hold A/D to swing the weight round the rotor (Shift = fine), W/S to change its mass.
+        const fine = isDown('ShiftLeft', 'ShiftRight') ? 0.25 : 1;
+        const turn = (isDown('KeyD', 'ArrowRight') ? 1 : 0) - (isDown('KeyA', 'ArrowLeft') ? 1 : 0);
+        const grow = (isDown('KeyW', 'ArrowUp') ? 1 : 0) - (isDown('KeyS', 'ArrowDown') ? 1 : 0);
+        if (!menu && (turn || grow)) {
+          tune.acc += turn * 80 * fine * dt;
+          tune.acc2 += grow * 50 * fine * dt;
+          const da = Math.trunc(tune.acc);
+          const dm = Math.trunc(tune.acc2);
+          if (da || dm) {
+            adjustWeight(da, dm);
+            tune.acc -= da;
+            tune.acc2 -= dm;
+          }
+        }
+        updateFit(dt);
+      }
+      if (throttle(dt)) {
+        const j = useMode.getState().job;
+        if (Math.abs(j.progress - job.progress) > 0.005 || j.fitting !== job.fitting)
+          useMode.setState({ job: { progress: job.progress, fitting: job.fitting } });
       }
     } else if (mode.kind === 'tanks') {
       // Hold W/S to open/close the outlet valve (sent at 10 Hz); hold E to weld a patch.

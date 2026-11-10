@@ -101,6 +101,28 @@ export function scanReadings(
       ],
     };
   }
+  if (room === 'turbine-hall') {
+    const t = sim.turbine;
+    const tone = (v: number): Reading['tone'] => (v > 7.1 ? 'bad' : v > 2.8 ? 'warn' : 'ok');
+    return {
+      title: 'Turbine B',
+      readings: [
+        { label: 'Speed', value: `${fmt(t.rpm)} rpm`, tone: t.tripped ? 'bad' : 'ok' },
+        ...t.bearings.map((b, i) => ({
+          label: `Bearing B${i + 1}`,
+          value: `${b.toFixed(1)} mm/s`,
+          tone: tone(b),
+        })),
+        { label: 'Vacuum', value: `${t.vacuum.toFixed(3)} bar`, tone: t.vacuum > 0.08 ? 'warn' : 'ok' },
+        { label: 'Lube oil', value: `${t.lubeOilTemp.toFixed(0)} °C`, tone: 'ok' },
+        {
+          label: 'Feed pump B',
+          value: `${t.feedPump.temp.toFixed(0)} °C · grease ${pct(t.feedPump.lube)}`,
+          tone: t.feedPump.tripped ? 'bad' : t.feedPump.temp > 80 ? 'warn' : 'ok',
+        },
+      ],
+    };
+  }
   if (room.startsWith('ring-')) {
     const a = sim.accel;
     const r = a.recipe ? RECIPE_BY_ID.get(a.recipe) : null;
@@ -127,7 +149,7 @@ export function scanReadings(
     readings: [
       { label: 'Net output', value: `${fmt(sim.netOutput)} MWe` },
       { label: 'Grid price', value: `${sim.econ.price.toFixed(2)} CR/MWh` },
-      { label: 'Turbine vibration', value: `${(sim.turbineVibration * 11).toFixed(1)} mm/s` },
+      { label: 'Turbine B vibration', value: `${Math.max(...sim.turbine.bearings).toFixed(1)} mm/s` },
     ],
   };
 }

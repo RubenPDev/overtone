@@ -4,6 +4,7 @@ import { controlRoom } from './control-room';
 import { fuelStorage } from './fuel-storage';
 import { ringSectors } from './ring';
 import { waterContainers } from './water-containers';
+import { turbineHall } from './turbine-hall';
 import type { RoomContentsProps, RoomDefinition } from '../world/types';
 
 /**
@@ -11,7 +12,7 @@ import type { RoomContentsProps, RoomDefinition } from '../world/types';
  * exports a RoomDefinition and a Contents.tsx, then add it to this list.
  * The id must match a node in world/facility.ts.
  */
-const ALL: RoomDefinition[] = [controlRoom, fuelStorage, waterContainers, ...ringSectors];
+const ALL: RoomDefinition[] = [controlRoom, fuelStorage, waterContainers, turbineHall, ...ringSectors];
 
 export const ROOMS: ReadonlyMap<string, RoomDefinition> = new Map(ALL.map((r) => [r.id, r]));
 

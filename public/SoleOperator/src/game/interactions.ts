@@ -76,6 +76,14 @@ export function interact(i: Interactable): void {
       );
       return;
     }
+    case 'turbine':
+      if (a.task === 'analyze') return enterMode({ kind: 'analyze', bearing: a.bearing ?? 2 });
+      if (a.task === 'balance') {
+        const w = simHost.state.turbine.weight;
+        return enterMode({ kind: 'balance', angle: w?.angle ?? 0, mass: w?.mass ?? 50 });
+      }
+      if (a.task === 'service') return enterMode({ kind: 'service' });
+      return enterMode({ kind: 'tdesk' });
     case 'tankStation':
       return enterMode({ kind: 'tanks', tank: a.tank >= 0 ? a.tank : worstTank() });
     case 'rodControl':

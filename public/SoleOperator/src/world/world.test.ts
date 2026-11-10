@@ -60,14 +60,14 @@ describe('rooms and spaces', () => {
   it('only doors to built rooms are open; Fuel Rod Storage opens onto the ring via A-1', () => {
     const cr = getRoom('control-room');
     const states = Object.fromEntries(cr.doorways.map((d) => [d.id, doorState(cr, d, isRoomBuilt)]));
-    expect(states).toEqual({ fuel: 'open', turbine: 'sealed', water: 'open', south: 'sealed' });
+    expect(states).toEqual({ fuel: 'open', turbine: 'open', water: 'open', south: 'sealed' });
     const fs = getRoom('fuel-storage');
     expect(doorState(fs, fs.doorways[1]!, isRoomBuilt)).toBe('open');
     // Every ring sector is walkable both ways; A-2 leads up to Water Containers.
     const s2 = getRoom('ring-s2');
     expect(s2.doorways.map((d) => doorState(s2, d, isRoomBuilt))).toEqual(['open', 'open', 'open']);
     const s8 = getRoom('ring-s8');
-    expect(s8.doorways.map((d) => doorState(s8, d, isRoomBuilt))).toEqual(['open', 'open', 'sealed']);
+    expect(s8.doorways.map((d) => doorState(s8, d, isRoomBuilt))).toEqual(['open', 'open', 'open']);
   });
 
   it('blocks walls and the reactor plinth, but lets you walk out through an open door', () => {
@@ -75,13 +75,13 @@ describe('rooms and spaces', () => {
     const space = buildRoomSpace(cr, isRoomBuilt);
     expect(isWalkable(space, cr.spawn.position)).toBe(true);
     expect(isWalkable(space, { x: 0, z: 0 })).toBe(false); // tank
-    expect(isWalkable(space, { x: 0, z: -17 })).toBe(false); // sealed door / wall
+    expect(isWalkable(space, { x: 0, z: 17 })).toBe(false); // sealed door (south) / wall
     expect(isWalkable(space, { x: -20, z: 0 })).toBe(true); // C-1 stub
     // Sliding along a wall keeps the free axis.
     const p = slideMove(space, { x: 10, z: -15.5 }, { x: 0.5, z: -1 });
     expect(p.x).toBeCloseTo(10.5);
     expect(p.z).toBeCloseTo(-15.5);
-    expect(space.triggers).toHaveLength(2); // C-1 and C-3
+    expect(space.triggers).toHaveLength(3); // C-1, C-2 and C-3
   });
 
   it('every interactable and spawn is reachable floor', () => {
@@ -168,6 +168,24 @@ describe('objective runner', () => {
     bus.emit('sim', { type: 'produced', recipe: 'research', stock: 'research', total: 60 });
     bus.emit('sim', { type: 'clearanceRaised', level: 2 });
     expect(done.slice(-2)).toEqual(['ops-online', 'clearance-2']);
+    // Water, then the turbine.
+    expect(runner.progress.active?.id).toBe('water-leak');
+    bus.emit('room/entered', { room: 'water-containers' });
+    bus.emit('interact', { room: 'water-containers', interactable: 'tank-3', kind: 'tank' });
+    bus.emit('sim', { type: 'valveClosed', tank: 1 }); // wrong tank
+    expect(runner.currentStep?.id).toBe('isolate');
+    bus.emit('sim', { type: 'valveClosed', tank: 2 });
+    bus.emit('sim', { type: 'tankRepaired', tank: 2 });
+    bus.emit('sim', { type: 'valveOpened', tank: 2 });
+    expect(runner.progress.active?.id).toBe('fix-turbine-b');
+    bus.emit('room/entered', { room: 'turbine-hall' });
+    bus.emit('turbine/analyzed', { bearing: 1 }); // B2 isn't the one
+    expect(runner.currentStep?.id).toBe('inspect');
+    bus.emit('turbine/analyzed', { bearing: 2 });
+    bus.emit('sim', { type: 'turbineBalanced' });
+    bus.emit('sim', { type: 'feedPumpServiced' });
+    expect(done.slice(-2)).toEqual(['water-leak', 'fix-turbine-b']);
+    expect(runner.progress.active).toBeNull();
   });
 
   it('a later step’s event completes the skipped steps before it', () => {

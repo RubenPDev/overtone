@@ -253,6 +253,41 @@ bus.on('sim', (e) => {
         text: `Tank T-${e.tank + 1} installed`,
         detail: 'Filling from the treatment train.',
       });
+    case 'turbineTrip':
+      return pushToast({ level: 'alarm', text: 'Turbine B trip', detail: e.reason }, 7000);
+    case 'turbineReset':
+      return pushToast({ level: 'ok', text: 'Turbine B reset', detail: 'Running up to 3,000 rpm.' });
+    case 'turbineBalanced':
+      return pushToast(
+        { level: 'ok', text: 'LP rotor balanced', detail: 'Bearing B3 under 2.8 mm/s.' },
+        6000,
+      );
+    case 'weightFitted':
+      return pushToast({
+        level: e.vibration < 2.8 ? 'ok' : 'info',
+        text: `Weight fitted · B3 ${e.vibration.toFixed(1)} mm/s`,
+        detail: e.vibration < 2.8 ? 'Within limits.' : 'Adjust the angle or mass and try again.',
+      });
+    case 'feedPumpHot':
+      return pushToast(
+        {
+          level: 'warn',
+          text: `Feed pump motor B running hot · ${e.temp.toFixed(0)} °C`,
+          detail: 'Turbine Hall · service due.',
+        },
+        6000,
+      );
+    case 'feedPumpTripped':
+      return pushToast(
+        { level: 'alarm', text: 'Feed pump B tripped', detail: 'Feedwater short: output down.' },
+        7000,
+      );
+    case 'feedPumpServiced':
+      return pushToast({
+        level: 'ok',
+        text: 'Feed pump motor B serviced',
+        detail: 'Bearings greased, winding checked.',
+      });
     case 'contractOffered':
       return pushToast({ level: 'info', text: 'New contract offer', detail: 'Ops tablet (T) · Contracts' });
     case 'contractAccepted':
@@ -313,6 +348,10 @@ bus.on('toast', (t) => pushToast(t));
 /** Objectives that need the plant set up a certain way when they start. */
 bus.on('objective/started', ({ objective }) => {
   // A weeping weld seam on T-3, low on the shell, so the hall shows it clearly.
+  if (objective === 'fix-turbine-b') {
+    bus.emit('cmd/sim', { type: 'setImbalance', mass: 115, phase: 140 });
+    bus.emit('cmd/sim', { type: 'setFeedPumpLube', lube: 0.3, temp: 82 });
+  }
   if (objective === 'water-leak')
     bus.emit('cmd/sim', { type: 'startLeak', tank: 2, rate: 45, angle: -0.95, height: 0.32 });
 });

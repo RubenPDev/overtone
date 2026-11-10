@@ -3,6 +3,7 @@ import { drone } from '../game/drone';
 import { hook } from '../game/crane';
 import { machine } from '../game/refuel';
 import { weld } from '../game/tanks';
+import { PROPS as TURBINE_PROPS } from '../rooms/turbine-hall';
 import { TANKS, TANK_R } from '../rooms/water-containers';
 import { logistics, player, simHost } from '../game/runtime';
 import { useApp } from '../state/app';
@@ -28,7 +29,7 @@ import * as S from './sounds';
  * the exported helpers.
  */
 
-type BedKey = 'hum' | 'air' | 'pump' | 'water' | 'cryo' | 'rf' | 'magnet' | 'turbine' | 'condenser' | 'drips';
+type BedKey = 'hum' | 'air' | 'pump' | 'water' | 'cryo' | 'rf' | 'magnet' | 'turbine' | 'condenser';
 
 interface SpaceMix {
   acoustics: SpaceAcoustics;
@@ -51,6 +52,8 @@ export const BED_FACTORIES: Partial<Record<BedKey, () => Bed>> = {
   cryo: S.cryoBed,
   rf: S.rfBed,
   magnet: S.magnetBed,
+  turbine: S.turbineBed,
+  condenser: () => S.waterBed(),
 };
 
 export const SPACE_MIX: Record<string, SpaceMix> = {
@@ -94,6 +97,20 @@ export const SPACE_MIX: Record<string, SpaceMix> = {
     texture: {
       every: 4,
       play: () => (Math.random() < 0.6 ? S.sfx.drip(around()) : S.sfx.knock(around(0.7))),
+    },
+  },
+  'turbine-hall': {
+    acoustics: 'big-hall',
+    surface: 'concrete',
+    beds: { turbine: 0.16, condenser: 0.05, hum: 0.03, air: 0.04 },
+    texture: {
+      every: 6,
+      play: () => {
+        const r = Math.random();
+        if (r < 0.45) S.sfx.hiss(around(), rnd(0.4, 1.0));
+        else if (r < 0.8) S.sfx.knock(around(0.7));
+        else S.sfx.relay(around());
+      },
     },
   },
   'corridor:service': { acoustics: 'corridor', surface: 'tile', beds: { air: 0.08, hum: 0.02 } },
@@ -143,7 +160,10 @@ const beds = new Map<BedKey, Bed>();
 let currentMix: SpaceMix | null = null;
 let textureIn = 4;
 const machines: Partial<
-  Record<'rods' | 'crane' | 'hoist' | 'cart' | 'hydraulic' | 'drone' | 'klaxon' | 'spray' | 'weld', Bed>
+  Record<
+    'rods' | 'crane' | 'hoist' | 'cart' | 'hydraulic' | 'drone' | 'klaxon' | 'spray' | 'weld' | 'squeal',
+    Bed
+  >
 > = {};
 let stepAcc = 0;
 let stepSide = 1;
@@ -344,10 +364,30 @@ export function updateAudio(dt: number) {
     machines.weld?.level(0, 0.1);
   }
 
+  // Turbine: pitch follows shaft speed; vibration adds a beating rumble. Feed pump B squeals when dry.
+  const turb = beds.get('turbine');
+  if (turb && mix.beds.turbine) {
+    const k = state.turbine.rpm / 3000;
+    turb.level(mix.beds.turbine * (0.15 + 0.85 * Math.min(1, k * 1.2)), 1.2);
+    turb.set('f1', 50 * Math.max(0.05, k), 0.5);
+    turb.set('f2', 100 * Math.max(0.05, k), 0.5);
+    turb.set('w1', 1750 * Math.max(0.05, k), 0.5);
+    turb.set('w2', 3500 * Math.max(0.05, k), 0.5);
+    turb.set('vib', Math.max(0, (Math.max(...state.turbine.bearings) - 2) / 6) * k, 0.6);
+  }
+  if (room === 'turbine-hall' && state.turbine.feedPump.lube < 0.45 && !state.turbine.feedPump.tripped) {
+    const pump = TURBINE_PROPS.feedPumps[1]!;
+    const p = placeAt(pump, 8);
+    const sq = machine_('squeal', S.squealBed);
+    sq.level(0.025 * (p.gain ?? 1) * (1 - state.turbine.feedPump.lube / 0.45), 0.5);
+    sq.pan(p.pan ?? 0);
+  } else machines.squeal?.level(0, 0.5);
+
   // Alarm klaxon: sounding while any alarm is unacknowledged.
   const acked = useHud.getState().acked;
   const unacked = state.alarms.some((a) => !acked.includes(a));
-  if (unacked) machine_('klaxon', S.klaxonBed).level(0.27, 0.05);
+  // Full horn in Reactor Control (where the annunciator is); quieter repeaters elsewhere.
+  if (unacked) machine_('klaxon', S.klaxonBed).level(room === 'control-room' ? 0.27 : 0.09, 0.05);
   else machines.klaxon?.level(0, 0.3);
 }
 
@@ -431,6 +471,13 @@ export function installAudio() {
       case 'beamStarted':
         if (onRing()) uiSound(() => S.sfx.beamStart());
         return;
+      case 'turbineTrip':
+        if (inRoom('turbine-hall')) uiSound(() => S.sfx.beamTrip());
+        return;
+      case 'weightFitted':
+        return S.sfx.clunk({ gain: 0.7 }, 1.3);
+      case 'feedPumpServiced':
+        return S.sfx.hiss({}, 0.5);
       case 'tankRepaired':
         return uiSound(() => S.sfx.clunk({}, 0.8));
       case 'valveClosed':
