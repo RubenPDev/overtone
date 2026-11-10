@@ -6,6 +6,10 @@ import { useApp } from '../state/app';
 import { MapScreen } from './MapScreen';
 import { PauseMenu } from './PauseMenu';
 import { OpsTablet } from './OpsTablet';
+import { installAudio } from '../audio/director';
+
+// Audio listens from the moment the game code loads (title-screen clicks included).
+installAudio();
 import { TransitionOverlay } from './TransitionOverlay';
 
 // Dev tools are only bundled in dev builds (the import is dead code in production).
@@ -18,13 +22,15 @@ if (import.meta.env.DEV) {
     import('../core/events'),
     import('../game/refuel'),
     import('../game/modes'),
-  ]).then(([rt, ev, refuel, modes]) => {
+    import('../audio/engine'),
+  ]).then(([rt, ev, refuel, modes, audio]) => {
     (window as unknown as Record<string, unknown>).__soleOperator = {
       ...rt,
       bus: ev.bus,
       machine: refuel.machine,
       enterMode: modes.enterMode,
       exitMode: modes.exitMode,
+      audio: audio.engine,
     };
   });
 }

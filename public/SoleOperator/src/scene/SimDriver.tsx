@@ -7,6 +7,7 @@ import { player, simHost } from '../game/runtime';
 import { toHudSim, useHud } from '../state/hud';
 import { corridorT } from '../world/spaces';
 import { stage } from './stage';
+import { updateAudio } from '../audio/director';
 
 /** Live frame stats for the dev overlay (read directly; never React state). */
 export const frameStats = { fps: 0, ticksThisSecond: 0, tps: 0 };
@@ -24,6 +25,7 @@ export function SimDriver() {
 
   useFrame((_, dt) => {
     const n = simHost.frame(dt);
+    updateAudio(dt);
     // Focus drains with game time (4% per game hour); coffee brings it back.
     player.focus = Math.max(0, player.focus - (n * GAME_SECONDS_PER_TICK * 0.04) / 3600);
     counters.frames += 1;

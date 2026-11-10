@@ -1,3 +1,4 @@
+import { doorSound } from '../audio/director';
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -271,8 +272,13 @@ function AutoDoor({
       }),
     [],
   );
+  const wasNear = useRef(false);
   useFrame((_, dt) => {
     const near = Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < 5.5;
+    if (near !== wasNear.current) {
+      wasNear.current = near;
+      doorSound(near, at);
+    }
     open.current += ((near ? 1 : 0) - open.current) * (1 - Math.exp(-dt * 6));
     const o = open.current;
     if (left.current) left.current.position.z = -width / 4 - o * (width / 2 - 0.05);

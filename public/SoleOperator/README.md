@@ -151,6 +151,34 @@ dozen draw calls.
 To add a purchase: add an entry to `UPGRADES` (or `MARKET`), then read its level where it matters.
 The ops tablet (`app/OpsTablet.tsx`) lists it automatically.
 
+## Sound
+
+Every sound is synthesized at runtime with the Web Audio API: no audio files, nothing to download.
+
+- `audio/engine.ts`: the context (created on the first click or key press), three buses (effects,
+  ambience, interface) into a compressor, and a convolution reverb generated per space (room, hall,
+  big hall, corridor, tunnel). Primitives: `tone()`, `noise()` and `Bed` (a continuous loop with
+  live parameters).
+- `audio/sounds.ts`: the palette. Beds: mains hum, air handling, coolant pumps, pool water, helium
+  compressor, klystron whine, magnet hum, motors, rod drives, cart wheels, hydraulics and the alarm
+  klaxon. One-shots: footsteps by floor type, pneumatic doors, latches, relays, the scram, beam
+  trips, crane chain, splashes, drips, keyboard clatter, and soft interface tones.
+- `audio/director.ts`: maps the game onto sound. Each space has a mix (`SPACE_MIX`): beds, levels,
+  reverb, floor type and random texture sounds. Machines follow live state each frame (rods moving,
+  crane, cart, refuelling machine, drone, unacknowledged alarms). Bus events trigger one-shots.
+
+Design rules: industrial and believable first; interface sounds are soft sine and triangle tones;
+the klaxon is the only harsh sound, and acknowledging the alarm at the alarm panel silences it.
+Volumes (master, effects, ambience) are in Settings.
+
+### How to add sound for a new room
+
+1. Add a mix to `SPACE_MIX` in `audio/director.ts`, keyed by room id: acoustics, floor surface,
+   bed levels and an optional texture one-shot.
+2. New beds go in `audio/sounds.ts` and are registered in `BED_FACTORIES`.
+3. Machines with live state: drive a `Bed` from `updateAudio()` (or the room's own `useFrame`),
+   positioned with `placeAt({ x, z })`.
+
 ## Architecture
 
 ```
@@ -315,5 +343,5 @@ rods 5% changes power by about 17%, and the response is overdamped.
 - **Screens:** the map's STAFF / RESEARCH / LOGBOOK tabs are disabled stubs.
 - **Sim:** xenon, coolant pumps, turbine trip, cooling chambers and water reserves; move dosimetry
   (now a placeholder in `scene/Player.tsx`) into the sim.
-- **Audio:** none yet; hook a sound system to the bus.
+- **Audio:** spoken PA announcements and positional 3D audio (Web Audio panners) are open.
 - **Art:** every room is greybox; replace room by room inside its `Contents.tsx`.
