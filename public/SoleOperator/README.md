@@ -129,7 +129,7 @@ dozen draw calls.
 
 ## Water Containers
 
-(pure TS, tested) models the demineralised water reserve: four 2,000 m³ tanks (six
+`sim/water.ts` (pure TS, tested) models the demineralised water reserve: four 2,000 m³ tanks (six
 with upgrades) feed plant make-up from every open outlet valve, and the RO treatment train refills
 them. Tanks corrode; corrosion raises the chance of a leak, a hole at some height on the shell that
 drains the tank down to that height. To repair one, close its valve (isolate it) and weld a patch.
@@ -137,7 +137,7 @@ If the online reserve drops below 20% of the base reserve, the plant's heat sink
 30% the water-low alarm sounds. Upgrades: extra tanks, stainless or composite liners (fewer leaks),
 leak sensors (leaks are reported with the tank number) and a bigger treatment train.
 
-The room () keeps the tall tanks against the back walls so they never hide
+The room (`rooms/water-containers`) keeps the tall tanks against the back walls so they never hide
 the floor. Each tank shows its level in a sight glass, a roof status lamp, and a valve wheel that turns
 with the valve; leaks jet water and spread a puddle until patched.
 
