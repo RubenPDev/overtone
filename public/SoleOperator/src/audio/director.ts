@@ -2,6 +2,8 @@ import { bus } from '../core/events';
 import { drone } from '../game/drone';
 import { hook } from '../game/crane';
 import { machine } from '../game/refuel';
+import { weld } from '../game/tanks';
+import { TANKS, TANK_R } from '../rooms/water-containers';
 import { logistics, player, simHost } from '../game/runtime';
 import { useApp } from '../state/app';
 import { useHud } from '../state/hud';
@@ -85,6 +87,15 @@ export const SPACE_MIX: Record<string, SpaceMix> = {
       play: () => (Math.random() < 0.6 ? S.sfx.hiss(around(), rnd(0.5, 1.4)) : S.sfx.knock(around(0.7))),
     },
   },
+  'water-containers': {
+    acoustics: 'big-hall',
+    surface: 'concrete',
+    beds: { hum: 0.03, air: 0.07, pump: 0.07, water: 0.04 },
+    texture: {
+      every: 4,
+      play: () => (Math.random() < 0.6 ? S.sfx.drip(around()) : S.sfx.knock(around(0.7))),
+    },
+  },
   'corridor:service': { acoustics: 'corridor', surface: 'tile', beds: { air: 0.08, hum: 0.02 } },
   'corridor:access': {
     acoustics: 'corridor',
@@ -131,8 +142,9 @@ export function doorSound(open: boolean, at: Vec2) {
 const beds = new Map<BedKey, Bed>();
 let currentMix: SpaceMix | null = null;
 let textureIn = 4;
-const machines: Partial<Record<'rods' | 'crane' | 'hoist' | 'cart' | 'hydraulic' | 'drone' | 'klaxon', Bed>> =
-  {};
+const machines: Partial<
+  Record<'rods' | 'crane' | 'hoist' | 'cart' | 'hydraulic' | 'drone' | 'klaxon' | 'spray' | 'weld', Bed>
+> = {};
 let stepAcc = 0;
 let stepSide = 1;
 let lastRods: number[] = [];
@@ -308,6 +320,30 @@ export function updateAudio(dt: number) {
     S.sfx.dronePing(placeAt({ x: drone.x, z: -3.6 }, 16));
   lastDronePhase = drone.phase;
 
+  // Water Containers: the loudest leak you can hear, and the welding arc.
+  if (room === 'water-containers') {
+    let best: { gain: number; pan: number } | null = null;
+    state.water.tanks.forEach((t, i) => {
+      const spot = TANKS[i];
+      if (!spot || t.leak <= 0 || t.level / 2000 <= t.leakHeight) return;
+      const a = spot.face + t.leakAngle;
+      const p = placeAt({ x: spot.x + Math.sin(a) * TANK_R, z: spot.z + Math.cos(a) * TANK_R }, 10);
+      const g = (p.gain ?? 1) * Math.min(1, t.leak / 50);
+      if (!best || g > best.gain) best = { gain: g, pan: p.pan ?? 0 };
+    });
+    const loud = best as { gain: number; pan: number } | null;
+    if (loud) {
+      const s = machine_('spray', S.sprayBed);
+      s.level(0.11 * loud.gain, 0.3);
+      s.pan(loud.pan);
+    } else machines.spray?.level(0, 0.5);
+    if (weld.active) machine_('weld', S.weldBed).level(0.09, 0.05);
+    else machines.weld?.level(0, 0.08);
+  } else {
+    machines.spray?.level(0, 0.3);
+    machines.weld?.level(0, 0.1);
+  }
+
   // Alarm klaxon: sounding while any alarm is unacknowledged.
   const acked = useHud.getState().acked;
   const unacked = state.alarms.some((a) => !acked.includes(a));
@@ -395,6 +431,11 @@ export function installAudio() {
       case 'beamStarted':
         if (onRing()) uiSound(() => S.sfx.beamStart());
         return;
+      case 'tankRepaired':
+        return uiSound(() => S.sfx.clunk({}, 0.8));
+      case 'valveClosed':
+      case 'valveOpened':
+        return S.sfx.clunk({ gain: 0.6 }, 1.5);
       case 'cavityTuned':
         return uiSound(() => S.sfx.lock());
       case 'contractCompleted':

@@ -10,6 +10,8 @@ import { currentRoomId, shuttleTo } from './worldController';
 import { CAVITY_COUNT, RECIPES } from '../sim';
 import { sectorId } from '../rooms/ring';
 import { pushToast } from '../state/hud';
+import { tankFocus } from '../rooms/water-containers';
+import { selectTank, weld } from './tanks';
 
 /** Rods being driven by held W/S in rod mode (released when the key or selection changes). */
 const rodDrive = { dir: 0 as -1 | 0 | 1, rods: [] as number[] };
@@ -24,7 +26,7 @@ export function enterMode(mode: Mode) {
   modeInput.armed = false;
   const roomId = currentRoomId();
   const focus = roomId && mode.kind !== 'walk' ? getRoom(roomId).focus?.[mode.kind] : undefined;
-  stage.focus = focus ?? null;
+  stage.focus = mode.kind === 'tanks' ? tankFocus(mode.tank) : (focus ?? null);
   player.path = [];
   if (mode.kind === 'refuel') startRefuel(mode.cell);
   if (mode.kind === 'crane')
@@ -38,6 +40,7 @@ export function exitMode() {
   if (m.kind === 'walk') return;
   if (m.kind === 'refuel') stopRefuel();
   if (m.kind === 'rods') setRodDrive(0, []);
+  if (m.kind === 'tanks') weld.progress = 0;
   stage.focus = null;
   useMode.setState({ mode: { kind: 'walk' } });
   bus.emit('mode/changed', { mode: 'walk' });
@@ -119,6 +122,9 @@ export function installModeKeys(): () => void {
         bus.emit('cmd/sim', { type: 'selectRecipe', recipe: current === r.id ? null : r.id });
       } else if (e.code === 'KeyB')
         bus.emit('cmd/sim', { type: 'accelBeam', on: !simHost.state.accel.beamOn });
+    } else if (m.kind === 'tanks') {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') selectTank(-1);
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') selectTank(1);
     } else if (m.kind === 'shuttle') {
       if (e.code === 'ArrowUp' || e.code === 'KeyW')
         useMode.setState({ mode: { ...m, index: (m.index + 7) % 8 } });

@@ -37,3 +37,4 @@ export {
   upgradeLevel,
 } from './economy';
 export type { MarketItem, UpgradeCategory, UpgradeDef } from './economy';
+export { TANK_CAPACITY, BASE_TANKS, MAX_TANKS, VALVE_CLOSED, createWaterState, isOnline } from './water';

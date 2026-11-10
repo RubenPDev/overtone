@@ -60,12 +60,14 @@ describe('rooms and spaces', () => {
   it('only doors to built rooms are open; Fuel Rod Storage opens onto the ring via A-1', () => {
     const cr = getRoom('control-room');
     const states = Object.fromEntries(cr.doorways.map((d) => [d.id, doorState(cr, d, isRoomBuilt)]));
-    expect(states).toEqual({ fuel: 'open', turbine: 'sealed', water: 'sealed', south: 'sealed' });
+    expect(states).toEqual({ fuel: 'open', turbine: 'sealed', water: 'open', south: 'sealed' });
     const fs = getRoom('fuel-storage');
     expect(doorState(fs, fs.doorways[1]!, isRoomBuilt)).toBe('open');
-    // Every ring sector is walkable both ways; access shafts to unbuilt plant rooms are sealed.
+    // Every ring sector is walkable both ways; A-2 leads up to Water Containers.
     const s2 = getRoom('ring-s2');
-    expect(s2.doorways.map((d) => doorState(s2, d, isRoomBuilt))).toEqual(['open', 'open', 'sealed']);
+    expect(s2.doorways.map((d) => doorState(s2, d, isRoomBuilt))).toEqual(['open', 'open', 'open']);
+    const s8 = getRoom('ring-s8');
+    expect(s8.doorways.map((d) => doorState(s8, d, isRoomBuilt))).toEqual(['open', 'open', 'sealed']);
   });
 
   it('blocks walls and the reactor plinth, but lets you walk out through an open door', () => {
@@ -79,7 +81,7 @@ describe('rooms and spaces', () => {
     const p = slideMove(space, { x: 10, z: -15.5 }, { x: 0.5, z: -1 });
     expect(p.x).toBeCloseTo(10.5);
     expect(p.z).toBeCloseTo(-15.5);
-    expect(space.triggers).toHaveLength(1);
+    expect(space.triggers).toHaveLength(2); // C-1 and C-3
   });
 
   it('every interactable and spawn is reachable floor', () => {

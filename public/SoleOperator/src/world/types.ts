@@ -56,6 +56,8 @@ export type InteractAction =
   | { type: 'production' }
   /** Rail drone dock: launch a cavity scan. */
   | { type: 'droneDock' }
+  /** Water tank service station (valve and weld patch) or the water ops panel (tank = -1). */
+  | { type: 'tankStation'; tank: number }
   /** Alarm panel: acknowledge active alarms. */
   | { type: 'alarmPanel' }
   | { type: 'message'; text: string; detail?: string };
@@ -133,7 +135,7 @@ export interface RoomDefinition {
   /** Where the camera looks (and how close) while a control mode is active in this room. */
   focus?: Partial<
     Record<
-      'rods' | 'crane' | 'refuel' | 'rf' | 'production' | 'shuttle',
+      'rods' | 'crane' | 'refuel' | 'rf' | 'production' | 'shuttle' | 'tanks' | 'turbine' | 'balance',
       { x: number; z: number; zoom: number }
     >
   >;

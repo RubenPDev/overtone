@@ -7,7 +7,7 @@ import { fmt } from './nav';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
-function Keys({ items }: { items: [string, string][] }) {
+export function Keys({ items }: { items: [string, string][] }) {
   return (
     <div className="mp__keys">
       {items.map(([k, label]) => (
@@ -20,7 +20,7 @@ function Keys({ items }: { items: [string, string][] }) {
   );
 }
 
-function Head({ eyebrow, title }: { eyebrow: string; title: string }) {
+export function Head({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <div className="mp__head">
       <span className="mp__eyebrow">{eyebrow}</span>
@@ -292,7 +292,7 @@ export function RingVitals() {
   );
 }
 
-function SegBar({
+export function SegBar({
   label,
   value,
   unit,

@@ -7,6 +7,7 @@ import {
   type AccelState,
   type Criticality,
   type EconState,
+  type WaterState,
   type PlantState,
   type Stability,
 } from '../sim';
@@ -35,6 +36,7 @@ export interface HudSim {
   /** Accelerator snapshot (copied, so the HUD never holds live sim objects). */
   accel: AccelState;
   econ: EconState;
+  water: WaterState;
 }
 
 export function toHudSim(s: Readonly<PlantState>): HudSim {
@@ -66,6 +68,7 @@ export function toHudSim(s: Readonly<PlantState>): HudSim {
       upgrades: { ...s.econ.upgrades },
       contracts: s.econ.contracts.map((c) => ({ ...c })),
     },
+    water: { ...s.water, tanks: s.water.tanks.map((t) => ({ ...t })) },
     ...coreStatus(s),
   };
 }

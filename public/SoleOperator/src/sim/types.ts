@@ -54,6 +54,37 @@ export interface PlantState {
   netOutput: number;
   accel: AccelState;
   econ: EconState;
+  water: WaterState;
+}
+
+// --- Water reserve ---------------------------------------------------------------------
+
+export interface Tank {
+  /** Volume, m³. */
+  level: number;
+  /** Shell condition 0..1: corrosion lowers it, which raises the leak hazard. */
+  integrity: number;
+  /** Leak rate at a 50% head, m³/h (0 = sound). */
+  leak: number;
+  /** Height of the hole as a fraction of the tank: it drains down to here. */
+  leakHeight: number;
+  /** Where round the shell the hole is (radians, for the visuals). */
+  leakAngle: number;
+  /** Outlet valve opening 0..1 (closed = isolated from the plant). */
+  valve: number;
+}
+
+export interface WaterState {
+  tanks: Tank[];
+  /** Online volume as a fraction of the 4-tank base reserve. */
+  inventory: number;
+  /** 1 = make-up fine; falls toward 0 as the reserve empties (degrades cooling). */
+  supply: number;
+  /** Plant make-up demand and treatment output, m³/h. */
+  demand: number;
+  treatment: number;
+  fallingFor: number;
+  warned: boolean;
 }
 
 // --- Economy and progression ----------------------------------------------------------
@@ -171,7 +202,10 @@ export type PlantCommand =
   | { type: 'buyItem'; id: string }
   | { type: 'sell'; stock: StockId; amount: number }
   | { type: 'clearanceReview' }
-  | { type: 'grantCredits'; amount: number };
+  | { type: 'grantCredits'; amount: number }
+  | { type: 'turnValve'; tank: number; delta: number }
+  | { type: 'repairTank'; tank: number }
+  | { type: 'startLeak'; tank: number; rate: number; angle?: number; height?: number };
 
 export type SimEvent =
   | { type: 'alarm'; alarm: AlarmId }
@@ -197,7 +231,13 @@ export type SimEvent =
   | { type: 'contractFailed'; id: number; title: string }
   | { type: 'purchased'; item: string; level: number }
   | { type: 'sold'; stock: StockId; amount: number; credits: number }
-  | { type: 'clearanceRaised'; level: number };
+  | { type: 'clearanceRaised'; level: number }
+  | { type: 'leakStarted'; tank: number; reported: boolean }
+  | { type: 'tankRepaired'; tank: number }
+  | { type: 'tankInstalled'; tank: number }
+  | { type: 'valveClosed'; tank: number }
+  | { type: 'valveOpened'; tank: number }
+  | { type: 'reserveFalling' };
 
 export interface SimSnapshot {
   /** Bumped when PlantState's shape changes; save migrations key off it. */

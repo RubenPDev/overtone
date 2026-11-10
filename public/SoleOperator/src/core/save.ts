@@ -1,5 +1,12 @@
 import { initialLogistics, type LogisticsState } from '../logistics';
-import { Rng, createAccelState, createEconState, type RngState, type SimSnapshot } from '../sim';
+import {
+  Rng,
+  createAccelState,
+  createEconState,
+  createWaterState,
+  type RngState,
+  type SimSnapshot,
+} from '../sim';
 
 /**
  * Save games: versioned JSON in localStorage.
@@ -91,15 +98,17 @@ export const MIGRATIONS: Record<number, Migration> = {
     };
   },
   /**
-   * v3 → v4: economy and progression (sim schema 3). Old saves start with the
-   * opening balance and keep the clearance they had (L3 in v3).
+   * v3 → v4: economy, progression and the water reserve (sim schema 3). Old saves
+   * start with the opening balance, keep their clearance (L3 in v3) and get a
+   * freshly filled tank farm.
    */
   3: (old) => {
-    const sim = old.sim as { schema: number; state: Record<string, unknown> };
+    const sim = old.sim as { schema: number; state: Record<string, unknown>; rng: RngState };
+    const water = createWaterState(Rng.fromState(sim.rng));
     return {
       ...old,
       version: 4,
-      sim: { ...sim, schema: 3, state: { ...sim.state, econ: createEconState() } },
+      sim: { ...sim, schema: 3, state: { ...sim.state, econ: createEconState(), water } },
     };
   },
 };

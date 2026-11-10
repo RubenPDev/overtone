@@ -11,7 +11,8 @@ export type Mode =
   | { kind: 'refuel'; cell: number }
   | { kind: 'rf'; cavity: number }
   | { kind: 'production'; index: number }
-  | { kind: 'shuttle'; index: number };
+  | { kind: 'shuttle'; index: number }
+  | { kind: 'tanks'; tank: number };
 
 export type RefuelPhase = 'insert-rod' | 'extract' | 'load' | 'done';
 
@@ -21,10 +22,13 @@ interface ModeState {
   refuel: { phase: RefuelPhase; progress: number; busy: boolean; cell: number; armLoaded: boolean };
   /** Crane panel readout. */
   crane: { target: string; busy: boolean };
+  /** Weld patch progress 0–1 in tank service, mirrored at ~10 Hz. */
+  weld: number;
 }
 
 export const useMode = create<ModeState>()(() => ({
   mode: { kind: 'walk' },
   refuel: { phase: 'insert-rod', progress: 0, busy: false, cell: 6, armLoaded: false },
   crane: { target: '', busy: false },
+  weld: 0,
 }));

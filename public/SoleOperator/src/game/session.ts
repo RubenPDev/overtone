@@ -175,6 +175,7 @@ const ALARM_TEXT: Record<AlarmId, string> = {
   'pressure-high': 'Primary pressure high',
   'power-high': 'Thermal power above 110%',
   'turbine-vibration': 'Turbine B vibration rising',
+  'water-low': 'Water reserve below 30%',
 };
 
 bus.on('sim', (e) => {
@@ -220,6 +221,37 @@ bus.on('sim', (e) => {
         level: 'ok',
         text: 'Production run started',
         detail: RECIPE_BY_ID.get(e.recipe)?.name,
+      });
+    case 'leakStarted':
+      if (!e.reported) return;
+      return pushToast(
+        {
+          level: 'warn',
+          text: `Leak detected · tank T-${e.tank + 1}`,
+          detail: 'Water Containers. Isolate and weld.',
+        },
+        6000,
+      );
+    case 'reserveFalling':
+      return pushToast(
+        {
+          level: 'warn',
+          text: 'Water reserve falling',
+          detail: 'A tank is leaking somewhere in Water Containers. Leak sensors would pinpoint it.',
+        },
+        7000,
+      );
+    case 'tankRepaired':
+      return pushToast({
+        level: 'ok',
+        text: `Tank T-${e.tank + 1} patched`,
+        detail: 'Reopen the valve to bring it online.',
+      });
+    case 'tankInstalled':
+      return pushToast({
+        level: 'ok',
+        text: `Tank T-${e.tank + 1} installed`,
+        detail: 'Filling from the treatment train.',
       });
     case 'contractOffered':
       return pushToast({ level: 'info', text: 'New contract offer', detail: 'Ops tablet (T) · Contracts' });
@@ -277,6 +309,13 @@ bus.on('sim', (e) => {
 });
 
 bus.on('toast', (t) => pushToast(t));
+
+/** Objectives that need the plant set up a certain way when they start. */
+bus.on('objective/started', ({ objective }) => {
+  // A weeping weld seam on T-3, low on the shell, so the hall shows it clearly.
+  if (objective === 'water-leak')
+    bus.emit('cmd/sim', { type: 'startLeak', tank: 2, rate: 45, angle: -0.95, height: 0.32 });
+});
 const credits = (n: number) => `${Math.round(n).toLocaleString('en-US')} CR`;
 
 bus.on('objective/completed', ({ objective }) => {

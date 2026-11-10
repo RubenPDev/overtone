@@ -6,6 +6,7 @@ import type { Interactable } from '../world/types';
 import { RECIPES } from '../sim';
 import { attachCart, cartDockedAt, parkCart } from './cart';
 import { launchDrone } from './drone';
+import { worstTank } from './tanks';
 import { enterMode } from './modes';
 import { logistics, player, simHost } from './runtime';
 import { currentRoomId } from './worldController';
@@ -75,6 +76,8 @@ export function interact(i: Interactable): void {
       );
       return;
     }
+    case 'tankStation':
+      return enterMode({ kind: 'tanks', tank: a.tank >= 0 ? a.tank : worstTank() });
     case 'rodControl':
       return enterMode({ kind: 'rods', selected: 6, bank: false });
     case 'crane':

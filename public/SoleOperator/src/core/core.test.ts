@@ -155,7 +155,7 @@ describe('save', () => {
   it('migrates a v2 save (no accelerator) to v3 and restores it', () => {
     const storage = new MemoryStorage();
     const v3 = sample('2026-01-01T00:00:00Z');
-    const { accel: _a, netOutput: _n, econ: _e, ...oldState } = v3.sim.state;
+    const { accel: _a, netOutput: _n, econ: _e, water: _w, ...oldState } = v3.sim.state;
     const v2 = { ...v3, version: 2, sim: { ...v3.sim, schema: 1, state: oldState } };
     storage.setItem('sole-operator:save:auto', JSON.stringify(v2));
     const back = readSave(storage, 'auto')!;
@@ -172,7 +172,7 @@ describe('save', () => {
   it('migrates a v3 save (no economy) to v4, keeping its clearance', () => {
     const storage = new MemoryStorage();
     const v4 = sample('2026-01-01T00:00:00Z');
-    const { econ: _e, ...oldState } = v4.sim.state;
+    const { econ: _e, water: _w, ...oldState } = v4.sim.state;
     const v3 = {
       ...v4,
       version: 3,
@@ -184,6 +184,7 @@ describe('save', () => {
     expect(back.sim.schema).toBe(3);
     expect(back.sim.state.accel.clearance).toBe(3);
     expect(back.sim.state.econ.upgrades).toEqual({});
+    expect(back.sim.state.water.tanks).toHaveLength(4);
     const host = new SimHost(new EventBus<GameEvents>(), 'x');
     host.restore(back.sim);
     host.tick();

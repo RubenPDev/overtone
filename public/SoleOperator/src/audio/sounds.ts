@@ -423,6 +423,44 @@ export function klaxonBed() {
   });
 }
 
+/** A pressurised leak: water jetting out of a hole and splattering on the floor. */
+export function sprayBed() {
+  return new Bed('sfx', (_ctx, out, b) => {
+    const jet = b.noise('white');
+    jet
+      .connect(b.filter('bandpass', 2600, 0.7))
+      .connect(b.lfoGain(9, 0.7, 0.3))
+      .connect(out);
+    const splat = b.noise('pink');
+    splat
+      .connect(b.filter('lowpass', 900))
+      .connect(b.lfoGain(3.3, 0.6, 0.4))
+      .connect(b.gain(0.8))
+      .connect(out);
+  });
+}
+
+/** Arc welding: a crackling, buzzing hiss. */
+export function weldBed() {
+  return new Bed('sfx', (_ctx, out, b) => {
+    const hiss = b.noise('white');
+    hiss
+      .connect(b.filter('highpass', 3000))
+      .connect(b.lfoGain(23, 0.5, 0.5, 'square'))
+      .connect(out);
+    const buzz = b.osc('sawtooth', 100);
+    buzz
+      .connect(b.filter('bandpass', 300, 3))
+      .connect(b.gain(0.4))
+      .connect(out);
+    const crackle = b.noise('white');
+    crackle
+      .connect(b.filter('bandpass', 6000, 4))
+      .connect(b.lfoGain(41, 0.4, 0.4, 'square'))
+      .connect(out);
+  });
+}
+
 /** Ring shuttle: an electric drive spooling up. */
 export function shuttleRide() {
   tone({

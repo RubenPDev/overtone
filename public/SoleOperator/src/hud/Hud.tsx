@@ -12,6 +12,7 @@ import { ModePanel } from './ModePanel';
 import { getRoom, isRoomBuilt } from '../rooms/registry';
 import { RingVitals } from './AccelPanels';
 import { ScannerPanel } from './Scanner';
+import { WaterVitals } from './WaterPanels';
 import { fmt, formatClock, placeName } from './nav';
 import './hud.css';
 
@@ -20,6 +21,7 @@ const ALARM_TEXT: Record<string, string> = {
   'pressure-high': 'Primary pressure high',
   'power-high': 'Thermal power above 110%',
   'turbine-vibration': 'Turbine B vibration rising',
+  'water-low': 'Water reserve below 30%',
 };
 
 const NO_ALARMS: string[] = [];
@@ -134,12 +136,13 @@ function levelOf(pos: GraphPosition): string {
 
 /** Core vitals at plant level, ring vitals on the accelerator (sector chambers and ring tunnels). */
 function TopRightVitals() {
-  const onRing = useHud((s) => {
+  const where = useHud((s) => {
     const p = s.graphPos;
-    if ('room' in p) return p.room.startsWith('ring-');
-    return getCorridor(p.corridor).kind === 'ring';
+    if ('room' in p)
+      return p.room.startsWith('ring-') ? 'ring' : p.room === 'water-containers' ? 'water' : 'core';
+    return getCorridor(p.corridor).kind === 'ring' ? 'ring' : 'core';
   });
-  return onRing ? <RingVitals /> : <CoreVitals />;
+  return where === 'ring' ? <RingVitals /> : where === 'water' ? <WaterVitals /> : <CoreVitals />;
 }
 
 function CoreVitals() {

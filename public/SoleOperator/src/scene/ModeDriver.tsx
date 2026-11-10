@@ -8,6 +8,7 @@ import { installModeKeys, modeInput, setRodDrive } from '../game/modes';
 import { publishRefuel, updateRefuel } from '../game/refuel';
 import { useApp } from '../state/app';
 import { useMode } from '../state/mode';
+import { VALVE_RATE, updateWeld, weld } from '../game/tanks';
 
 /**
  * Runs the active control mode every frame: held keys drive rods, the crane
@@ -44,6 +45,18 @@ export function ModeDriver() {
         bus.emit('cmd/sim', { type: 'tuneCavity', cavity: mode.cavity, deltaKHz: tune.acc });
         tune.acc = 0;
       }
+    } else if (mode.kind === 'tanks') {
+      // Hold W/S to open/close the outlet valve (sent at 10 Hz); hold E to weld a patch.
+      const up = !menu && isDown('KeyW', 'ArrowUp');
+      const down = !menu && isDown('KeyS', 'ArrowDown');
+      tune.acc += ((up ? 1 : 0) - (down ? 1 : 0)) * VALVE_RATE * dt;
+      if (tuneThrottle(dt) && Math.abs(tune.acc) > 1e-4) {
+        bus.emit('cmd/sim', { type: 'turnValve', tank: mode.tank, delta: tune.acc });
+        tune.acc = 0;
+      }
+      updateWeld(dt, mode.tank, !menu && modeInput.armed && isDown('KeyE'));
+      if (throttle(dt) && Math.abs(useMode.getState().weld - weld.progress) > 0.005)
+        useMode.setState({ weld: weld.progress });
     } else if (mode.kind === 'refuel') {
       updateRefuel(dt, !menu && modeInput.armed && isDown('KeyE'), !menu && isDown('KeyS', 'ArrowDown'));
       if (throttle(dt)) publishRefuel();

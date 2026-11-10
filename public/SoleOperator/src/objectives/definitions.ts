@@ -169,6 +169,7 @@ export const OBJECTIVES: ObjectiveDef[] = [
     title: 'Clearance Level 2',
     kind: 'main',
     reward: 10_000,
+    next: 'water-leak',
     steps: [
       {
         id: 'reach',
@@ -202,6 +203,49 @@ export const OBJECTIVES: ObjectiveDef[] = [
         text: 'File a clearance review',
         detail: 'Ops tablet · Clearance · 15,000 CR',
         completeOn: { channel: 'sim', where: (e) => e.type === 'clearanceRaised' },
+      },
+    ],
+  },
+  {
+    id: 'water-leak',
+    title: 'Leak in the Tank Farm',
+    kind: 'main',
+    reward: 6_000,
+    steps: [
+      {
+        id: 'reach',
+        text: 'Go to Water Containers',
+        detail: 'Corridor C-3 from Reactor Control',
+        target: { room: 'water-containers', interactable: 'water-panel' },
+        completeOn: { channel: 'room/entered', where: (e) => e.room === 'water-containers' },
+      },
+      {
+        id: 'find',
+        text: 'Find the leaking tank',
+        detail: 'Watch the sight glasses and the floor',
+        target: { room: 'water-containers', interactable: 'tank-3' },
+        completeOn: { channel: 'interact', where: (e) => e.interactable === 'tank-3' },
+      },
+      {
+        id: 'isolate',
+        text: 'Close tank T-3’s outlet valve',
+        detail: 'Hold S at the tank’s service station',
+        target: { room: 'water-containers', interactable: 'tank-3' },
+        completeOn: { channel: 'sim', where: (e) => e.type === 'valveClosed' && e.tank === 2 },
+      },
+      {
+        id: 'weld',
+        text: 'Weld a patch over the leak',
+        detail: 'Hold E with the valve closed',
+        target: { room: 'water-containers', interactable: 'tank-3' },
+        completeOn: { channel: 'sim', where: (e) => e.type === 'tankRepaired' && e.tank === 2 },
+      },
+      {
+        id: 'reopen',
+        text: 'Bring T-3 back online',
+        detail: 'Hold W to reopen the valve',
+        target: { room: 'water-containers', interactable: 'tank-3' },
+        completeOn: { channel: 'sim', where: (e) => e.type === 'valveOpened' && e.tank === 2 },
       },
     ],
   },

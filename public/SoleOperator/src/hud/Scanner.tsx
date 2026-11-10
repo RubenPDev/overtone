@@ -65,6 +65,42 @@ export function scanReadings(
       ],
     };
   }
+  if (room === 'water-containers') {
+    const w = sim.water;
+    const i = near?.action.type === 'tankStation' ? near.action.tank : -1;
+    if (i >= 0 && w.tanks[i]) {
+      const t = w.tanks[i]!;
+      return {
+        title: `Tank T-${i + 1}`,
+        readings: [
+          { label: 'Level', value: `${Math.round((t.level / 2000) * 100)}%` },
+          { label: 'Valve', value: `${Math.round(t.valve * 100)}%`, tone: t.valve > 0.02 ? 'ok' : 'warn' },
+          {
+            label: 'Shell wall',
+            value: pct(t.integrity),
+            tone: t.integrity < 0.55 ? 'bad' : t.integrity < 0.7 ? 'warn' : 'ok',
+          },
+          {
+            label: 'Acoustic leak',
+            value: t.leak > 0 ? `${t.leak.toFixed(0)} m³/h · ${Math.round(t.leakHeight * 100)}% up` : 'none',
+            tone: t.leak > 0 ? 'bad' : 'ok',
+          },
+        ],
+      };
+    }
+    return {
+      title: 'Tank farm',
+      readings: [
+        ...w.tanks.map((t, k) => ({
+          label: `T-${k + 1}`,
+          value: `${Math.round((t.level / 2000) * 100)}% · shell ${pct(t.integrity)}${t.leak > 0 ? ' · LEAK' : ''}`,
+          tone: (t.leak > 0 ? 'bad' : t.integrity < 0.55 ? 'warn' : 'ok') as Reading['tone'],
+        })),
+        { label: 'Supply', value: pct(w.supply), tone: w.supply < 1 ? 'bad' : 'ok' },
+        { label: 'Conductivity', value: '0.06 µS/cm', tone: 'ok' },
+      ],
+    };
+  }
   if (room.startsWith('ring-')) {
     const a = sim.accel;
     const r = a.recipe ? RECIPE_BY_ID.get(a.recipe) : null;
