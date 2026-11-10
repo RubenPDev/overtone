@@ -48,6 +48,21 @@ export const GAMES = [
     storageKey: 'junctions',
     launched: '2026-11-02',
   },
+  {
+    // A separate app (public/SoleOperator), so `external` makes its links full
+    // page loads instead of in-app routes, and drops the daily badges and streak.
+    id: 'sole-operator',
+    name: 'Sole Operator',
+    tagline: tx('Run the whole plant yourself'),
+    description: tx('One nuclear power plant, seven rooms, a kilometre of corridor and nobody else on shift who can do your job. Balance the core, swap the fuel and keep the turbines turning.'),
+    href: '/sole-operator/',
+    external: true,
+    glyph: 'core',
+    accent: '95 227 255',
+    status: 'live',
+    storageKey: null,
+    launched: '2026-11-10',
+  },
 ];
 
 export const LIVE_GAMES = GAMES.filter((g) => g.status === 'live');

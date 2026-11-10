@@ -83,12 +83,37 @@ function Junction() {
   );
 }
 
+/* Sole Operator: the reactor core, a pentagon face of the dodecahedron glowing
+   cyan inside its tank of water. */
+function Core() {
+  const ring = (r, cy = 32) => Array.from({ length: 5 }, (_, i) => {
+    const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+    return `${32 + Math.cos(a) * r},${cy + Math.sin(a) * r}`;
+  }).join(' ');
+  return (
+    <>
+      <defs>
+        <radialGradient id="glyph-core" cx="45%" cy="38%" r="70%">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset=".5" stopColor="#c9f6ff" />
+          <stop offset="1" stopColor="#5fe3ff" />
+        </radialGradient>
+      </defs>
+      <polygon points={ring(20, 35)} fill="#2a9fc0" opacity=".55" strokeLinejoin="round" />
+      <polygon points={ring(20)} fill="url(#glyph-core)" stroke="#bff3ff" strokeWidth="1.5" strokeLinejoin="round" />
+      <polygon points={ring(8.5)} fill="none" stroke="#1d4b5c" strokeOpacity=".35" strokeWidth="1.4" strokeLinejoin="round" />
+      <circle cx="32" cy="32" r="3" fill="#1d4b5c" fillOpacity=".45" />
+    </>
+  );
+}
+
 export default function Glyph({ kind, className }) {
   return (
     <svg className={className} viewBox="0 0 64 64" aria-hidden="true">
       {kind === 'pad' && <Pad />}
       {kind === 'facet' && <Face />}
       {kind === 'junction' && <Junction />}
+      {kind === 'core' && <Core />}
     </svg>
   );
 }

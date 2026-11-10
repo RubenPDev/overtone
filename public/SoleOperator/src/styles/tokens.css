@@ -1,0 +1,62 @@
+/* Design tokens. Mirrored for 3D materials in src/styles/palette.ts — keep both in sync. */
+:root {
+  --wall-light: #d3d9e0;
+  --wall-dark: #b4bdc7;
+  --trim: #f07a2a;
+  --floor: #4a5767;
+  --cyan: #5fe3ff;
+  --hazard: #f2b81f;
+  --player: #6dffb6;
+  --amber: #ffb35c;
+  --gantry: #d89a2e;
+  --danger: #ff5d5d;
+
+  --ink: #eef4fa;
+  --ink-dim: #9fb0c2;
+  --ink-faint: #64768a;
+  --bg: #0b1118;
+  --bg-2: #111a24;
+
+  --font-head: 'Oxanium', system-ui, sans-serif;
+  --font-body: 'Rajdhani', system-ui, sans-serif;
+
+  --shadow-text: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.55);
+  --gutter: clamp(12px, 2.2vw, 32px);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.boot {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 600 14px/1 system-ui, sans-serif;
+  letter-spacing: 0.5em;
+  color: #5fe3ff;
+  background: #0b1118;
+}
