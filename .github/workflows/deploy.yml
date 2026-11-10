@@ -25,9 +25,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
-          cache-dependency-path: public/Homepage/package-lock.json
+          cache-dependency-path: |
+            public/Homepage/package-lock.json
+            public/SoleOperator/package-lock.json
 
       - run: npm ci
       - run: npm run build
@@ -35,6 +37,16 @@ jobs:
       # Pages has no SPA fallback; serving index.html as the 404 page lets
       # deep links like /overtone/cadence/12 load the app.
       - run: cp dist/index.html dist/404.html
+
+      # Sole Operator is its own Vite app (public/SoleOperator), built with
+      # base /sole-operator/ and dropped into the site at overtone.games/sole-operator/.
+      - name: Build Sole Operator
+        working-directory: public/SoleOperator
+        run: |
+          npm ci
+          npm test
+          npm run build
+          cp -r dist ../Homepage/dist/sole-operator
 
       - uses: actions/upload-pages-artifact@v3
         with:

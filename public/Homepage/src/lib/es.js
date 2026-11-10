@@ -68,6 +68,10 @@ export default {
   'Find the shortest route': 'Encuentra el camino más corto',
   'A scrambled block of colour, and a par that was proven before you started. Swap and turn until the ring matches its centre and every outer row is one colour, in as few moves as you can.':
     'Un bloque de colores revuelto y un par comprobado antes de que empieces. Intercambia y gira hasta que el anillo combine con su centro y cada fila de afuera sea de un solo color, en la menor cantidad de movimientos posible.',
+  'Run the whole plant yourself': 'Opera toda la planta tú solo',
+  'One nuclear power plant, seven rooms, a kilometre of corridor and nobody else on shift who can do your job. Balance the core, swap the fuel and keep the turbines turning.':
+    'Una planta nuclear, siete salas, un kilómetro de pasillos y nadie más en el turno que pueda hacer tu trabajo. Equilibra el núcleo, cambia el combustible y mantén las turbinas girando.',
+  'Full game': 'Juego completo',
   'Keep the rush hour moving': 'Que la hora pico no se detenga',
   'A small town, a highway and a rush hour on its way. Spend a tight budget on lights, roundabouts and flyovers, then watch the traffic run. Get every car through, or do it without a single street going red.':
     'Un pueblo pequeño, una autopista y una hora pico que se acerca. Gasta un presupuesto apretado en semáforos, glorietas y puentes, y mira cómo corre el tráfico. Haz que pasen todos los carros, o lógralo sin que ni una calle se ponga roja.',

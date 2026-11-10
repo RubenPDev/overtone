@@ -1,0 +1,138 @@
+import { describe, expect, it } from 'vitest';
+import { CORRIDORS, NODES, TOTAL_CORRIDOR_M, routeTo, shortestPaths } from './facility';
+import { StraightLineNavigator, isWalkable, slideMove } from './geometry';
+import { buildCorridorSpace, buildRoomSpace, corridorFrame, corridorT, doorState } from './spaces';
+import { ROOMS, getRoom, isRoomBuilt } from '../rooms/registry';
+import { EventBus, type GameEvents } from '../core/events';
+import { ObjectiveRunner } from '../objectives/runner';
+import { OBJECTIVES } from '../objectives/definitions';
+
+describe('facility graph', () => {
+  it('matches the reference map distances', () => {
+    expect(TOTAL_CORRIDOR_M).toBe(1180);
+    const d = shortestPaths('control-room');
+    expect(d.get('fuel-storage')!.dist).toBe(140);
+    expect(d.get('turbine-hall')!.dist).toBe(210);
+    expect(d.get('water-containers')!.dist).toBe(180);
+    expect(d.get('cafeteria')!.dist).toBe(330);
+    expect(d.get('cooling-chambers')!.dist).toBe(330);
+    expect(d.get('particle-accelerator')!.dist).toBe(300);
+    expect(d.get('cafeteria')!.via).toBe('C-4');
+  });
+
+  it('every corridor joins known nodes and every registered room is in the graph', () => {
+    const ids = new Set(NODES.map((n) => n.id));
+    for (const c of CORRIDORS) expect(ids.has(c.a) && ids.has(c.b)).toBe(true);
+    for (const id of ROOMS.keys()) expect(ids.has(id)).toBe(true);
+  });
+
+  it('routes from inside a corridor pick the shorter end', () => {
+    const r = routeTo({ corridor: 'C-1', from: 'control-room', t: 100 }, 'fuel-storage');
+    expect(r.dist).toBe(40);
+    expect(r.via).toEqual({ end: 'fuel-storage' });
+    const back = routeTo({ corridor: 'C-1', from: 'control-room', t: 100 }, 'water-containers');
+    expect(back.dist).toBe(280);
+  });
+});
+
+describe('rooms and spaces', () => {
+  it('every doorway refers to a corridor touching its room', () => {
+    for (const room of ROOMS.values())
+      for (const d of room.doorways) {
+        const c = CORRIDORS.find((c) => c.id === d.corridor)!;
+        expect(c.a === room.id || c.b === room.id).toBe(true);
+      }
+  });
+
+  it('only doors to built rooms are open; the accelerator is locked', () => {
+    const cr = getRoom('control-room');
+    const states = Object.fromEntries(cr.doorways.map((d) => [d.id, doorState(cr, d, isRoomBuilt)]));
+    expect(states).toEqual({ fuel: 'open', turbine: 'sealed', water: 'sealed', south: 'sealed' });
+    const fs = getRoom('fuel-storage');
+    expect(doorState(fs, fs.doorways[1]!, isRoomBuilt)).toBe('locked');
+  });
+
+  it('blocks walls and the reactor plinth, but lets you walk out through an open door', () => {
+    const cr = getRoom('control-room');
+    const space = buildRoomSpace(cr, isRoomBuilt);
+    expect(isWalkable(space, cr.spawn.position)).toBe(true);
+    expect(isWalkable(space, { x: 0, z: 0 })).toBe(false); // tank
+    expect(isWalkable(space, { x: 0, z: -17 })).toBe(false); // sealed door / wall
+    expect(isWalkable(space, { x: -20, z: 0 })).toBe(true); // C-1 stub
+    // Sliding along a wall keeps the free axis.
+    const p = slideMove(space, { x: 10, z: -15.5 }, { x: 0.5, z: -1 });
+    expect(p.x).toBeCloseTo(10.5);
+    expect(p.z).toBeCloseTo(-15.5);
+    expect(space.triggers).toHaveLength(1);
+  });
+
+  it('every interactable and spawn is reachable floor', () => {
+    for (const room of ROOMS.values()) {
+      const space = buildRoomSpace(room, isRoomBuilt);
+      expect(isWalkable(space, room.spawn.position)).toBe(true);
+      const nav = new StraightLineNavigator(space);
+      for (const i of room.interactables)
+        expect(nav.findPath(room.spawn.position, i.position)).not.toBeNull();
+    }
+  });
+
+  it('a corridor runs from the door direction for its full length, with exits at both ends', () => {
+    const frame = corridorFrame('C-1', getRoom('control-room'));
+    expect(frame.dir).toEqual({ x: -1, z: 0 });
+    expect(frame.to).toBe('fuel-storage');
+    const space = buildCorridorSpace(frame);
+    expect(isWalkable(space, { x: -70, z: 0 })).toBe(true);
+    expect(isWalkable(space, { x: -70, z: 3 })).toBe(false);
+    expect(corridorT(frame, { x: -70, z: 0 })).toBe(70);
+    expect(space.triggers.map((t) => t.action.type === 'arrive' && t.action.room)).toEqual([
+      'control-room',
+      'fuel-storage',
+    ]);
+  });
+});
+
+describe('objective runner', () => {
+  it('advances "Swap Fuel Cell 07" through bus events only', () => {
+    const bus = new EventBus<GameEvents>();
+    const runner = new ObjectiveRunner(bus, OBJECTIVES);
+    const done: string[] = [];
+    bus.on('objective/completed', (e) => done.push(e.objective));
+    runner.start('swap-cell-07');
+    expect(runner.currentStep?.id).toBe('check');
+
+    bus.emit('interact', { room: 'control-room', interactable: 'npc-2', kind: 'npc' });
+    expect(runner.currentStep?.id).toBe('check');
+    bus.emit('interact', { room: 'control-room', interactable: 'core-panel', kind: 'core' });
+    expect(runner.currentStep?.id).toBe('fetch');
+    bus.emit('item/picked', { item: 'FA-31', room: 'fuel-storage' });
+    expect(runner.currentStep?.id).toBe('load');
+    bus.emit('sim', { type: 'cellLoaded', cell: 3, assembly: 'FA-32' });
+    expect(runner.currentStep?.id).toBe('load');
+    bus.emit('sim', { type: 'cellLoaded', cell: 6, assembly: 'FA-31' });
+    expect(done).toEqual(['swap-cell-07']);
+    expect(runner.progress.active).toBeNull();
+  });
+
+  it('a later step’s event completes the skipped steps before it', () => {
+    const bus = new EventBus<GameEvents>();
+    const runner = new ObjectiveRunner(bus, OBJECTIVES);
+    const steps: number[] = [];
+    bus.on('objective/step', (e) => steps.push(e.step));
+    runner.start('swap-cell-07');
+    bus.emit('item/picked', { item: 'FA-31', room: 'fuel-storage' });
+    expect(steps).toEqual([0, 1]);
+    expect(runner.currentStep?.id).toBe('load');
+  });
+
+  it('saves and restores progress', () => {
+    const bus = new EventBus<GameEvents>();
+    const a = new ObjectiveRunner(bus, OBJECTIVES);
+    a.start('swap-cell-07');
+    a.forceAdvance();
+    const s = a.save();
+    a.dispose();
+    const b = new ObjectiveRunner(new EventBus<GameEvents>(), OBJECTIVES);
+    b.load(s);
+    expect(b.currentStep?.id).toBe('fetch');
+  });
+});

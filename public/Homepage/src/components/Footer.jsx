@@ -16,7 +16,7 @@ export default function Footer({ navigate }) {
             {GAMES.map((g) => (
               <li key={g.id}>
                 {g.status === 'live' ? (
-                  <a href={withBase(g.href)} onClick={navigate ? linkHandler(navigate, g.href) : undefined}>{g.name}</a>
+                  <a href={withBase(g.href)} onClick={navigate && !g.external ? linkHandler(navigate, g.href) : undefined}>{g.name}</a>
                 ) : (
                   <span className="footer__muted">{g.name} — {t('soon')}</span>
                 )}

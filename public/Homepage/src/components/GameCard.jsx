@@ -28,7 +28,7 @@ export default function GameCard({ game, featured = false, navigate }) {
 
   const Wrapper = live ? 'a' : 'div';
   const props = live
-    ? { href: withBase(game.href), onClick: follow }
+    ? { href: withBase(game.href), onClick: game.external ? undefined : follow }
     : { 'aria-disabled': 'true' };
 
   /* The featured card keeps this under its description; the smaller ones run it
@@ -64,7 +64,9 @@ export default function GameCard({ game, featured = false, navigate }) {
       <div className="card__body">
         <div className="card__heading">
           <h3 className="card__name">{game.name}</h3>
-          {live ? (
+          {live && game.external ? (
+            <span className="card__badge">{t('Full game')}</span>
+          ) : live ? (
             stats.played
               ? <span className="card__badge card__badge--done">{t('Played today')}</span>
               : <span className="card__badge">{t('New today')}</span>
