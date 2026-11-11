@@ -18,7 +18,6 @@ interface WorldState {
   transition: { phase: TransitionPhase; title: string; subtitle: string };
   /** Interactable in range (changes only when the nearest one changes, not per frame). */
   near: Interactable | null;
-  carrying: string | null;
   /** Room picked on the map screen. */
   waypoint: string | null;
 }
@@ -29,6 +28,5 @@ export const useWorld = create<WorldState>()(() => ({
   arrival: { position: { x: 0, z: 0 }, facing: 0 },
   transition: { phase: 'idle', title: '', subtitle: '' },
   near: null,
-  carrying: null,
   waypoint: null,
 }));

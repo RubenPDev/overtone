@@ -1,10 +1,14 @@
-import { useMemo } from 'react';
+import { doorSound } from '../audio/director';
+import { useFrame } from '@react-three/fiber';
+import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { player } from '../game/runtime';
 import { isRoomBuilt } from '../rooms/registry';
 import { PALETTE } from '../styles/palette';
-import { FACING_VEC, STUB_LENGTH, doorPosition } from '../world/geometry';
+import { FACING_VEC, STUB_LENGTH, doorPosition, subtractRects } from '../world/geometry';
 import { doorState, type DoorState } from '../world/spaces';
 import type { Doorway, Facing, RoomDefinition } from '../world/types';
+import { Baked } from './Baked';
 import { FloorText, GlowDecal, WorldText, useEmissive } from './parts';
 import { fadeTexture, floorTexture, hazardTexture } from './textures';
 
@@ -15,14 +19,14 @@ const DOOR_H = 3.8;
 /** Back walls (-x, -z) are full height; front walls (+x, +z) are cut low so the camera sees in. */
 const isBack = (f: Facing) => f === '-x' || f === '-z';
 
-function useShellMaterials() {
+function useShellMaterials(shell?: RoomDefinition['shell']) {
   return useMemo(() => {
     const floorMap = floorTexture().clone();
     floorMap.needsUpdate = true;
     return {
       floorMap,
-      wall: new THREE.MeshStandardMaterial({ color: PALETTE.wallLight, roughness: 0.85 }),
-      wallDark: new THREE.MeshStandardMaterial({ color: PALETTE.wallDark, roughness: 0.9 }),
+      wall: new THREE.MeshStandardMaterial({ color: shell?.wall ?? PALETTE.wallLight, roughness: 0.85 }),
+      wallDark: new THREE.MeshStandardMaterial({ color: shell?.band ?? PALETTE.wallDark, roughness: 0.9 }),
       trim: new THREE.MeshStandardMaterial({
         color: PALETTE.trim,
         roughness: 0.6,
@@ -34,7 +38,7 @@ function useShellMaterials() {
       plate: new THREE.MeshStandardMaterial({ color: '#141b23', roughness: 0.6 }),
       hazard: new THREE.MeshStandardMaterial({ map: hazardTexture(), roughness: 0.7 }),
     };
-  }, []);
+  }, [shell]);
 }
 
 type Mats = ReturnType<typeof useShellMaterials>;
@@ -64,7 +68,16 @@ function Wall({ room, facing, mats }: { room: RoomDefinition; facing: Facing; ma
         : facing === '+z'
           ? b.maxZ + WALL_T / 2
           : b.minZ - WALL_T / 2;
-  const [from, to] = alongX ? [b.minX - WALL_T, b.maxX + WALL_T] : [b.minZ - WALL_T, b.maxZ + WALL_T];
+  const [from, to] =
+    facing === '-z'
+      ? [b.minX - WALL_T, b.maxX + WALL_T]
+      : facing === '-x'
+        ? [b.minZ, b.maxZ + WALL_T]
+        : facing === '+z'
+          ? [b.minX, b.maxX + WALL_T]
+          : [b.minZ, b.maxZ];
+  // Trims on the -x wall stop short of the -z wall's trim so the two never overlap in the corner.
+  const trimFrom = facing === '-x' ? from + 0.12 : from;
   const doors = room.doorways.filter((d) => d.facing === facing);
   const holes = doors.map((d) => {
     const p = doorPosition(b, d);
@@ -99,9 +112,10 @@ function Wall({ room, facing, mats }: { room: RoomDefinition; facing: Facing; ma
       {wallSegments(from, to, holes).map(([a, c], i) => (
         <group key={i}>
           {box(a, c, 0, H, WALL_T, 0, mats.wall, 'w')}
-          {back && box(a, c, 0, 1.1, 0.08, WALL_T / 2 + 0.04, mats.wallDark, 'band')}
-          {back && box(a, c, 2.55, 2.7, 0.06, WALL_T / 2 + 0.03, mats.trim, 'trim')}
-          {!back && box(a, c, H - 0.08, H, WALL_T + 0.02, 0, mats.trim, 'cap')}
+          {back && box(Math.max(a, trimFrom), c, 0, 1.1, 0.08, WALL_T / 2 + 0.04, mats.wallDark, 'band')}
+          {back && box(Math.max(a, trimFrom), c, 2.55, 2.7, 0.06, WALL_T / 2 + 0.03, mats.trim, 'trim')}
+          {/* Cap sits proud of the wall top (not flush), so the two top faces never coincide. */}
+          {!back && box(a, c, H - 0.06, H + 0.025, WALL_T + 0.03, 0, mats.trim, 'cap')}
         </group>
       ))}
       {back &&
@@ -157,6 +171,7 @@ function DoorDressing({
           <boxGeometry args={[WALL_T + 0.12, 0.2, door.width + 0.46]} />
         </mesh>
       )}
+      {state === 'open' && <AutoDoor width={door.width} back={back} at={p} mats={mats} />}
       {/* Status lamp over the door. */}
       <mesh position={[-WALL_T / 2 - 0.05, back ? DOOR_H + 0.45 : FRONT_H + 0.5, 0]} material={lamp}>
         <boxGeometry args={[0.08, 0.14, 0.9]} />
@@ -223,36 +238,143 @@ function DoorDressing({
   );
 }
 
+/**
+ * Doors that open as the Operator approaches: sliding panels in tall back walls,
+ * a lifting barrier arm in cut-down front walls. Local frame: +x outward, z along the wall.
+ */
+function AutoDoor({
+  width,
+  back,
+  at,
+  mats,
+}: {
+  width: number;
+  back: boolean;
+  at: { x: number; z: number };
+  mats: Mats;
+}) {
+  const left = useRef<THREE.Mesh>(null);
+  const right = useRef<THREE.Mesh>(null);
+  const arm = useRef<THREE.Group>(null);
+  const open = useRef(0);
+  const panel = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: '#9aa7b4', roughness: 0.35, metalness: 0.55 }),
+    [],
+  );
+  const glass = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#7fd8f0',
+        roughness: 0.1,
+        metalness: 0.2,
+        transparent: true,
+        opacity: 0.45,
+      }),
+    [],
+  );
+  const wasNear = useRef(false);
+  useFrame((_, dt) => {
+    const near = Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < 5.5;
+    if (near !== wasNear.current) {
+      wasNear.current = near;
+      doorSound(near, at);
+    }
+    open.current += ((near ? 1 : 0) - open.current) * (1 - Math.exp(-dt * 6));
+    const o = open.current;
+    if (left.current) left.current.position.z = -width / 4 - o * (width / 2 - 0.05);
+    if (right.current) right.current.position.z = width / 4 + o * (width / 2 - 0.05);
+    if (arm.current) arm.current.rotation.x = -o * (Math.PI / 2 - 0.1);
+  });
+  if (back)
+    return (
+      <group>
+        {[left, right].map((ref, i) => (
+          <mesh
+            key={i}
+            ref={ref}
+            position={[0, DOOR_H / 2, (i ? 1 : -1) * (width / 4)]}
+            material={panel}
+            userData={{ noBake: true }}
+          >
+            <boxGeometry args={[0.12, DOOR_H, width / 2]} />
+            <mesh position={[-0.07, DOOR_H * 0.12, 0]} material={glass}>
+              <boxGeometry args={[0.02, 0.9, width / 2 - 0.5]} />
+            </mesh>
+          </mesh>
+        ))}
+      </group>
+    );
+  return (
+    <group ref={arm} position={[-0.3, 0.95, -width / 2]}>
+      <mesh position={[0, 0, width / 2]} material={mats.hazard} userData={{ noBake: true }}>
+        <boxGeometry args={[0.1, 0.1, width - 0.2]} />
+      </mesh>
+    </group>
+  );
+}
+
 /** Generic room shell from a RoomDefinition: slab, floor, cutaway walls, doorways and stubs. */
 export function RoomShell({ room }: { room: RoomDefinition }) {
-  const mats = useShellMaterials();
+  const mats = useShellMaterials(room.shell);
   const b = room.bounds;
   const w = b.maxX - b.minX;
-  const d = b.maxZ - b.minZ;
-  const cx = (b.minX + b.maxX) / 2;
-  const cz = (b.minZ + b.maxZ) / 2;
-  mats.floorMap.repeat.set(w / 2, d / 2);
+  mats.floorMap.repeat.set(1, 1);
+
+  // Floor and slab pieces around any pits; UVs are in world metres so tiles line up across pieces.
+  const pieces = useMemo(() => {
+    const outer = {
+      minX: b.minX - WALL_T,
+      maxX: b.maxX + WALL_T,
+      minZ: b.minZ - WALL_T,
+      maxZ: b.maxZ + WALL_T,
+    };
+    const holes = room.floorHoles ?? [];
+    const floor = subtractRects(b, holes).map((r) => {
+      const rw = r.maxX - r.minX;
+      const rd = r.maxZ - r.minZ;
+      const g = new THREE.PlaneGeometry(rw, rd);
+      const uv = g.getAttribute('uv') as THREE.BufferAttribute;
+      for (let i = 0; i < uv.count; i++)
+        uv.setXY(i, (r.minX + uv.getX(i) * rw) / 2, (-r.maxZ + uv.getY(i) * rd) / 2);
+      return { r, g };
+    });
+    const slab = subtractRects(outer, holes);
+    return { floor, slab };
+  }, [b, room.floorHoles]);
 
   const floorMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: PALETTE.floor,
+        color: room.shell?.floor ?? PALETTE.floor,
         map: mats.floorMap,
         roughness: 0.78,
         metalness: 0.05,
       }),
-    [mats.floorMap],
+    [mats.floorMap, room.shell],
   );
 
   return (
-    <group>
+    <Baked>
       {/* Base slab: the room reads as a solid block floating in the dark. */}
-      <mesh position={[cx, -0.75, cz]} material={mats.slab}>
-        <boxGeometry args={[w + WALL_T * 2, 1.5, d + WALL_T * 2]} />
-      </mesh>
-      <mesh position={[cx, -0.01, cz]} rotation={[-Math.PI / 2, 0, 0]} material={floorMat} receiveShadow>
-        <planeGeometry args={[w, d]} />
-      </mesh>
+      {pieces.slab.map((r, i) => (
+        <mesh
+          key={`s${i}`}
+          position={[(r.minX + r.maxX) / 2, -0.79, (r.minZ + r.maxZ) / 2]}
+          material={mats.slab}
+        >
+          <boxGeometry args={[r.maxX - r.minX, 1.5, r.maxZ - r.minZ]} />
+        </mesh>
+      ))}
+      {pieces.floor.map(({ r, g }, i) => (
+        <mesh
+          key={`f${i}`}
+          geometry={g}
+          position={[(r.minX + r.maxX) / 2, -0.01, (r.minZ + r.maxZ) / 2]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          material={floorMat}
+          receiveShadow
+        />
+      ))}
       {(['-x', '-z', '+x', '+z'] as Facing[]).map((f) => (
         <Wall key={f} room={room} facing={f} mats={mats} />
       ))}
@@ -276,6 +398,6 @@ export function RoomShell({ room }: { room: RoomDefinition }) {
           {room.floorLabel}
         </FloorText>
       )}
-    </group>
+    </Baked>
   );
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FixedStepClock, createThrottle } from './clock';
 import { EventBus, type GameEvents } from './events';
 import { SimHost } from './simHost';
+import { initialLogistics } from '../logistics';
 import { latestSave, migrate, readSave, writeSave, type SaveData, type StorageLike } from './save';
 
 class MemoryStorage implements StorageLike {
@@ -102,12 +103,13 @@ describe('save', () => {
   const sample = (savedAt: string): SaveData => {
     const host = new SimHost(new EventBus<GameEvents>(), 'save');
     return {
-      version: 1,
+      version: 4,
       savedAt,
       seed: 'save',
       sim: host.snapshot(),
-      world: { room: 'control-room', player: { x: 1, z: 2 }, carrying: null },
+      world: { room: 'control-room', player: { x: 1, z: 2 }, focus: 0.9, dose: 0.1 },
       objectives: { active: 'swap-cell-07', step: 0, completed: [] },
+      logistics: initialLogistics(),
     };
   };
 
@@ -130,6 +132,63 @@ describe('save', () => {
     storage.setItem('sole-operator:save:auto', '{not json');
     expect(latestSave(storage)?.slot).toBe('manual');
     expect(readSave(null, 'auto')).toBeNull();
+  });
+
+  it('migrates a real v1 save: a carried assembly ends up in the cart cask', () => {
+    const storage = new MemoryStorage();
+    const v2 = sample('2026-01-01T00:00:00Z');
+    const v1 = {
+      ...v2,
+      version: 1,
+      world: { room: 'fuel-storage', player: { x: 2, z: 0 }, carrying: 'FA-31' },
+      logistics: undefined,
+    };
+    storage.setItem('sole-operator:save:auto', JSON.stringify(v1));
+    const back = readSave(storage, 'auto')!;
+    expect(back.version).toBe(4);
+    expect(back.world).toEqual({ room: 'fuel-storage', player: { x: 2, z: 0 }, focus: 0.88, dose: 0 });
+    expect(back.logistics.cart.cask).toEqual([{ id: 'FA-31', burnup: 0 }]);
+    expect(back.logistics.cart.room).toBe('fuel-storage');
+    expect(back.logistics.pool.some((a) => a?.id === 'FA-31')).toBe(false);
+  });
+
+  it('migrates a v2 save (no accelerator) to v3 and restores it', () => {
+    const storage = new MemoryStorage();
+    const v3 = sample('2026-01-01T00:00:00Z');
+    const { accel: _a, netOutput: _n, econ: _e, water: _w, turbine: _t, ...oldState } = v3.sim.state;
+    const v2 = { ...v3, version: 2, sim: { ...v3.sim, schema: 1, state: oldState } };
+    storage.setItem('sole-operator:save:auto', JSON.stringify(v2));
+    const back = readSave(storage, 'auto')!;
+    expect(back.version).toBe(4);
+    expect(back.sim.schema).toBe(3);
+    expect(back.sim.state.accel.cavities).toHaveLength(8);
+    expect(back.sim.state.econ.credits).toBeGreaterThan(0);
+    const host = new SimHost(new EventBus<GameEvents>(), 'x');
+    host.restore(back.sim);
+    host.tick();
+    expect(Number.isFinite(host.state.netOutput)).toBe(true);
+  });
+
+  it('migrates a v3 save (no economy) to v4, keeping its clearance', () => {
+    const storage = new MemoryStorage();
+    const v4 = sample('2026-01-01T00:00:00Z');
+    const { econ: _e, water: _w, turbine: _t, ...oldState } = v4.sim.state;
+    const v3 = {
+      ...v4,
+      version: 3,
+      sim: { ...v4.sim, schema: 2, state: { ...oldState, accel: { ...oldState.accel, clearance: 3 } } },
+    };
+    storage.setItem('sole-operator:save:auto', JSON.stringify(v3));
+    const back = readSave(storage, 'auto')!;
+    expect(back.version).toBe(4);
+    expect(back.sim.schema).toBe(3);
+    expect(back.sim.state.accel.clearance).toBe(3);
+    expect(back.sim.state.econ.upgrades).toEqual({});
+    expect(back.sim.state.water.tanks).toHaveLength(4);
+    const host = new SimHost(new EventBus<GameEvents>(), 'x');
+    host.restore(back.sim);
+    host.tick();
+    expect(host.state.econ.credits).toBeGreaterThan(back.sim.state.econ.credits);
   });
 
   it('upgrades old saves through the migration chain', () => {

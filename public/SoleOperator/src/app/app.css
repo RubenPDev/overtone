@@ -437,3 +437,17 @@
     order: 3;
   }
 }
+
+.slider {
+  gap: 14px;
+}
+.slider input {
+  flex: 1;
+  accent-color: var(--cyan);
+}
+.slider b {
+  width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+}

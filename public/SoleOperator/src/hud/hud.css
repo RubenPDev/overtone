@@ -489,7 +489,9 @@
 .minimap {
   width: 190px;
   height: 190px;
-  filter: drop-shadow(0 0 14px rgba(0, 0, 0, 0.6));
+  /* box-shadow, not filter: drop-shadow — the SVG redraws 10x a second and a filter re-rasterises it each time. */
+  border-radius: 50%;
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.55);
 }
 .minimap svg {
   width: 100%;
@@ -572,4 +574,498 @@
     width: 60px;
     height: 60px;
   }
+}
+
+/* ---- Control-mode panel (rod control, crane, refuelling machine) ------------------ */
+.mp {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: var(--gutter);
+  transform: translateX(-50%);
+  width: min(720px, calc(100vw - 32px));
+  padding: 14px 18px 12px;
+  display: grid;
+  gap: 10px;
+  pointer-events: auto;
+  background: linear-gradient(to top, rgba(6, 12, 18, 0.88), rgba(6, 12, 18, 0.62));
+  border-top: 2px solid var(--cyan);
+  clip-path: polygon(0 0, 100% 0, 100% 88%, 97% 100%, 0 100%);
+  animation: toast-in 0.2s ease-out;
+}
+.mp__head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.mp__eyebrow {
+  font: 600 11px/1 var(--font-head);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.mp__head h3 {
+  margin: 0;
+  font: 700 20px/1 var(--font-head);
+  letter-spacing: 0.04em;
+}
+.mp__head h3 small {
+  font: 500 14px var(--font-body);
+  color: var(--ink-dim);
+}
+.mp__close {
+  margin-left: auto;
+  font: 700 11px/1 var(--font-head);
+  padding: 5px 8px;
+  border: 1px solid rgba(200, 220, 235, 0.3);
+  background: transparent;
+  cursor: pointer;
+}
+.mp__readouts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-size: 14px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.mp__readouts b {
+  font: 700 16px var(--font-head);
+  color: var(--ink);
+}
+.mp__readouts .up b {
+  color: var(--amber);
+}
+.mp__readouts .down b {
+  color: var(--cyan);
+}
+.mp__rods {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 6px;
+}
+.rodcol {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 6px 0 4px;
+  background: rgba(200, 220, 235, 0.05);
+  border: 1px solid rgba(200, 220, 235, 0.12);
+  cursor: pointer;
+}
+.rodcol.is-on {
+  border-color: var(--cyan);
+  background: rgba(95, 227, 255, 0.12);
+  box-shadow: 0 0 12px rgba(95, 227, 255, 0.25) inset;
+}
+.rodcol__bar {
+  position: relative;
+  width: 10px;
+  height: 64px;
+  background: rgba(200, 220, 235, 0.12);
+}
+.rodcol__bar i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  background: var(--hazard);
+  box-shadow: 0 0 6px var(--hazard);
+}
+.rodcol b {
+  font: 700 13px var(--font-head);
+}
+.rodcol small {
+  font-size: 11px;
+  color: var(--ink-dim);
+  font-weight: 600;
+}
+.rodcol small.hot {
+  color: var(--amber);
+}
+.mp__rows {
+  display: grid;
+  gap: 6px;
+}
+.mp__rows > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+}
+.mp__rows > div > span:first-child {
+  width: 110px;
+  font: 600 11px/1 var(--font-head);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.mp__rows b {
+  font-weight: 600;
+}
+.mp__rows b.fresh {
+  color: #8dff6a;
+}
+.mp__rows b.spent {
+  color: var(--cyan);
+}
+.mp__meter {
+  flex: 1;
+  height: 8px;
+  transform: skewX(-24deg);
+  background: rgba(200, 220, 235, 0.14);
+}
+.mp__meter i {
+  display: block;
+  height: 100%;
+  background: var(--hazard);
+  box-shadow: 0 0 6px var(--hazard);
+}
+.mp__meter.is-progress i {
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+}
+.mp__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 18px;
+  font: 600 12px/1 var(--font-head);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.mp__steps li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.mp__steps i {
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  border: 2px solid currentColor;
+}
+.mp__steps li.done {
+  color: var(--player);
+}
+.mp__steps li.done i {
+  background: var(--player);
+}
+.mp__steps li.active {
+  color: var(--amber);
+}
+.mp__hint {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-dim);
+}
+.mp__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font: 600 11px/1 var(--font-head);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.mp__keys kbd {
+  font: 700 10px/1 var(--font-head);
+  padding: 3px 5px;
+  margin-right: 6px;
+  background: var(--ink);
+  color: #0b1118;
+  text-shadow: none;
+}
+@media (max-width: 900px) {
+  .mp__rods {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* ---- Accelerator panels ---------------------------------------------------------- */
+.mp--wide {
+  width: min(820px, calc(100vw - 32px));
+}
+.mp__rf {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  align-items: center;
+}
+.mp__curve {
+  width: 100%;
+  height: 90px;
+  background: rgba(95, 227, 255, 0.05);
+  border: 1px solid rgba(95, 227, 255, 0.15);
+}
+.rodcol__bar.is-field i {
+  top: auto;
+  bottom: 0;
+  background: var(--cyan);
+  box-shadow: 0 0 6px var(--cyan);
+}
+.recipes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  max-height: 34vh;
+  overflow: auto;
+}
+.recipes li {
+  display: grid;
+  grid-template-columns: 1fr auto 54px;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 10px;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  font-size: 15px;
+}
+.recipes li b {
+  font: 600 14px var(--font-head);
+  letter-spacing: 0.04em;
+}
+.recipes li span {
+  color: var(--ink-dim);
+  font-size: 13px;
+}
+.recipes li em {
+  font: 700 14px var(--font-head);
+  font-style: normal;
+  text-align: right;
+}
+.recipes li.is-sel {
+  border-color: var(--cyan);
+  background: rgba(95, 227, 255, 0.1);
+}
+.recipes li.is-running span {
+  color: var(--player);
+}
+.recipes li.is-locked {
+  opacity: 0.42;
+}
+.mp__stock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+.mp__stock b {
+  color: var(--ink);
+  font-family: var(--font-head);
+}
+.vitals__status.is-ring {
+  color: #b9a6ff;
+}
+.vitals__big small.is-ring {
+  color: #b9a6ff;
+}
+@media (max-width: 900px) {
+  .mp__rf {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Funds (in the clock card) ------------------------------------------------ */
+.funds {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-head);
+  text-shadow: var(--shadow-text);
+}
+.funds b {
+  font: 700 20px/1 var(--font-head);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.funds b.is-neg {
+  color: var(--danger);
+}
+.funds small {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+}
+.funds__lvl {
+  font: 600 11px/1 var(--font-head);
+  letter-spacing: 0.1em;
+  padding: 3px 5px;
+  border: 1px solid rgba(95, 227, 255, 0.5);
+  color: var(--cyan);
+}
+.funds__offers {
+  font: 600 11px/1 var(--font-head);
+  letter-spacing: 0.08em;
+  padding: 3px 6px;
+  background: var(--amber);
+  color: #1a1206;
+  text-shadow: none;
+}
+.funds:hover b {
+  color: var(--cyan);
+}
+
+/* ---- Scanner readout (Q) ------------------------------------------------------- */
+.hud-scan {
+  top: calc(var(--gutter) + 230px);
+  right: var(--gutter);
+  width: min(270px, 40vw);
+  padding: 12px 14px;
+  background: linear-gradient(160deg, rgba(10, 26, 34, 0.82), rgba(6, 12, 18, 0.82));
+  border-right: 2px solid var(--player);
+}
+.scan__head {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.scan__head span {
+  font: 600 10px/1 var(--font-head);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--player);
+}
+.scan__head b {
+  font: 700 16px/1.1 var(--font-head);
+}
+.scan__list {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  font-size: 14px;
+}
+.scan__list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.scan__list dt {
+  color: var(--ink-dim);
+}
+.scan__list dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.scan__list .is-ok dd {
+  color: var(--player);
+}
+.scan__list .is-warn dd {
+  color: var(--amber);
+}
+.scan__list .is-bad dd {
+  color: var(--danger);
+}
+.scan__foot {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* ---- Tank service ------------------------------------------------------------------ */
+.mp__tank {
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  gap: 18px;
+  align-items: stretch;
+}
+.tankgauge {
+  position: relative;
+  border: 1px solid rgba(200, 220, 235, 0.3);
+  background: rgba(10, 20, 28, 0.6);
+  min-height: 120px;
+  overflow: hidden;
+}
+.tankgauge__fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to top, #2f7fd8, #6fc8ff);
+  box-shadow: 0 0 12px rgba(79, 182, 255, 0.5);
+  transition: height 0.3s;
+}
+.tankgauge__hole {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  height: 2px;
+  background: var(--danger);
+  box-shadow: 0 0 6px var(--danger);
+}
+.tankgauge span {
+  position: absolute;
+  inset: auto 0 6px;
+  text-align: center;
+  font: 700 13px var(--font-head);
+}
+.vitals__status.is-warn {
+  color: var(--amber);
+}
+.vitals__big small.is-water {
+  color: #4fb6ff;
+}
+
+/* ---- Turbine panels ------------------------------------------------------------------ */
+.mp__readouts .is-sel {
+  color: var(--cyan);
+}
+.mp__balance {
+  display: grid;
+  grid-template-columns: 110px 1fr 170px;
+  gap: 16px;
+  align-items: start;
+}
+.mp__polar {
+  width: 110px;
+  height: 110px;
+}
+.mp__trials {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+.mp__trials b {
+  color: var(--ink);
+}
+.mp__trials .is-ok b {
+  color: var(--player);
+}
+.mp__trials .is-warn b {
+  color: var(--amber);
+}
+.mp__trials .is-bad b {
+  color: var(--danger);
+}
+.mp__trials .is-empty {
+  color: var(--ink-faint);
+}
+@media (max-width: 760px) {
+  .mp__balance {
+    grid-template-columns: 90px 1fr;
+  }
+  .mp__trials {
+    display: none;
+  }
+}
+
+/* Rod control focus mode hides the HUD gradients. */
+.hud--focus::before,
+.hud--focus::after {
+  display: none;
 }

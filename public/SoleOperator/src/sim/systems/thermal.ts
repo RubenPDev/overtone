@@ -16,7 +16,9 @@ import { clamp, relax, type SimSystem } from '../system';
 export const thermalSystem: SimSystem = {
   id: 'thermal',
   step(state, ctx) {
-    const inletTarget = INLET_TEMP_C + (1 - state.coolingEfficiency) * INLET_LOSS_C;
+    // A starved make-up supply (water reserve) costs heat-sink performance too.
+    const sink = state.coolingEfficiency * (0.4 + 0.6 * state.water.supply);
+    const inletTarget = INLET_TEMP_C + (1 - sink) * INLET_LOSS_C;
     state.inletTemp = relax(state.inletTemp, inletTarget, INLET_TAU, ctx.dt);
 
     const flow = Math.max(MIN_FLOW, state.coolantFlow);

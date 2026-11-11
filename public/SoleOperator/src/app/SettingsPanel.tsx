@@ -1,5 +1,11 @@
 import { deleteSaves, defaultStorage } from '../core/save';
-import { useApp, type Quality } from '../state/app';
+import { useApp, type AudioSettings, type Quality } from '../state/app';
+
+const SLIDERS: { key: keyof AudioSettings; label: string }[] = [
+  { key: 'master', label: 'Master' },
+  { key: 'sfx', label: 'Effects' },
+  { key: 'ambience', label: 'Ambience' },
+];
 
 export function SettingsPanel() {
   const settings = useApp((s) => s.settings);
@@ -30,6 +36,21 @@ export function SettingsPanel() {
           High: bloom, soft shadows, anti-aliasing and full resolution. Low turns those off for older laptops
           and phones.
         </p>
+        <h2 className="panel__title">Sound</h2>
+        {SLIDERS.map(({ key, label }) => (
+          <label key={key} className="field slider">
+            <span>{label}</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={settings.audio[key]}
+              onChange={(e) => update({ audio: { ...settings.audio, [key]: Number(e.target.value) } })}
+            />
+            <b>{Math.round(settings.audio[key] * 100)}</b>
+          </label>
+        ))}
         {screen === 'title' && (
           <>
             <h2 className="panel__title">Saves</h2>

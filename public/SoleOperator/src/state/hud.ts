@@ -1,7 +1,17 @@
 import { create } from 'zustand';
 import type { GameSpeed } from '../core/clock';
 import type { ToastLevel } from '../core/events';
-import { averageInsertion, coreStatus, type Criticality, type PlantState, type Stability } from '../sim';
+import {
+  averageInsertion,
+  coreStatus,
+  type AccelState,
+  type Criticality,
+  type EconState,
+  type WaterState,
+  type TurbineState,
+  type PlantState,
+  type Stability,
+} from '../sim';
 import type { GraphPosition } from '../world/facility';
 
 /** The slice of plant state the HUD shows, copied from the sim a few times per second. */
@@ -16,6 +26,10 @@ export interface HudSim {
   keff: number;
   rodsIn: number;
   rods: number[];
+  /** Where each rod is being driven to (differs from rods[] while moving). */
+  rodTargets: number[];
+  /** Relative power change per game minute (reactor period = 60 / trend seconds). */
+  powerTrend: number;
   cells: { loaded: boolean; burnup: number }[];
   coolantFlow: number;
   turbineVibration: number;
@@ -23,6 +37,12 @@ export interface HudSim {
   alarms: string[];
   criticality: Criticality;
   stability: Stability;
+  netOutput: number;
+  /** Accelerator snapshot (copied, so the HUD never holds live sim objects). */
+  accel: AccelState;
+  econ: EconState;
+  water: WaterState;
+  turbine: TurbineState;
 }
 
 export function toHudSim(s: Readonly<PlantState>): HudSim {
@@ -37,11 +57,33 @@ export function toHudSim(s: Readonly<PlantState>): HudSim {
     keff: s.keff,
     rodsIn: averageInsertion(s),
     rods: s.rods.map((r) => r.insertion),
+    rodTargets: s.rods.map((r) => r.target),
+    powerTrend: s.powerTrend,
     cells: s.cells.map((c) => ({ loaded: c.loaded, burnup: c.burnup })),
     coolantFlow: s.coolantFlow,
     turbineVibration: s.turbineVibration,
     scrammed: s.scrammed,
     alarms: [...s.alarms],
+    netOutput: s.netOutput,
+    accel: {
+      ...s.accel,
+      cavities: s.accel.cavities.map((c) => ({ ...c })),
+      stock: { ...s.accel.stock },
+      detuned: [...s.accel.detuned],
+    },
+    econ: {
+      ...s.econ,
+      upgrades: { ...s.econ.upgrades },
+      contracts: s.econ.contracts.map((c) => ({ ...c })),
+    },
+    water: { ...s.water, tanks: s.water.tanks.map((t) => ({ ...t })) },
+    turbine: {
+      ...s.turbine,
+      imbalance: { ...s.turbine.imbalance },
+      weight: s.turbine.weight ? { ...s.turbine.weight } : null,
+      bearings: [...s.turbine.bearings],
+      feedPump: { ...s.turbine.feedPump },
+    },
     ...coreStatus(s),
   };
 }
@@ -76,6 +118,10 @@ interface HudState {
   objective: HudObjective | null;
   speed: GameSpeed;
   toasts: Toast[];
+  /** Alarms acknowledged at the alarm panel (beacons go steady instead of spinning). */
+  acked: string[];
+  /** Handheld scanner readout on (Q). */
+  scanner: boolean;
 }
 
 export const useHud = create<HudState>()(() => ({
@@ -85,6 +131,8 @@ export const useHud = create<HudState>()(() => ({
   objective: null,
   speed: 1,
   toasts: [],
+  acked: [],
+  scanner: false,
 }));
 
 let toastId = 0;

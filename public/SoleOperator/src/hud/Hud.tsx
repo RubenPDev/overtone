@@ -3,10 +3,18 @@ import { fireAction, type Action } from '../game/input';
 import { setSpeed } from '../game/session';
 import { useShallow } from 'zustand/react/shallow';
 import { useHud } from '../state/hud';
-import { useWorld } from '../state/world';
-import { routeTo, type GraphPosition } from '../world/facility';
+import { useLogistics } from '../state/logistics';
+import { useMode } from '../state/mode';
+import { getCorridor, routeTo, type GraphPosition } from '../world/facility';
 import { Compass } from './Compass';
 import { Minimap } from './Minimap';
+import { ModePanel } from './ModePanel';
+import { getRoom, isRoomBuilt } from '../rooms/registry';
+import { RingVitals } from './AccelPanels';
+import { ScannerPanel } from './Scanner';
+import { WaterVitals } from './WaterPanels';
+import { TurbineVitals } from './TurbinePanels';
+import { RodControlHud } from './RodControlHud';
 import { fmt, formatClock, placeName } from './nav';
 import './hud.css';
 
@@ -15,6 +23,7 @@ const ALARM_TEXT: Record<string, string> = {
   'pressure-high': 'Primary pressure high',
   'power-high': 'Thermal power above 110%',
   'turbine-vibration': 'Turbine B vibration rising',
+  'water-low': 'Water reserve below 30%',
 };
 
 const NO_ALARMS: string[] = [];
@@ -121,6 +130,32 @@ function Bar({
   );
 }
 
+/** Level label: ring tunnels and sectors are on B4, the plant on B2. */
+function levelOf(pos: GraphPosition): string {
+  if ('room' in pos) return isRoomBuilt(pos.room) ? getRoom(pos.room).level : 'B2';
+  return getCorridor(pos.corridor).kind === 'service' || !getCorridor(pos.corridor).kind ? 'B2' : 'B4';
+}
+
+/** Core vitals at plant level, ring vitals on the accelerator (sector chambers and ring tunnels). */
+function TopRightVitals() {
+  const where = useHud((s) => {
+    const p = s.graphPos;
+    if ('room' in p)
+      return p.room.startsWith('ring-')
+        ? 'ring'
+        : p.room === 'water-containers'
+          ? 'water'
+          : p.room === 'turbine-hall'
+            ? 'turbine'
+            : 'core';
+    return getCorridor(p.corridor).kind === 'ring' ? 'ring' : 'core';
+  });
+  if (where === 'ring') return <RingVitals />;
+  if (where === 'water') return <WaterVitals />;
+  if (where === 'turbine') return <TurbineVitals />;
+  return <CoreVitals />;
+}
+
 function CoreVitals() {
   const sim = useHud((s) => s.sim);
   if (!sim) return null;
@@ -131,11 +166,11 @@ function CoreVitals() {
         CORE · {sim.criticality} · {sim.stability}
       </div>
       <div className="vitals__big">
-        {fmt(sim.output)}
+        {fmt(sim.netOutput)}
         <small>MWe</small>
       </div>
       <div className="vitals__sub">
-        {fmt(sim.thermalPower)} MWt · k-eff {sim.keff.toFixed(4)}
+        {fmt(sim.thermalPower)} MWt · gross {fmt(sim.output)} · k {sim.keff.toFixed(4)}
       </div>
       <Bar
         label="Temp"
@@ -221,6 +256,7 @@ const HOTKEYS: { action: Action; key: string; label: string; icon: string }[] = 
   },
   { action: 'refuel', key: 'R', label: 'Refuel', icon: 'M5 2h6v12H5zM5 6h6M5 10h6' },
   { action: 'rods', key: 'F', label: 'Rods', icon: 'M2 3h12M4 3v8M8 3v10M12 3v6' },
+  { action: 'tablet', key: 'T', label: 'Ops', icon: 'M4 1.5h8v13H4zM6.5 12.5h3M6 4h4M6 6.5h4M6 9h2' },
   {
     action: 'map',
     key: 'M',
@@ -230,13 +266,15 @@ const HOTKEYS: { action: Action; key: string; label: string; icon: string }[] = 
 ];
 
 function HotkeyBar() {
-  const carrying = useWorld((s) => s.carrying);
+  const refuelReady = useLogistics(
+    (s) => !s.cart.attached && s.cart.room === 'control-room' && s.cart.bay === 'core-bay',
+  );
   return (
     <nav className="hud-bc">
       {HOTKEYS.map((h) => (
         <button
           key={h.action}
-          className={`hotkey${h.action === 'refuel' && carrying ? ' is-active' : ''}`}
+          className={`hotkey${h.action === 'refuel' && refuelReady ? ' is-active' : ''}`}
           onClick={() => fireAction(h.action)}
         >
           <kbd>{h.key}</kbd>
@@ -264,6 +302,24 @@ const SPEEDS: { s: GameSpeed; label: string }[] = [
   { s: 3, label: '3×' },
 ];
 
+function Funds() {
+  const credits = useHud((s) => Math.round(s.sim?.econ.credits ?? 0));
+  const clearance = useHud((s) => s.sim?.accel.clearance ?? 1);
+  const offers = useHud((s) => s.sim?.econ.contracts.filter((c) => c.status === 'offered').length ?? 0);
+  return (
+    <button className="funds" onClick={() => fireAction('tablet')} title="Ops tablet (T)">
+      <b className={credits < 0 ? 'is-neg' : ''}>{credits.toLocaleString('en-US')}</b>
+      <small>CR</small>
+      <span className="funds__lvl">L{clearance}</span>
+      {offers > 0 && (
+        <span className="funds__offers">
+          {offers} offer{offers > 1 ? 's' : ''}
+        </span>
+      )}
+    </button>
+  );
+}
+
 function ClockAndSpeed() {
   const time = useHud((s) => s.sim?.time ?? 0);
   const speed = useHud((s) => s.speed);
@@ -272,11 +328,14 @@ function ClockAndSpeed() {
   return (
     <section className="hud-br">
       <div className="clock">
+        <Funds />
         <div className="clock__time">{c.hhmm}</div>
         <div className="clock__day">
           DAY {c.day} · SHIFT {c.shift}
         </div>
-        <div className="clock__place">{placeName(pos)} · B2</div>
+        <div className="clock__place">
+          {placeName(pos)} · {levelOf(pos)}
+        </div>
         <div className="speed" role="group" aria-label="Game speed">
           {SPEEDS.map(({ s, label }) => (
             <button
@@ -296,14 +355,29 @@ function ClockAndSpeed() {
 }
 
 /** The in-game overlay. Each widget subscribes to just the store slice it shows. */
+/** Hotkeys while walking; the machine's panel while controlling one. */
+function BottomCentre() {
+  const walking = useMode((s) => s.mode.kind === 'walk');
+  return walking ? <HotkeyBar /> : <ModePanel />;
+}
+
 export default function Hud() {
+  // Rod control is a focus mode: its own full-screen overlay replaces the HUD.
+  const focus = useMode((s) => s.mode.kind === 'rods');
+  if (focus)
+    return (
+      <div className="hud hud--focus">
+        <RodControlHud />
+      </div>
+    );
   return (
     <div className="hud">
       <ObjectiveTracker />
       <Compass />
-      <CoreVitals />
+      <TopRightVitals />
+      <ScannerPanel />
       <OperatorCard />
-      <HotkeyBar />
+      <BottomCentre />
       <ClockAndSpeed />
     </div>
   );

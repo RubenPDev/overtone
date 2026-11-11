@@ -11,12 +11,16 @@ import {
 import { FIRST_OBJECTIVE } from '../objectives/definitions';
 import type { ObjectiveProgress } from '../objectives/runner';
 import { START_ROOM, getRoom } from '../rooms/registry';
-import type { AlarmId } from '../sim';
+import { MARKET_BY_ID, RECIPE_BY_ID, STOCK_LABEL, UPGRADE_BY_ID, type AlarmId } from '../sim';
+import { OBJECTIVES } from '../objectives/definitions';
+import { applyGameUpgrades, closeTablet, deliverAssembly } from './ops';
 import { useApp } from '../state/app';
 import { pushToast, useHud, type HudObjective } from '../state/hud';
 import { useWorld } from '../state/world';
 import { arrivalPoint } from '../world/geometry';
-import { objectives, player, session, simHost } from './runtime';
+import { initialLogistics } from '../logistics';
+import { logistics, objectives, player, session, simHost } from './runtime';
+import { exitMode } from './modes';
 import { placeInRoom } from './worldController';
 
 const storage = defaultStorage();
@@ -59,19 +63,23 @@ export function closeMenu() {
 // --- New / continue / save -------------------------------------------------------
 
 function resetCommon() {
+  closeTablet();
+  useHud.setState({ scanner: false });
   player.path = [];
   player.stamina = 1;
   player.focus = 0.88;
   player.locked = false;
-  useWorld.setState({ carrying: null, near: null, waypoint: null });
+  exitMode();
+  useWorld.setState({ near: null, waypoint: null });
   useHud.setState({ toasts: [] });
 }
 
 export function newGame() {
   session.seed = `unit-1-${Date.now().toString(36)}`;
-  session.assembliesTaken = 0;
   simHost.reset(session.seed);
   player.dose = 0;
+  logistics.state = initialLogistics();
+  applyGameUpgrades();
   resetCommon();
   placeInRoom(START_ROOM);
   objectives.load({ active: null, step: 0, completed: [] });
@@ -96,8 +104,10 @@ export function continueGame(): boolean {
   session.seed = d.seed;
   simHost.restore(d.sim);
   resetCommon();
-  useWorld.setState({ carrying: d.world.carrying });
-  session.assembliesTaken = Number(d.world.carrying?.slice(3) ?? 30) - 30 || 0;
+  player.focus = d.world.focus;
+  player.dose = d.world.dose;
+  logistics.state = structuredClone(d.logistics);
+  applyGameUpgrades();
   placeInRoom(d.world.room, { position: d.world.player, facing: player.yaw });
   objectives.load(d.objectives);
   setSpeed(1);
@@ -126,12 +136,20 @@ export function saveGame(slot: SaveSlot): boolean {
     savedAt: new Date().toISOString(),
     seed: session.seed,
     sim: simHost.snapshot(),
-    world: { ...world, carrying: useWorld.getState().carrying },
+    world: { ...world, focus: player.focus, dose: player.dose },
     objectives: objectives.save(),
+    logistics: saveLogistics(world.room),
   };
   const ok = writeSave(storage, slot, data);
   if (ok) bus.emit('game/saved', { slot, auto: slot === 'auto' });
   return ok;
+}
+
+/** A cart being pushed through a corridor is saved parked next to the player in the room they left. */
+function saveLogistics(room: string) {
+  const l = structuredClone(logistics.state);
+  if (l.cart.attached) l.cart.room = room;
+  return l;
 }
 
 function startAutosave() {
@@ -142,6 +160,7 @@ function startAutosave() {
 }
 
 export function quitToTitle() {
+  exitMode();
   saveGame('auto');
   if (autosaveTimer) clearInterval(autosaveTimer);
   autosaveTimer = null;
@@ -156,6 +175,7 @@ const ALARM_TEXT: Record<AlarmId, string> = {
   'pressure-high': 'Primary pressure high',
   'power-high': 'Thermal power above 110%',
   'turbine-vibration': 'Turbine B vibration rising',
+  'water-low': 'Water reserve below 30%',
 };
 
 bus.on('sim', (e) => {
@@ -182,11 +202,169 @@ bus.on('sim', (e) => {
         text: `Cell ${String(e.cell + 1).padStart(2, '0')} spent`,
         detail: 'Burn-up past 98%.',
       });
+    case 'beamTrip':
+      return pushToast({ level: 'alarm', text: 'Accelerator beam trip', detail: e.reason }, 6000);
+    case 'beamStarted':
+      return pushToast({ level: 'ok', text: 'Beam on', detail: 'Injecting from the linac.' });
+    case 'beamStopped':
+      return pushToast({ level: 'info', text: 'Beam off', detail: 'Ring cryo and magnets stay powered.' });
+    case 'cavityDetuned':
+      return pushToast({
+        level: 'warn',
+        text: `RF cavity ${String(e.cavity + 1).padStart(2, '0')} detuned`,
+        detail: 'Field below 90%. Beam loss rising.',
+      });
+    case 'cavityTuned':
+      return pushToast({ level: 'ok', text: `Cavity ${String(e.cavity + 1).padStart(2, '0')} on resonance` });
+    case 'productionStarted':
+      return pushToast({
+        level: 'ok',
+        text: 'Production run started',
+        detail: RECIPE_BY_ID.get(e.recipe)?.name,
+      });
+    case 'leakStarted':
+      if (!e.reported) return;
+      return pushToast(
+        {
+          level: 'warn',
+          text: `Leak detected · tank T-${e.tank + 1}`,
+          detail: 'Water Containers. Isolate and weld.',
+        },
+        6000,
+      );
+    case 'reserveFalling':
+      return pushToast(
+        {
+          level: 'warn',
+          text: 'Water reserve falling',
+          detail: 'A tank is leaking somewhere in Water Containers. Leak sensors would pinpoint it.',
+        },
+        7000,
+      );
+    case 'tankRepaired':
+      return pushToast({
+        level: 'ok',
+        text: `Tank T-${e.tank + 1} patched`,
+        detail: 'Reopen the valve to bring it online.',
+      });
+    case 'tankInstalled':
+      return pushToast({
+        level: 'ok',
+        text: `Tank T-${e.tank + 1} installed`,
+        detail: 'Filling from the treatment train.',
+      });
+    case 'turbineTrip':
+      return pushToast({ level: 'alarm', text: 'Turbine B trip', detail: e.reason }, 7000);
+    case 'turbineReset':
+      return pushToast({ level: 'ok', text: 'Turbine B reset', detail: 'Running up to 3,000 rpm.' });
+    case 'turbineBalanced':
+      return pushToast(
+        { level: 'ok', text: 'LP rotor balanced', detail: 'Bearing B3 under 2.8 mm/s.' },
+        6000,
+      );
+    case 'weightFitted':
+      return pushToast({
+        level: e.vibration < 2.8 ? 'ok' : 'info',
+        text: `Weight fitted · B3 ${e.vibration.toFixed(1)} mm/s`,
+        detail: e.vibration < 2.8 ? 'Within limits.' : 'Adjust the angle or mass and try again.',
+      });
+    case 'feedPumpHot':
+      return pushToast(
+        {
+          level: 'warn',
+          text: `Feed pump motor B running hot · ${e.temp.toFixed(0)} °C`,
+          detail: 'Turbine Hall · service due.',
+        },
+        6000,
+      );
+    case 'feedPumpTripped':
+      return pushToast(
+        { level: 'alarm', text: 'Feed pump B tripped', detail: 'Feedwater short: output down.' },
+        7000,
+      );
+    case 'feedPumpServiced':
+      return pushToast({
+        level: 'ok',
+        text: 'Feed pump motor B serviced',
+        detail: 'Bearings greased, winding checked.',
+      });
+    case 'contractOffered':
+      return pushToast({ level: 'info', text: 'New contract offer', detail: 'Ops tablet (T) · Contracts' });
+    case 'contractAccepted':
+      return pushToast({ level: 'ok', text: 'Contract accepted', detail: e.title });
+    case 'contractCompleted':
+      return pushToast(
+        { level: 'ok', text: `Contract complete · +${credits(e.reward)}`, detail: e.title },
+        6000,
+      );
+    case 'contractFailed':
+      return pushToast({ level: 'warn', text: 'Contract failed', detail: e.title }, 6000);
+    case 'clearanceRaised':
+      return pushToast(
+        {
+          level: 'ok',
+          text: `Clearance L${e.level} granted`,
+          detail: 'New recipes, upgrades and contracts.',
+        },
+        6000,
+      );
+    case 'sold':
+      return pushToast({
+        level: 'ok',
+        text: `Sold ${e.amount} · ${STOCK_LABEL[e.stock]}`,
+        detail: `+${credits(e.credits)}`,
+      });
+    case 'purchased': {
+      if (e.item === 'fuel-assembly' || e.item === 'fuel-fab') {
+        const id = deliverAssembly();
+        return pushToast({
+          level: 'ok',
+          text: e.item === 'fuel-fab' ? 'Assembly fabricated' : 'Fuel assembly delivered',
+          detail: id ? `${id} is in the pool rack · Fuel Rod Storage` : 'Pool rack full.',
+        });
+      }
+      applyGameUpgrades();
+      const u = UPGRADE_BY_ID.get(e.item);
+      const m = MARKET_BY_ID.get(e.item);
+      return pushToast({
+        level: 'ok',
+        text: u
+          ? `${u.name}${u.levels.length > 1 ? ` · level ${e.level}` : ''}`
+          : `Bought ${m?.name ?? e.item}`,
+        detail: u ? u.effect[e.level - 1] : 'Delivered to the ring stores.',
+      });
+    }
+    case 'feedExhausted':
+      return pushToast({
+        level: 'warn',
+        text: 'Run stopped · out of feedstock',
+        detail: RECIPE_BY_ID.get(e.recipe)?.name,
+      });
   }
 });
 
 bus.on('toast', (t) => pushToast(t));
-bus.on('objective/completed', () => pushToast({ level: 'ok', text: 'Objective complete' }, 5000));
+
+/** Objectives that need the plant set up a certain way when they start. */
+bus.on('objective/started', ({ objective }) => {
+  // A weeping weld seam on T-3, low on the shell, so the hall shows it clearly.
+  if (objective === 'fix-turbine-b') {
+    bus.emit('cmd/sim', { type: 'setImbalance', mass: 115, phase: 140 });
+    bus.emit('cmd/sim', { type: 'setFeedPumpLube', lube: 0.3, temp: 82 });
+  }
+  if (objective === 'water-leak')
+    bus.emit('cmd/sim', { type: 'startLeak', tank: 2, rate: 45, angle: -0.95, height: 0.32 });
+});
+const credits = (n: number) => `${Math.round(n).toLocaleString('en-US')} CR`;
+
+bus.on('objective/completed', ({ objective }) => {
+  const reward = OBJECTIVES.find((o) => o.id === objective)?.reward ?? 0;
+  if (reward) bus.emit('cmd/sim', { type: 'grantCredits', amount: reward });
+  pushToast(
+    { level: 'ok', text: 'Objective complete', detail: reward ? `+${credits(reward)}` : undefined },
+    5000,
+  );
+});
 bus.on('room/entered', () => saveGame('auto'));
 
 function toHudObjective(p: ObjectiveProgress): HudObjective | null {

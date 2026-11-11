@@ -3,6 +3,8 @@ import { Suspense, useLayoutEffect, useMemo } from 'react';
 import { player } from '../game/runtime';
 import { getRoom, isRoomBuilt, roomContents } from '../rooms/registry';
 import { useApp } from '../state/app';
+import { useLogistics } from '../state/logistics';
+import { useMode } from '../state/mode';
 import { useWorld } from '../state/world';
 import { StraightLineNavigator, rectCenter } from '../world/geometry';
 import {
@@ -18,6 +20,7 @@ import { InteractPrompt } from './InteractPrompt';
 import { MoveIndicator, Player } from './Player';
 import { RoomShell } from './RoomShell';
 import { stage } from './stage';
+import { TransferCart } from './TransferCart';
 
 /** Invisible floor catcher for click-to-move. */
 function ClickFloor({ space }: { space: BuiltSpace }) {
@@ -26,6 +29,7 @@ function ClickFloor({ space }: { space: BuiltSpace }) {
   const c = rectCenter(f);
   const onDown = (e: ThreeEvent<PointerEvent>) => {
     if (e.button !== 0 || player.locked || useApp.getState().overlay) return;
+    if (useMode.getState().mode.kind !== 'walk') return;
     e.stopPropagation();
     const path = nav.findPath(player.pos, { x: e.point.x, z: e.point.z });
     if (path) player.path = path;
@@ -35,6 +39,13 @@ function ClickFloor({ space }: { space: BuiltSpace }) {
       <planeGeometry args={[f.maxX - f.minX + 20, f.maxZ - f.minZ + 20]} />
     </mesh>
   );
+}
+
+/** The transfer cart, when it's parked in this room or being pushed. */
+function CartHere({ room }: { room: string | null }) {
+  const cartRoom = useLogistics((s) => s.cart.room);
+  const attached = useLogistics((s) => s.cart.attached);
+  return attached || (room !== null && cartRoom === room) ? <TransferCart /> : null;
 }
 
 function useMountStage(space: BuiltSpace, corridor: CorridorFrame | null) {
@@ -58,7 +69,8 @@ function RoomSpace({ room }: { room: RoomDefinition }) {
         <Contents room={room} />
       </Suspense>
       <ClickFloor space={space} />
-      <Player interactables={room.interactables} coreAt={core} />
+      <Player interactables={room.interactables} coreAt={core} roomId={room.id} />
+      <CartHere room={room.id} />
       <MoveIndicator />
       <InteractPrompt />
     </group>
@@ -74,6 +86,7 @@ function CorridorSpace({ corridor, from }: { corridor: string; from: string }) {
       <CorridorView frame={frame} />
       <ClickFloor space={space} />
       <Player interactables={[]} />
+      <CartHere room={null} />
       <MoveIndicator />
     </group>
   );

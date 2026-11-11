@@ -1,4 +1,4 @@
-import { Bloom, EffectComposer, ToneMapping, Vignette } from '@react-three/postprocessing';
+import { Bloom, EffectComposer, SMAA, ToneMapping, Vignette } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import { useMemo } from 'react';
 import { useApp } from '../state/app';
@@ -12,13 +12,13 @@ export function PostFX() {
   const high = useApp((s) => s.settings.quality === 'high');
   const grade = useMemo(() => new SplitToneEffect(), []);
   return (
-    <EffectComposer multisampling={high ? 4 : 0} enableNormalPass={false}>
+    <EffectComposer multisampling={0} enableNormalPass={false}>
       <>
         {high && (
           <Bloom
             mipmapBlur
             intensity={0.95}
-            luminanceThreshold={0.9}
+            luminanceThreshold={1.15}
             luminanceSmoothing={0.25}
             radius={0.72}
           />
@@ -26,7 +26,9 @@ export function PostFX() {
       </>
       <ToneMapping mode={ToneMappingMode.AGX} />
       <primitive object={grade} dispose={null} />
-      <Vignette offset={0.28} darkness={0.72} />
+      <Vignette offset={0.32} darkness={0.42} />
+      {/* SMAA: one cheap pass instead of 4x MSAA on the half-float targets. */}
+      <>{high && <SMAA />}</>
     </EffectComposer>
   );
 }

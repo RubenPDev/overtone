@@ -46,23 +46,39 @@ export function GlowDecal({
   intensity?: number;
   y?: number;
 }) {
-  const mat = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        map: glowTexture(),
-        color: new THREE.Color(color).multiplyScalar(intensity),
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    [color, intensity],
-  );
+  // Colour × intensity lives in vertex colours so every decal shares one material,
+  // and <Baked> can merge all of a room's decals into a single additive draw call.
+  const geo = useMemo(() => {
+    const g = new THREE.PlaneGeometry(radius * 2, radius * 2);
+    const c = new THREE.Color(color).multiplyScalar(intensity);
+    const n = g.getAttribute('position').count;
+    g.setAttribute(
+      'color',
+      new THREE.Float32BufferAttribute(Array.from({ length: n }, () => [c.r, c.g, c.b]).flat(), 3),
+    );
+    return g;
+  }, [radius, color, intensity]);
   return (
-    <mesh position={[x, y, z]} rotation={[-Math.PI / 2, 0, 0]} material={mat} renderOrder={1}>
-      <planeGeometry args={[radius * 2, radius * 2]} />
-    </mesh>
+    <mesh
+      position={[x, y, z]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      geometry={geo}
+      material={decalMaterial()}
+      renderOrder={1}
+    />
   );
+}
+
+let decalMat: THREE.MeshBasicMaterial | null = null;
+function decalMaterial() {
+  return (decalMat ??= new THREE.MeshBasicMaterial({
+    map: glowTexture(),
+    vertexColors: true,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    toneMapped: false,
+  }));
 }
 
 /** Emissive material that blooms: colour pushed past 1 and excluded from tone mapping. */

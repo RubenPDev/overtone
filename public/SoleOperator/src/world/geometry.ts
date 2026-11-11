@@ -29,6 +29,28 @@ export function rectUnion(rs: Rect[]): Rect {
   };
 }
 
+/** `base` minus `holes`, as a list of non-overlapping rects (for floors with pits cut out). */
+export function subtractRects(base: Rect, holes: Rect[]): Rect[] {
+  let parts: Rect[] = [base];
+  for (const h of holes) {
+    const next: Rect[] = [];
+    for (const r of parts) {
+      const ix = { minX: Math.max(r.minX, h.minX), maxX: Math.min(r.maxX, h.maxX) };
+      const iz = { minZ: Math.max(r.minZ, h.minZ), maxZ: Math.min(r.maxZ, h.maxZ) };
+      if (ix.minX >= ix.maxX || iz.minZ >= iz.maxZ) {
+        next.push(r);
+        continue;
+      }
+      if (r.minZ < iz.minZ) next.push({ ...r, maxZ: iz.minZ });
+      if (iz.maxZ < r.maxZ) next.push({ ...r, minZ: iz.maxZ });
+      if (r.minX < ix.minX) next.push({ minX: r.minX, maxX: ix.minX, ...iz });
+      if (ix.maxX < r.maxX) next.push({ minX: ix.maxX, maxX: r.maxX, ...iz });
+    }
+    parts = next;
+  }
+  return parts;
+}
+
 /** Centre of a doorway on its wall line, room-local. */
 export function doorPosition(bounds: Rect, door: Doorway): Vec2 {
   const c = rectCenter(bounds);
@@ -127,14 +149,35 @@ function pointInUnionWithMargin(rects: Rect[], p: Vec2, radius: number): boolean
 }
 
 /** Moves from `from` by `delta`, sliding along walls/obstacles instead of stopping dead. */
-export function slideMove(layout: SpaceLayout, from: Vec2, delta: Vec2): Vec2 {
+export function slideMove(layout: SpaceLayout, from: Vec2, delta: Vec2, radius = PLAYER_RADIUS): Vec2 {
   const full = { x: from.x + delta.x, z: from.z + delta.z };
-  if (isWalkable(layout, full)) return full;
+  // Already overlapping something (a layout change, a teleport): let any move on the floor through,
+  // so the player can always walk out instead of freezing in place.
+  if (!isWalkable(layout, from, radius))
+    return pointInUnionWithMargin(layout.walkable, full, radius) ? full : from;
+  if (isWalkable(layout, full, radius)) return full;
   const xOnly = { x: from.x + delta.x, z: from.z };
-  if (Math.abs(delta.x) > 1e-6 && isWalkable(layout, xOnly)) return xOnly;
+  if (Math.abs(delta.x) > 1e-6 && isWalkable(layout, xOnly, radius)) return xOnly;
   const zOnly = { x: from.x, z: from.z + delta.z };
-  if (Math.abs(delta.z) > 1e-6 && isWalkable(layout, zOnly)) return zOnly;
+  if (Math.abs(delta.z) > 1e-6 && isWalkable(layout, zOnly, radius)) return zOnly;
   return from;
+}
+
+/**
+ * The nearest point to p where a disc of `radius` fits (p itself if it already
+ * does), searching outward in rings up to `maxR` metres. Null if nothing fits.
+ */
+export function nearestFree(layout: SpaceLayout, p: Vec2, radius = PLAYER_RADIUS, maxR = 10): Vec2 | null {
+  if (isWalkable(layout, p, radius)) return { ...p };
+  for (let r = 0.25; r <= maxR; r += 0.25) {
+    const n = Math.max(12, Math.round(r * 16));
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const q = { x: p.x + Math.cos(a) * r, z: p.z + Math.sin(a) * r };
+      if (isWalkable(layout, q, radius)) return q;
+    }
+  }
+  return null;
 }
 
 // --- Navigation --------------------------------------------------------------

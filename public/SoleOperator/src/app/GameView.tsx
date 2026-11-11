@@ -5,6 +5,11 @@ import GameCanvas from '../scene/GameCanvas';
 import { useApp } from '../state/app';
 import { MapScreen } from './MapScreen';
 import { PauseMenu } from './PauseMenu';
+import { OpsTablet } from './OpsTablet';
+import { installAudio } from '../audio/director';
+
+// Audio listens from the moment the game code loads (title-screen clicks included).
+installAudio();
 import { TransitionOverlay } from './TransitionOverlay';
 
 // Dev tools are only bundled in dev builds (the import is dead code in production).
@@ -12,8 +17,21 @@ const DevOverlay = import.meta.env.DEV ? lazy(() => import('../dev/DevOverlay'))
 
 if (import.meta.env.DEV) {
   // Console / automation handle for dev builds: __soleOperator.player.path = [{ x: 20, z: 0 }]
-  void Promise.all([import('../game/runtime'), import('../core/events')]).then(([rt, ev]) => {
-    (window as unknown as Record<string, unknown>).__soleOperator = { ...rt, bus: ev.bus };
+  void Promise.all([
+    import('../game/runtime'),
+    import('../core/events'),
+    import('../game/refuel'),
+    import('../game/modes'),
+    import('../audio/engine'),
+  ]).then(([rt, ev, refuel, modes, audio]) => {
+    (window as unknown as Record<string, unknown>).__soleOperator = {
+      ...rt,
+      bus: ev.bus,
+      machine: refuel.machine,
+      enterMode: modes.enterMode,
+      exitMode: modes.exitMode,
+      audio: audio.engine,
+    };
   });
 }
 
@@ -31,6 +49,7 @@ export default function GameView() {
       <TransitionOverlay />
       {overlay === 'pause' && <PauseMenu />}
       {overlay === 'map' && <MapScreen />}
+      {overlay === 'ops' && <OpsTablet />}
       {DevOverlay && (
         <Suspense fallback={null}>
           <DevOverlay />

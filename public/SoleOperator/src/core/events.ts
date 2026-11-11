@@ -18,9 +18,23 @@ export interface GameEvents {
   sim: SimEvent;
   /** The player used an interactable (pressed E near it). */
   interact: { room: string; interactable: string; kind: string };
-  /** The player picked up or put down an item. */
-  'item/picked': { item: string; room: string };
-  'item/dropped': { item: string; room: string };
+  /** The fuel crane moved an assembly (`to` is where it was put down, or 'hook' when picked up). */
+  'fuel/craned': {
+    assembly: string;
+    burnup: number;
+    from: 'pool' | 'cask' | 'hook';
+    to: 'pool' | 'cask' | 'hook';
+  };
+  /** The transfer cart was parked in a docking bay. */
+  'cart/docked': { room: string; bay: string; fresh: number; spent: number };
+  'cart/attached': { room: string };
+  /** The RF Station rail drone finished scanning a cavity. */
+  'drone/scanned': { room: string; cavity: number };
+  'cart/parked': { room: string };
+  /** The player switched control mode (walking, rod console, crane, refuelling machine). */
+  'mode/changed': { mode: string };
+  /** Plant snapshot, once per real second, for objectives that watch plant state. */
+  'plant/sample': { output: number; thermalPower: number; coreTemp: number; rodsIn: number };
   'room/entered': { room: string };
   'room/left': { room: string };
   'corridor/entered': { corridor: string; from: string; to: string };
@@ -29,6 +43,10 @@ export interface GameEvents {
   'objective/completed': { objective: string };
   toast: { text: string; detail?: string; level: ToastLevel };
   'game/saved': { slot: string; auto: boolean };
+  /** A bearing vibration analysis finished in the Turbine Hall. */
+  'turbine/analyzed': { bearing: number };
+  /** A HUD panel was opened (the ops tablet, the scanner). */
+  'ui/opened': { panel: string };
 }
 
 export type Listener<T> = (payload: T) => void;

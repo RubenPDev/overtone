@@ -3,7 +3,16 @@ import { formatClock, fmt } from '../hud/nav';
 import { isRoomBuilt } from '../rooms/registry';
 import { useHud } from '../state/hud';
 import { useWorld } from '../state/world';
-import { CORRIDORS, NODES, TOTAL_CORRIDOR_M, getNode, routeTo, type FacilityNode } from '../world/facility';
+import {
+  CORRIDORS,
+  NODES,
+  RING_MAP,
+  TOTAL_CORRIDOR_M,
+  getNode,
+  routeTo,
+  type FacilityNode,
+} from '../world/facility';
+import { RING_CIRCUMFERENCE_M } from '../sim';
 
 const COS30 = Math.cos(Math.PI / 6);
 const SIN30 = 0.5;
@@ -46,6 +55,17 @@ export function MapScreen() {
   const here = 'room' in pos ? pos.room : null;
   const clock = formatClock(time);
   const rooms = NODES.filter((n) => n.kind === 'room');
+  // The list shows plant rooms and named ring stations, nearest first; plain junction sectors only on the map.
+  const listed = rooms
+    .filter((n) => !n.sector || n.station)
+    .map((n) => ({ n, d: routeTo(pos, n.id).dist }))
+    .sort((a, b) => a.d - b.d);
+  const onRing =
+    ('room' in pos && pos.room.startsWith('ring-')) || ('corridor' in pos && pos.corridor.startsWith('R-'));
+  const ringPath = Array.from({ length: 97 }, (_, i) => {
+    const a = (i / 96) * Math.PI * 2;
+    return iso(RING_MAP.cx + Math.cos(a) * RING_MAP.r, RING_MAP.cz + Math.sin(a) * RING_MAP.r, 2);
+  });
   const setWaypoint = (id: string) => useWorld.setState({ waypoint: waypoint === id ? null : id });
 
   // Player marker on the map.
@@ -61,14 +81,16 @@ export function MapScreen() {
   const meP = iso(me.x, me.z, H);
 
   // Fit the viewBox around everything.
-  const all = rooms.flatMap((n) => [
-    iso(n.map.x - n.map.w / 2, n.map.z - n.map.d / 2, H + 40),
-    iso(n.map.x + n.map.w / 2, n.map.z + n.map.d / 2, 0),
-    iso(n.map.x + n.map.w / 2, n.map.z - n.map.d / 2),
-    iso(n.map.x - n.map.w / 2, n.map.z + n.map.d / 2),
-  ]);
-  const minX = Math.min(...all.map((p) => p.x)) - 30;
-  const maxX = Math.max(...all.map((p) => p.x)) + 30;
+  const all = rooms
+    .flatMap((n) => [
+      iso(n.map.x - n.map.w / 2, n.map.z - n.map.d / 2, H + 40),
+      iso(n.map.x + n.map.w / 2, n.map.z + n.map.d / 2, 0),
+      iso(n.map.x + n.map.w / 2, n.map.z - n.map.d / 2),
+      iso(n.map.x - n.map.w / 2, n.map.z + n.map.d / 2),
+    ])
+    .concat(ringPath);
+  const minX = Math.min(...all.map((p) => p.x)) - 90;
+  const maxX = Math.max(...all.map((p) => p.x)) + 90;
   const minY = Math.min(...all.map((p) => p.y)) - 20;
   const maxY = Math.max(...all.map((p) => p.y)) + 20;
 
@@ -77,7 +99,7 @@ export function MapScreen() {
       <header className="mapscreen__top">
         <div className="mapscreen__left">
           <span className="tag">PAUSED</span>
-          <span>UNIT 1 · LEVEL B2</span>
+          <span>UNIT 1 · {onRing ? 'RING LEVEL B4' : 'LEVEL B2'}</span>
         </div>
         <nav className="mapscreen__tabs">
           <button className="is-on">MAP</button>
@@ -95,11 +117,11 @@ export function MapScreen() {
         <div className="eyebrow">Facility</div>
         <h2>Unit 1 Plant</h2>
         <p>
-          {rooms.length} rooms · {(TOTAL_CORRIDOR_M / 1000).toFixed(1)} km of corridor · walk it all yourself
+          A {(RING_CIRCUMFERENCE_M / 1000).toFixed(1)} km accelerator ring runs under the whole plant ·{' '}
+          {(TOTAL_CORRIDOR_M / 1000).toFixed(1)} km of tunnel to walk
         </p>
         <ul>
-          {rooms.map((n) => {
-            const d = routeTo(pos, n.id).dist;
+          {listed.map(({ n, d }) => {
             const isTarget = n.id === target || n.id === waypoint;
             return (
               <li key={n.id} className={`${isTarget ? 'is-target' : ''}${n.clearance ? ' is-locked' : ''}`}>
@@ -112,7 +134,9 @@ export function MapScreen() {
                       {statusLine(n, alarms)}
                     </small>
                   </span>
-                  <em>{n.id === here ? 'HERE' : `${fmt(d)} m`}</em>
+                  <em>
+                    {n.id === here ? 'HERE' : d >= 1000 ? `${(d / 1000).toFixed(1)} km` : `${fmt(d)} m`}
+                  </em>
                 </button>
               </li>
             );
@@ -132,7 +156,19 @@ export function MapScreen() {
         </defs>
         <rect x={minX} y={minY} width={maxX - minX} height={maxY - minY} fill="url(#mapgrid)" />
 
-        {CORRIDORS.map((c) => {
+        {/* The ring: a glowing loop round the plant; ring segments aren't drawn as straight corridors. */}
+        <polyline points={pts(ringPath)} fill="none" stroke="rgba(165,140,255,0.28)" strokeWidth="14" />
+        <polyline points={pts(ringPath)} fill="none" stroke="#a58cff" strokeWidth="2.5" />
+        {'corridor' in pos && pos.corridor.startsWith('R-') && (
+          <polyline
+            points={pts(ringPath)}
+            fill="none"
+            stroke="#6dffb6"
+            strokeWidth="2"
+            strokeDasharray="8 7"
+          />
+        )}
+        {CORRIDORS.filter((c) => c.kind !== 'ring').map((c) => {
           const a = getNode(c.a);
           const b = getNode(c.b);
           const p = edgeToward(a, b);
@@ -217,46 +253,40 @@ export function MapScreen() {
                 stroke={n.accent}
                 strokeWidth="1.6"
               />
-              {n.id === 'particle-accelerator' && (
-                <ellipse
-                  cx={anchor.x}
-                  cy={anchor.y}
-                  rx={w * 0.33 * COS30 * 1.4}
-                  ry={w * 0.33 * SIN30 * 1.4}
-                  fill="none"
-                  stroke={n.accent}
-                  strokeWidth="2"
-                />
+              {/* Plain junction sectors get no callout, unless you are there or it is the target. */}
+              {(!n.sector || n.station || n.id === here || isTarget) && (
+                <>
+                  <line
+                    x1={anchor.x}
+                    y1={anchor.y}
+                    x2={label.x}
+                    y2={label.y + 10}
+                    stroke={n.accent}
+                    strokeOpacity="0.7"
+                  />
+                  <g transform={`translate(${label.x} ${label.y})`}>
+                    <rect
+                      x={-78}
+                      y={-22}
+                      width={156}
+                      height={32}
+                      fill="rgba(6,10,14,0.85)"
+                      stroke={n.accent}
+                      strokeOpacity={isTarget ? 1 : 0.6}
+                    />
+                    <text y={-6} textAnchor="middle" className="map__label">
+                      {n.name.toUpperCase()}
+                    </text>
+                    <text y={6} textAnchor="middle" className="map__sub" fill={n.accent}>
+                      {n.id === here
+                        ? 'YOU ARE HERE'
+                        : isTarget
+                          ? `WAYPOINT · ${fmt(routeTo(pos, n.id).dist)} m`
+                          : statusLine(n, alarms).toUpperCase()}
+                    </text>
+                  </g>
+                </>
               )}
-              <line
-                x1={anchor.x}
-                y1={anchor.y}
-                x2={label.x}
-                y2={label.y + 10}
-                stroke={n.accent}
-                strokeOpacity="0.7"
-              />
-              <g transform={`translate(${label.x} ${label.y})`}>
-                <rect
-                  x={-78}
-                  y={-22}
-                  width={156}
-                  height={32}
-                  fill="rgba(6,10,14,0.85)"
-                  stroke={n.accent}
-                  strokeOpacity={isTarget ? 1 : 0.6}
-                />
-                <text y={-6} textAnchor="middle" className="map__label">
-                  {n.name.toUpperCase()}
-                </text>
-                <text y={6} textAnchor="middle" className="map__sub" fill={n.accent}>
-                  {n.id === here
-                    ? 'YOU ARE HERE'
-                    : isTarget
-                      ? `WAYPOINT · ${fmt(routeTo(pos, n.id).dist)} m`
-                      : statusLine(n, alarms).toUpperCase()}
-                </text>
-              </g>
             </g>
           );
         })}

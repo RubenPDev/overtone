@@ -35,13 +35,44 @@ export interface Doorway {
 
 /** What happens when the player presses E on an interactable. Handled in game/interactions.ts. */
 export type InteractAction =
-  /** Inspect a core cell; if the player carries a fresh assembly, swap it in instead. */
+  /** Inspect a core cell; with the transfer cart docked and fresh fuel in its cask, start refuelling. */
   | { type: 'corePort'; cell: number }
-  | { type: 'takeAssembly' }
+  /** Operator console: rod control mode. */
+  | { type: 'rodControl' }
+  /** Fuel crane console: crane control mode. */
+  | { type: 'crane' }
+  /** Fuel inventory terminal: list the pool. */
+  | { type: 'inventory' }
   | { type: 'talk'; line: string }
-  /** Placeholder until console UIs exist. */
-  | { type: 'console'; console: number }
+  /** Vending machine: coffee restores focus. */
+  | { type: 'vending' }
+  /** Water cooler: restores stamina. */
+  | { type: 'water' }
+  /** Ring shuttle stop: fast travel between accelerator sectors. */
+  | { type: 'shuttle' }
+  /** RF console: cavity tuning mode. */
+  | { type: 'rfConsole' }
+  /** Accelerator production console: recipes and beam. */
+  | { type: 'production' }
+  /** Rail drone dock: launch a cavity scan. */
+  | { type: 'droneDock' }
+  /** Water tank service station (valve and weld patch) or the water ops panel (tank = -1). */
+  | { type: 'tankStation'; tank: number }
+  /** Turbine hall jobs: bearing vibration analysis, LP rotor balancing, feed pump service, local desk. */
+  | { type: 'turbine'; task: 'analyze' | 'balance' | 'service' | 'tdesk'; bearing?: number }
+  /** Alarm panel: acknowledge active alarms. */
+  | { type: 'alarmPanel' }
   | { type: 'message'; text: string; detail?: string };
+
+/** A floor bay where the transfer cart docks (snaps in when parked nearby). */
+export interface CartBay {
+  id: string;
+  label: string;
+  x: number;
+  z: number;
+  /** Cart heading when docked (radians, 0 = facing +z). */
+  yaw: number;
+}
 
 export interface Interactable {
   id: string;
@@ -97,8 +128,33 @@ export interface RoomDefinition {
   interactables: Interactable[];
   workstations: Workstation[];
   obstacles: Obstacle[];
+  /** Shell colours (defaults: the light plant greys). */
+  shell?: { wall?: string; band?: string; floor?: string };
+  /** Camera and light tuning: zoom multiplies the base zoom (below 1 = wider), ambient scales the fill lights. */
+  view?: { zoom?: number; ambient?: number };
   /** Floor lettering, e.g. 'CONTROL ROOM 01'. */
   floorLabel?: string;
+  /** Parts of the floor cut away (pits, pools). The room's Contents draws what's below. */
+  floorHoles?: Rect[];
+  /** Docking bays for the fuel transfer cart. */
+  cartBays?: CartBay[];
+  /** Where the camera looks (and how close) while a control mode is active in this room. */
+  focus?: Partial<
+    Record<
+      | 'rods'
+      | 'crane'
+      | 'refuel'
+      | 'rf'
+      | 'production'
+      | 'shuttle'
+      | 'tanks'
+      | 'analyze'
+      | 'balance'
+      | 'service'
+      | 'tdesk',
+      { x: number; z: number; zoom: number }
+    >
+  >;
   /** Lazy-loaded scene contents (props, lights, NPCs). The shell (floor, walls, doors) is generic. */
   load: () => Promise<{ default: ComponentType<RoomContentsProps> }>;
 }

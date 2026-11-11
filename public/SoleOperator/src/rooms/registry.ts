@@ -2,6 +2,9 @@ import type { ComponentType } from 'react';
 import { lazy } from 'react';
 import { controlRoom } from './control-room';
 import { fuelStorage } from './fuel-storage';
+import { ringSectors } from './ring';
+import { waterContainers } from './water-containers';
+import { turbineHall } from './turbine-hall';
 import type { RoomContentsProps, RoomDefinition } from '../world/types';
 
 /**
@@ -9,7 +12,7 @@ import type { RoomContentsProps, RoomDefinition } from '../world/types';
  * exports a RoomDefinition and a Contents.tsx, then add it to this list.
  * The id must match a node in world/facility.ts.
  */
-const ALL: RoomDefinition[] = [controlRoom, fuelStorage];
+const ALL: RoomDefinition[] = [controlRoom, fuelStorage, waterContainers, turbineHall, ...ringSectors];
 
 export const ROOMS: ReadonlyMap<string, RoomDefinition> = new Map(ALL.map((r) => [r.id, r]));
 
@@ -22,6 +25,12 @@ export function getRoom(id: string): RoomDefinition {
 }
 
 export const isRoomBuilt = (id: string) => ROOMS.has(id);
+
+/** Camera zoom and fill-light scale for the mounted space (corridors use the defaults). */
+export function viewOf(space: { kind: string; room?: string }): { zoom: number; ambient: number } {
+  const v = space.kind === 'room' && space.room ? ROOMS.get(space.room)?.view : undefined;
+  return { zoom: v?.zoom ?? 1, ambient: v?.ambient ?? 1 };
+}
 
 /** React.lazy wrappers, created once per room so remounts reuse the loaded chunk. */
 const lazyContents = new Map<string, ComponentType<RoomContentsProps>>();

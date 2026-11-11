@@ -7,6 +7,7 @@ const READINGS: Record<AlarmId, (s: PlantState) => number> = {
   'pressure-high': (s) => s.pressure,
   'power-high': (s) => s.thermalPower,
   'turbine-vibration': (s) => s.turbineVibration,
+  'water-low': (s) => 1 - s.water.inventory,
 };
 
 /** Edge-triggered alarms with hysteresis, so a reading on the line doesn't chatter. */

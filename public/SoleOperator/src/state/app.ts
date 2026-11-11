@@ -1,21 +1,29 @@
 import { create } from 'zustand';
 
 export type Screen = 'loading' | 'title' | 'game';
-export type Overlay = null | 'pause' | 'map' | 'settings';
+export type Overlay = null | 'pause' | 'map' | 'settings' | 'ops';
 export type Quality = 'high' | 'low';
+
+export interface AudioSettings {
+  master: number;
+  sfx: number;
+  ambience: number;
+}
 
 export interface Settings {
   /** High: bloom, shadows, MSAA, full DPR. Low: none of those. */
   quality: Quality;
+  audio: AudioSettings;
 }
 
 const SETTINGS_KEY = 'sole-operator:settings';
 
 function loadSettings(): Settings {
-  const fallback: Settings = { quality: guessQuality() };
+  const fallback: Settings = { quality: guessQuality(), audio: { master: 0.7, sfx: 1, ambience: 1 } };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? { ...fallback, ...(JSON.parse(raw) as Partial<Settings>) } : fallback;
+    const saved = raw ? (JSON.parse(raw) as Partial<Settings>) : {};
+    return { ...fallback, ...saved, audio: { ...fallback.audio, ...saved.audio } };
   } catch {
     return fallback;
   }

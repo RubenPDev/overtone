@@ -1,16 +1,45 @@
 import { bus } from '../core/events';
-import { pushToast } from '../state/hud';
-import { useWorld } from '../state/world';
+import { isFresh, slotName } from '../logistics';
+import { CORE_BAY } from '../rooms/control-room';
+import { pushToast, useHud } from '../state/hud';
 import type { Interactable } from '../world/types';
+import { RECIPES } from '../sim';
+import { attachCart, cartDockedAt, parkCart } from './cart';
+import { launchDrone } from './drone';
+import { worstTank } from './tanks';
+import { enterMode } from './modes';
+import { logistics, player, simHost } from './runtime';
 import { currentRoomId } from './worldController';
-import { player, session, simHost } from './runtime';
 
 const cellName = (cell: number) => String(cell + 1).padStart(2, '0');
-let swapping = false;
+const cooldowns = new Map<string, number>();
+
+function cooledDown(id: string, ms: number) {
+  const now = performance.now();
+  if ((cooldowns.get(id) ?? 0) > now) return false;
+  cooldowns.set(id, now + ms);
+  return true;
+}
+
+/** True when the transfer cart sits in the core bay with fuel to work with. */
+export function canRefuel(): boolean {
+  return cartDockedAt('control-room', CORE_BAY.id);
+}
+
+/** The worst-burnt loaded cell, else the first empty one, else cell 07. */
+function suggestedCell(): number {
+  const cells = simHost.state.cells;
+  let best = -1;
+  cells.forEach((c, i) => {
+    if (c.loaded && c.burnup > 0.9 && (best < 0 || c.burnup > cells[best]!.burnup)) best = i;
+  });
+  if (best < 0) best = cells.findIndex((c) => !c.loaded);
+  return best < 0 ? 6 : best;
+}
 
 /** Verb shown in the E prompt; some interactables change verb with context. */
 export function promptVerb(i: Interactable): string {
-  if (i.action.type === 'corePort' && useWorld.getState().carrying) return 'LOAD';
+  if (i.action.type === 'corePort' && canRefuel()) return 'REFUEL';
   return i.verb;
 }
 
@@ -21,84 +50,116 @@ export function promptVerb(i: Interactable): string {
 export function interact(i: Interactable): void {
   const room = currentRoomId() ?? '';
   bus.emit('interact', { room, interactable: i.id, kind: i.kind });
-  const a = i.action;
 
+  if (i.id === 'cart') {
+    if (logistics.state.cart.attached) parkCart();
+    else attachCart();
+    return;
+  }
+
+  const a = i.action;
   switch (a.type) {
     case 'corePort': {
-      const carrying = useWorld.getState().carrying;
-      if (carrying) return swapCell(a.cell, carrying);
+      if (canRefuel()) return enterMode({ kind: 'refuel', cell: suggestedCell() });
       const cell = simHost.state.cells[a.cell]!;
       const pct = Math.round(cell.burnup * 100);
-      pushToast({
-        level: pct >= 90 ? 'warn' : 'info',
-        text: `Fuel cell ${cellName(a.cell)} · burn-up ${pct}%`,
-        detail: pct >= 90 ? 'Swap due. Fetch a fresh assembly from Fuel Rod Storage.' : 'Within limits.',
-      });
+      pushToast(
+        {
+          level: pct >= 90 ? 'warn' : 'info',
+          text: `Fuel cell ${cellName(a.cell)} · burn-up ${pct}%`,
+          detail:
+            pct >= 90
+              ? 'Swap due. Bring a fresh assembly on the transfer cart and dock it in the cart bay.'
+              : 'Within limits.',
+        },
+        6000,
+      );
       return;
     }
-    case 'takeAssembly': {
-      if (useWorld.getState().carrying) {
-        pushToast({ level: 'info', text: 'Hands full', detail: 'You are already carrying an assembly.' });
-        return;
+    case 'turbine':
+      if (a.task === 'analyze') return enterMode({ kind: 'analyze', bearing: a.bearing ?? 2 });
+      if (a.task === 'balance') {
+        const w = simHost.state.turbine.weight;
+        return enterMode({ kind: 'balance', angle: w?.angle ?? 0, mass: w?.mass ?? 50 });
       }
-      session.assembliesTaken += 1;
-      const item = `FA-${30 + session.assembliesTaken}`;
-      useWorld.setState({ carrying: item });
-      bus.emit('item/picked', { item, room });
-      pushToast({ level: 'ok', text: `Picked up ${item}`, detail: 'Fresh fuel assembly · 0% burn-up' });
+      if (a.task === 'service') return enterMode({ kind: 'service' });
+      return enterMode({ kind: 'tdesk' });
+    case 'tankStation':
+      return enterMode({ kind: 'tanks', tank: a.tank >= 0 ? a.tank : worstTank() });
+    case 'rodControl':
+      return enterMode({ kind: 'rods', selected: 6, bank: false });
+    case 'crane':
+      return enterMode({ kind: 'crane' });
+    case 'inventory': {
+      const pool = logistics.state.pool;
+      const fresh = pool.flatMap((x, k) => (x && isFresh(x) ? [`${slotName(k)} ${x.id}`] : []));
+      const spent = pool.filter((x) => x && !isFresh(x)).length;
+      pushToast(
+        {
+          level: 'info',
+          text: `Pool manifest · ${fresh.length} fresh, ${spent} spent`,
+          detail: fresh.length ? `Fresh: ${fresh.join(', ')}` : 'No fresh assemblies left in the pool.',
+        },
+        7000,
+      );
       return;
     }
     case 'talk':
       pushToast({ level: 'info', text: i.label, detail: `“${a.line}”` }, 6000);
       return;
-    case 'console':
-      pushToast({
-        level: 'info',
-        text: 'Operator console',
-        detail: 'Rod and coolant controls arrive in a later milestone.',
+    case 'vending':
+      if (!cooledDown('vending', 15000)) {
+        pushToast({ level: 'info', text: 'Still brewing', detail: 'Give it a moment.' });
+        return;
+      }
+      player.focus = Math.min(1, player.focus + 0.3);
+      pushToast({ level: 'ok', text: 'Coffee, black', detail: 'Focus +30%' });
+      return;
+    case 'water':
+      player.stamina = 1;
+      pushToast({ level: 'ok', text: 'Cold water', detail: 'Stamina restored' });
+      return;
+    case 'alarmPanel': {
+      const alarms = useHud.getState().sim?.alarms ?? [];
+      useHud.setState({ acked: [...alarms] });
+      pushToast(
+        alarms.length
+          ? {
+              level: 'warn',
+              text: `Acknowledged ${alarms.length} alarm${alarms.length > 1 ? 's' : ''}`,
+              detail: 'Beacons steady. Fix the cause to clear them.',
+            }
+          : { level: 'ok', text: 'Alarm panel', detail: 'No active alarms. Lamp test passed.' },
+      );
+      return;
+    }
+    case 'shuttle': {
+      const sector = Number(room.replace('ring-s', '')) || 1;
+      return enterMode({ kind: 'shuttle', index: sector - 1 });
+    }
+    case 'rfConsole': {
+      const cav = simHost.state.accel.cavities;
+      let worst = 0;
+      cav.forEach((c, k) => {
+        if (c.field < cav[worst]!.field) worst = k;
       });
+      return enterMode({ kind: 'rf', cavity: worst });
+    }
+    case 'production': {
+      const current = simHost.state.accel.recipe;
+      const index = Math.max(
+        0,
+        RECIPES.findIndex((r) =>
+          current ? r.id === current : i.id === 'research-console' ? r.id === 'research' : false,
+        ),
+      );
+      return enterMode({ kind: 'production', index });
+    }
+    case 'droneDock':
+      launchDrone();
       return;
     case 'message':
       pushToast({ level: 'info', text: a.text, detail: a.detail });
       return;
   }
-}
-
-/** Drive the cell's rod fully in, then swap the assembly. */
-function swapCell(cell: number, assembly: string) {
-  if (swapping) return;
-  swapping = true;
-  const finish = () => {
-    off();
-    bus.emit('cmd/sim', { type: 'unloadCell', cell });
-    bus.emit('cmd/sim', { type: 'loadCell', cell, assembly });
-    // Fresh fuel adds ~1,100 pcm. The rod stays fully in to hold most of it back;
-    // TODO(rods panel): let the player withdraw it gradually instead.
-    pushToast(
-      {
-        level: 'info',
-        text: `Rod ${cellName(cell)} left fully inserted`,
-        detail: 'Fresh fuel is hot. Withdraw the rod slowly once the rod panel is online.',
-      },
-      6500,
-    );
-    useWorld.setState({ carrying: null });
-    bus.emit('item/dropped', { item: assembly, room: currentRoomId() ?? '' });
-    swapping = false;
-  };
-  const off = bus.on('sim', (e) => {
-    if (e.type === 'rodSettled' && e.rod === cell && e.insertion >= 0.999) finish();
-  });
-
-  if (simHost.state.rods[cell]!.insertion >= 0.999) {
-    finish();
-  } else {
-    bus.emit('cmd/sim', { type: 'setRodTarget', rod: cell, insertion: 1 });
-    pushToast({
-      level: 'info',
-      text: `Driving rod ${cellName(cell)} in`,
-      detail: 'The cell unlocks when the rod is home.',
-    });
-  }
-  player.path = [];
 }

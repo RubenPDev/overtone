@@ -83,6 +83,8 @@ export const ALARM_LIMITS = {
   'pressure-high': { set: 16.5, clear: 16.2 },
   'power-high': { set: NOMINAL_THERMAL_MW * 1.1, clear: NOMINAL_THERMAL_MW * 1.05 },
   'turbine-vibration': { set: 0.4, clear: 0.3 },
+  /** Reading is 1 − reserve fraction: sets below 30% of the base reserve, clears above 40%. */
+  'water-low': { set: 0.7, clear: 0.6 },
 } as const;
 
 /** Day 1 starts at 08:00. */

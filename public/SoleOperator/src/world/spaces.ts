@@ -55,13 +55,50 @@ export interface CorridorFrame {
   to: string;
   length: number;
   dir: Vec2;
+  kind: 'service' | 'access' | 'ring';
+  profile: CorridorProfile;
+  /** Which lateral side faces away from the camera (gets the tall wall / the beamline). */
+  backSide: 1 | -1;
+}
+
+/**
+ * Cross-section of a corridor in "front" coordinates: f > 0 is toward the camera.
+ * Ring tunnels are wide, with the beamline on the back half and the walkway in front.
+ */
+export interface CorridorProfile {
+  width: number;
+  walkMin: number;
+  walkMax: number;
+  /** Lateral position of the beamline (ring tunnels only). */
+  beam: number | null;
+}
+
+export function corridorProfile(kind: CorridorFrame['kind']): CorridorProfile {
+  return kind === 'ring'
+    ? { width: 8, walkMin: -0.9, walkMax: 3.6, beam: -2.2 }
+    : { width: CORRIDOR_WIDTH, walkMin: -CORRIDOR_WIDTH / 2, walkMax: CORRIDOR_WIDTH / 2, beam: null };
+}
+
+/** For a walking direction, which lateral side is away from the iso camera. */
+export function corridorBackSide(dir: Vec2): 1 | -1 {
+  return -dir.z + dir.x > 0 ? -1 : 1;
 }
 
 export function corridorFrame(corridorId: string, from: RoomDefinition): CorridorFrame {
   const c = getCorridor(corridorId);
   const door = from.doorways.find((d) => d.corridor === corridorId);
   const dir = door ? FACING_VEC[door.facing] : { x: -1, z: 0 };
-  return { corridor: c.id, from: from.id, to: otherEnd(c, from.id), length: c.length, dir };
+  const kind = c.kind ?? 'service';
+  return {
+    corridor: c.id,
+    from: from.id,
+    to: otherEnd(c, from.id),
+    length: c.length,
+    dir,
+    kind,
+    profile: corridorProfile(kind),
+    backSide: corridorBackSide(dir),
+  };
 }
 
 /** Distance walked along the corridor for a position. */
@@ -74,9 +111,11 @@ export function corridorPoint(frame: CorridorFrame, t: number, side = 0): Vec2 {
   return { x: frame.dir.x * t - frame.dir.z * side, z: frame.dir.z * t + frame.dir.x * side };
 }
 
-function rectAlong(frame: CorridorFrame, t0: number, t1: number, halfWidth: number): Rect {
+/** Rect along the corridor between t0..t1 and front coordinates f0..f1. */
+function rectAlong(frame: CorridorFrame, t0: number, t1: number, f0: number, f1: number): Rect {
+  const side = (f: number) => -frame.backSide * f;
   return rectUnion(
-    [corridorPoint(frame, t0, -halfWidth), corridorPoint(frame, t1, halfWidth)].map((p) => ({
+    [corridorPoint(frame, t0, side(f0)), corridorPoint(frame, t1, side(f1))].map((p) => ({
       minX: p.x,
       maxX: p.x,
       minZ: p.z,
@@ -86,20 +125,20 @@ function rectAlong(frame: CorridorFrame, t0: number, t1: number, halfWidth: numb
 }
 
 export function buildCorridorSpace(frame: CorridorFrame): BuiltSpace {
-  const half = CORRIDOR_WIDTH / 2;
+  const { walkMin: a, walkMax: b, width } = frame.profile;
   return {
-    walkable: [rectAlong(frame, -3, frame.length + 3, half)],
+    walkable: [rectAlong(frame, -3, frame.length + 3, a, b)],
     obstacles: [],
     triggers: [
       {
-        rect: rectAlong(frame, -3, -1.2, half),
+        rect: rectAlong(frame, -3, -1.2, a, b),
         action: { type: 'arrive', room: frame.from, corridor: frame.corridor },
       },
       {
-        rect: rectAlong(frame, frame.length + 1.2, frame.length + 3, half),
+        rect: rectAlong(frame, frame.length + 1.2, frame.length + 3, a, b),
         action: { type: 'arrive', room: frame.to, corridor: frame.corridor },
       },
     ],
-    frame: rectAlong(frame, -6, frame.length + 6, half + 3),
+    frame: rectAlong(frame, -6, frame.length + 6, -width / 2 - 3, width / 2 + 3),
   };
 }
