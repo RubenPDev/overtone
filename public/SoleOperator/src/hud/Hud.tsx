@@ -14,6 +14,7 @@ import { RingVitals } from './AccelPanels';
 import { ScannerPanel } from './Scanner';
 import { WaterVitals } from './WaterPanels';
 import { TurbineVitals } from './TurbinePanels';
+import { RodControlHud } from './RodControlHud';
 import { fmt, formatClock, placeName } from './nav';
 import './hud.css';
 
@@ -361,6 +362,14 @@ function BottomCentre() {
 }
 
 export default function Hud() {
+  // Rod control is a focus mode: its own full-screen overlay replaces the HUD.
+  const focus = useMode((s) => s.mode.kind === 'rods');
+  if (focus)
+    return (
+      <div className="hud hud--focus">
+        <RodControlHud />
+      </div>
+    );
   return (
     <div className="hud">
       <ObjectiveTracker />

@@ -52,19 +52,19 @@ None of these ship: they sit behind `import.meta.env.DEV` and are removed from p
 Control modes (the Operator stands still, the camera frames the machine, and a panel replaces the
 hotkey bar):
 
-| Mode               | Opened from                                                | Keys                                                                             |
-| ------------------ | ---------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Rod control        | Operator console, or F                                     | ←/→ or 1–9, 0, -, = select · hold W withdraw · hold S insert · B bank (all rods) |
-| Fuel crane         | Crane console in Fuel Rod Storage                          | WASD drive the bridge crane · E lower, grab or release, raise                    |
-| Refuelling machine | Refuelling machine (core panel) with the cart docked, or R | ←/→ cell · hold S rod in · hold E extract, then hold E load                      |
-| RF tuning          | RF console, RF Station (ring S1)                           | ←/→ or 1–8 cavity · hold W/S sweep frequency (Shift = fine)                      |
-| Production         | Target Station console (S6) or Detector control (S3)       | W/S select run · E start/stop · B beam on/off                                    |
-| Ring shuttle       | Shuttle stop in any ring sector                            | W/S select sector · E ride                                                       |
-| Tank service       | Any tank station or the water ops panel (Water Containers) | ←/→ tank · hold W/S open/close outlet valve · hold E weld a patch (valve closed) |
-| Vibration analysis | Any bearing station B1–B4 (Turbine Hall)                   | ←/→ bearing · hold E run the analysis (spectrum; phase with the analyzer)        |
-| Rotor balancing    | LP rotor station (Turbine Hall)                            | hold A/D weight angle · hold W/S mass (Shift = fine) · E crew fits the weight    |
-| Pump service       | Feed pump motor B (Turbine Hall)                           | hold E grease the bearings                                                       |
-| Turbine desk       | Turbine B local desk (Turbine Hall)                        | E reset a vibration trip (rotor must be balanced)                                |
+| Mode               | Opened from                                                | Keys                                                                                           |
+| ------------------ | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Rod control        | Reactor Operator Station, or F                             | A/D, 1–9 0 - = or click the ring · hold W/S withdraw/insert · B bank · hold X scram (or reset) |
+| Fuel crane         | Crane console in Fuel Rod Storage                          | WASD drive the bridge crane · E lower, grab or release, raise                                  |
+| Refuelling machine | Refuelling machine (core panel) with the cart docked, or R | ←/→ cell · hold S rod in · hold E extract, then hold E load                                    |
+| RF tuning          | RF console, RF Station (ring S1)                           | ←/→ or 1–8 cavity · hold W/S sweep frequency (Shift = fine)                                    |
+| Production         | Target Station console (S6) or Detector control (S3)       | W/S select run · E start/stop · B beam on/off                                                  |
+| Ring shuttle       | Shuttle stop in any ring sector                            | W/S select sector · E ride                                                                     |
+| Tank service       | Any tank station or the water ops panel (Water Containers) | ←/→ tank · hold W/S open/close outlet valve · hold E weld a patch (valve closed)               |
+| Vibration analysis | Any bearing station B1–B4 (Turbine Hall)                   | ←/→ bearing · hold E run the analysis (spectrum; phase with the analyzer)                      |
+| Rotor balancing    | LP rotor station (Turbine Hall)                            | hold A/D weight angle · hold W/S mass (Shift = fine) · E crew fits the weight                  |
+| Pump service       | Feed pump motor B (Turbine Hall)                           | hold E grease the bearings                                                                     |
+| Turbine desk       | Turbine B local desk (Turbine Hall)                        | E reset a vibration trip (rotor must be balanced)                                              |
 
 ### The fuel loop
 
@@ -130,6 +130,15 @@ template (`makeSector`), so stations differ only by data and a component in
 `rooms/ring/Contents.tsx`. Ring corridors render as `scene/RingTunnel.tsx`.
 The beamline (`scene/Beamline.tsx`) is instanced: a 425 m tunnel costs a few
 dozen draw calls.
+
+## Reactor Control: the core hall
+
+Reactor Control is a 60 m hall (`rooms/control-room`). The glass core tank, with its moving rods and the refuelling machine, is the glowing core window at the foot of a 36 m control rod drive stack: seven drums with lit bands, drive modules and catwalks, coolant loops arching up from floor pedestals, and cables sagging out to tiered galleries on the back walls. Two rings of consoles with their crew face the core; lanes on the door axes stay clear. The hall asks the camera for a wider zoom and a darker fill (`RoomDefinition.view`) and dark shell colours (`shell`).
+
+- **The stack fades** to a ghost when the Operator walks behind it, so the tower never hides the player (`CoreStack` in `Hall.tsx`).
+- **Reactor Operator Station** (`OperatorStation.tsx`): a horseshoe desk with glass touch surfaces, a monitor wall (the centre screens are live), annunciator towers, 12 rod drive levers that lean with the real rods, the master bank lever and SCRAM under a guard. A live holographic core floats over the desk.
+- **Rod control is a focus mode**: the hall darkens, the hologram swells and turns the selected rod to the camera, and a full-screen overlay (`hud/RodControlHud.tsx`) shows reactivity and period, the power trend, a ring selector laid out like the core, the selected rod (depth, worth, cell temperature, burn-up, axial flux), interlocks and the drive lever.
+- **Cost:** repeated parts are instanced and long tubes merged; the hall renders in about 360 draw calls.
 
 ## Water Containers
 

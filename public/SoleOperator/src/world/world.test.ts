@@ -75,12 +75,12 @@ describe('rooms and spaces', () => {
     const space = buildRoomSpace(cr, isRoomBuilt);
     expect(isWalkable(space, cr.spawn.position)).toBe(true);
     expect(isWalkable(space, { x: 0, z: 0 })).toBe(false); // tank
-    expect(isWalkable(space, { x: 0, z: 17 })).toBe(false); // sealed door (south) / wall
-    expect(isWalkable(space, { x: -20, z: 0 })).toBe(true); // C-1 stub
+    expect(isWalkable(space, { x: 0, z: 31 })).toBe(false); // sealed door (south) / wall
+    expect(isWalkable(space, { x: -32, z: 0 })).toBe(true); // C-1 stub
     // Sliding along a wall keeps the free axis.
-    const p = slideMove(space, { x: 10, z: -15.5 }, { x: 0.5, z: -1 });
+    const p = slideMove(space, { x: 10, z: -29.5 }, { x: 0.5, z: -1 });
     expect(p.x).toBeCloseTo(10.5);
-    expect(p.z).toBeCloseTo(-15.5);
+    expect(p.z).toBeCloseTo(-29.5);
     expect(space.triggers).toHaveLength(3); // C-1, C-2 and C-3
   });
 

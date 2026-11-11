@@ -26,6 +26,10 @@ export interface HudSim {
   keff: number;
   rodsIn: number;
   rods: number[];
+  /** Where each rod is being driven to (differs from rods[] while moving). */
+  rodTargets: number[];
+  /** Relative power change per game minute (reactor period = 60 / trend seconds). */
+  powerTrend: number;
   cells: { loaded: boolean; burnup: number }[];
   coolantFlow: number;
   turbineVibration: number;
@@ -53,6 +57,8 @@ export function toHudSim(s: Readonly<PlantState>): HudSim {
     keff: s.keff,
     rodsIn: averageInsertion(s),
     rods: s.rods.map((r) => r.insertion),
+    rodTargets: s.rods.map((r) => r.target),
+    powerTrend: s.powerTrend,
     cells: s.cells.map((c) => ({ loaded: c.loaded, burnup: c.burnup })),
     coolantFlow: s.coolantFlow,
     turbineVibration: s.turbineVibration,

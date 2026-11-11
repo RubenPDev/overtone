@@ -1063,3 +1063,9 @@
     display: none;
   }
 }
+
+/* Rod control focus mode hides the HUD gradients. */
+.hud--focus::before,
+.hud--focus::after {
+  display: none;
+}

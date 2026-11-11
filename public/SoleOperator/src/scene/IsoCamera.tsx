@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { player } from '../game/runtime';
 import { useApp } from '../state/app';
 import { stage } from './stage';
+import { viewOf } from '../rooms/registry';
+import { useWorld } from '../state/world';
 
 /** 45° yaw, 30° pitch: the classic 2:1 dimetric "isometric" game angle. */
 export const CAM_YAW = Math.PI / 4;
@@ -51,7 +53,7 @@ export function IsoCamera() {
   useFrame((_, dt) => {
     const layout = stage.layout;
     // Base zoom: pixels per metre so the whole control room (core, ring of desks, back walls) fits at 1×.
-    const base = Math.min(size.height / 36, size.width / 52);
+    const base = Math.min(size.height / 36, size.width / 52) * viewOf(useWorld.getState().space).zoom;
     // Control modes frame their machine: look at the focus point and zoom in (scroll still works on top).
     const focus = stage.focus;
     const wantZoom = focus ? Math.max(zoomGoal.current, focus.zoom) : zoomGoal.current;

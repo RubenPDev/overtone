@@ -19,14 +19,14 @@ const DOOR_H = 3.8;
 /** Back walls (-x, -z) are full height; front walls (+x, +z) are cut low so the camera sees in. */
 const isBack = (f: Facing) => f === '-x' || f === '-z';
 
-function useShellMaterials() {
+function useShellMaterials(shell?: RoomDefinition['shell']) {
   return useMemo(() => {
     const floorMap = floorTexture().clone();
     floorMap.needsUpdate = true;
     return {
       floorMap,
-      wall: new THREE.MeshStandardMaterial({ color: PALETTE.wallLight, roughness: 0.85 }),
-      wallDark: new THREE.MeshStandardMaterial({ color: PALETTE.wallDark, roughness: 0.9 }),
+      wall: new THREE.MeshStandardMaterial({ color: shell?.wall ?? PALETTE.wallLight, roughness: 0.85 }),
+      wallDark: new THREE.MeshStandardMaterial({ color: shell?.band ?? PALETTE.wallDark, roughness: 0.9 }),
       trim: new THREE.MeshStandardMaterial({
         color: PALETTE.trim,
         roughness: 0.6,
@@ -38,7 +38,7 @@ function useShellMaterials() {
       plate: new THREE.MeshStandardMaterial({ color: '#141b23', roughness: 0.6 }),
       hazard: new THREE.MeshStandardMaterial({ map: hazardTexture(), roughness: 0.7 }),
     };
-  }, []);
+  }, [shell]);
 }
 
 type Mats = ReturnType<typeof useShellMaterials>;
@@ -315,7 +315,7 @@ function AutoDoor({
 
 /** Generic room shell from a RoomDefinition: slab, floor, cutaway walls, doorways and stubs. */
 export function RoomShell({ room }: { room: RoomDefinition }) {
-  const mats = useShellMaterials();
+  const mats = useShellMaterials(room.shell);
   const b = room.bounds;
   const w = b.maxX - b.minX;
   mats.floorMap.repeat.set(1, 1);
@@ -345,12 +345,12 @@ export function RoomShell({ room }: { room: RoomDefinition }) {
   const floorMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: PALETTE.floor,
+        color: room.shell?.floor ?? PALETTE.floor,
         map: mats.floorMap,
         roughness: 0.78,
         metalness: 0.05,
       }),
-    [mats.floorMap],
+    [mats.floorMap, room.shell],
   );
 
   return (

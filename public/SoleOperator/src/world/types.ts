@@ -128,6 +128,10 @@ export interface RoomDefinition {
   interactables: Interactable[];
   workstations: Workstation[];
   obstacles: Obstacle[];
+  /** Shell colours (defaults: the light plant greys). */
+  shell?: { wall?: string; band?: string; floor?: string };
+  /** Camera and light tuning: zoom multiplies the base zoom (below 1 = wider), ambient scales the fill lights. */
+  view?: { zoom?: number; ambient?: number };
   /** Floor lettering, e.g. 'CONTROL ROOM 01'. */
   floorLabel?: string;
   /** Parts of the floor cut away (pits, pools). The room's Contents draws what's below. */

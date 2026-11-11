@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { useApp } from '../state/app';
 import { stage } from './stage';
+import { viewOf } from '../rooms/registry';
+import { useWorld } from '../state/world';
 
 /**
  * Shared base lighting: cool sky fill, warm bounce, and one shadow-casting key
@@ -13,6 +15,14 @@ import { stage } from './stage';
 export function Lighting() {
   const shadows = useApp((s) => s.settings.quality === 'high');
   const key = useRef<THREE.DirectionalLight>(null);
+  const hemi = useRef<THREE.HemisphereLight>(null);
+  const amb = useRef<THREE.AmbientLight>(null);
+  // Rooms can ask for a darker (or brighter) fill; the key light stays.
+  useFrame(() => {
+    const k = viewOf(useWorld.getState().space).ambient;
+    if (hemi.current && Math.abs(hemi.current.intensity - 1.05 * k) > 1e-3) hemi.current.intensity = 1.05 * k;
+    if (amb.current) amb.current.intensity = 0.22 * k;
+  });
   const gl = useThree((s) => s.gl);
 
   // Shadow map refresh at half the frame rate (still 60 Hz at 120 fps): the shadow
@@ -70,8 +80,8 @@ export function Lighting() {
 
   return (
     <>
-      <hemisphereLight args={['#cfe4f2', '#4a3c30', 1.05]} />
-      <ambientLight intensity={0.22} color="#b8cadb" />
+      <hemisphereLight ref={hemi} args={['#cfe4f2', '#4a3c30', 1.05]} />
+      <ambientLight ref={amb} intensity={0.22} color="#b8cadb" />
       <directionalLight ref={key} intensity={1.6} color="#fff0dd" castShadow={shadows} />
       <SceneEnvironment />
     </>

@@ -6,7 +6,6 @@ import { isFresh } from '../logistics';
 import { useHud } from '../state/hud';
 import { useLogistics } from '../state/logistics';
 import { useMode, type RefuelPhase } from '../state/mode';
-import { fmt } from './nav';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -19,82 +18,6 @@ function Keys({ items }: { items: [string, string][] }) {
           {label}
         </span>
       ))}
-    </div>
-  );
-}
-
-function Readouts() {
-  const sim = useHud((s) => s.sim);
-  if (!sim) return null;
-  return (
-    <div className="mp__readouts">
-      <span>
-        <b>{fmt(sim.output)}</b> MWe
-      </span>
-      <span>
-        <b>{fmt(sim.thermalPower)}</b> MWt
-      </span>
-      <span>
-        <b>{sim.coreTemp.toFixed(0)}</b> °C
-      </span>
-      <span>
-        k <b>{sim.keff.toFixed(4)}</b>
-      </span>
-      <span className={sim.reactivity > 60 ? 'up' : sim.reactivity < -60 ? 'down' : ''}>
-        ρ{' '}
-        <b>
-          {sim.reactivity > 0 ? '+' : ''}
-          {sim.reactivity.toFixed(0)}
-        </b>{' '}
-        pcm
-      </span>
-    </div>
-  );
-}
-
-function RodPanel({ selected, bank }: { selected: number; bank: boolean }) {
-  const rods = useHud((s) => s.sim?.rods);
-  const cells = useHud((s) => s.sim?.cells);
-  const select = (i: number) => useMode.setState({ mode: { kind: 'rods', selected: i, bank: false } });
-  return (
-    <div className="mp">
-      <div className="mp__head">
-        <span className="mp__eyebrow">Rod control</span>
-        <h3>{bank ? 'All rods · bank mode' : `Rod ${pad2(selected + 1)}`}</h3>
-        <button className="mp__close" onClick={exitMode}>
-          ESC
-        </button>
-      </div>
-      <Readouts />
-      <div className="mp__rods">
-        {(rods ?? []).map((ins, i) => {
-          const cell = cells?.[i];
-          return (
-            <button
-              key={i}
-              className={`rodcol${bank || i === selected ? ' is-on' : ''}`}
-              onClick={() => select(i)}
-            >
-              <span className="rodcol__bar">
-                <i style={{ height: `${ins * 100}%` }} />
-              </span>
-              <b>{pad2(i + 1)}</b>
-              <small className={cell && cell.loaded && cell.burnup > 0.9 ? 'hot' : ''}>
-                {cell ? (cell.loaded ? `${Math.round(cell.burnup * 100)}%` : 'EMPTY') : ''}
-              </small>
-            </button>
-          );
-        })}
-      </div>
-      <Keys
-        items={[
-          ['← →', 'select'],
-          ['W', 'withdraw'],
-          ['S', 'insert'],
-          ['B', 'bank'],
-          ['Esc', 'exit'],
-        ]}
-      />
     </div>
   );
 }
@@ -237,7 +160,6 @@ function RefuelPanel() {
 /** Bottom-centre panel for whichever machine the Operator is controlling. */
 export function ModePanel() {
   const mode = useMode((s) => s.mode);
-  if (mode.kind === 'rods') return <RodPanel selected={mode.selected} bank={mode.bank} />;
   if (mode.kind === 'crane') return <CranePanel />;
   if (mode.kind === 'refuel') return <RefuelPanel />;
   if (mode.kind === 'rf') return <RfPanel cavity={mode.cavity} />;

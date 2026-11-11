@@ -18,8 +18,9 @@ import {
 import { hazardTexture } from '../../scene/textures';
 import { PALETTE } from '../../styles/palette';
 import type { RoomContentsProps } from '../../world/types';
-import { ConsoleDesk } from './ConsoleDesk';
-import { CORE_BAY, DESK_ANGLES_DEG, DESK_RADIUS, PROPS, workstations } from './index';
+import { ConsoleRings, CoreStack, FrontBanks, Galleries, RailRing } from './Hall';
+import { CORE_BAY, HALL, INNER_R, OUTER_R, PROPS, RAIL_R, workstations } from './index';
+import { HoloCore, OperatorStation } from './OperatorStation';
 import { ReactorCore } from './ReactorCore';
 import { RefuelMachine } from './RefuelMachine';
 import { WallDisplay, drawCellMap, drawRods, makeOutputDrawer } from './WallDisplay';
@@ -83,7 +84,7 @@ function RadiationSign({
   }, []);
   return (
     <mesh position={position} rotation={rotation}>
-      <planeGeometry args={[1.3, 1.3]} />
+      <planeGeometry args={[1.6, 1.6]} />
       <meshStandardMaterial map={tex} roughness={0.6} />
     </mesh>
   );
@@ -166,81 +167,59 @@ function CartBay() {
   );
 }
 
-/** Reactor Control Room: core, refuelling machine, console ring, staff, wall screens, safety kit and lighting. */
+/**
+ * Unit 1 core hall: the core tank and refuelling machine under the drive stack,
+ * console rings with crew, the Reactor Operator Station and its holo core,
+ * tiered galleries, wall screens, safety kit and lighting.
+ */
 export default function ControlRoomContents(_: RoomContentsProps) {
   const outputDrawer = useMemo(() => makeOutputDrawer(), []);
+  const W = HALL - 0.3; // wall face
   return (
     <group>
       <ReactorCore />
       <RefuelMachine />
+      <CoreStack />
+      <ConsoleRings />
+      <RailRing />
+      <Galleries />
+      <FrontBanks />
+      <OperatorStation />
+      <HoloCore />
+      {workstations
+        .filter((w) => w.staff)
+        .map((w, i) => (
+          <SeatedNpc key={w.id} x={w.position.x} z={w.position.z} yaw={w.facing} seed={i + 1} />
+        ))}
+
       {/* Everything static in here is merged into a few draw calls. */}
       <Baked>
         <CartBay />
         <Terminal x={PROPS.pedestal.x} z={PROPS.pedestal.z} yaw={Math.PI / 4} screen={PALETTE.amber} />
 
-        {DESK_ANGLES_DEG.map((deg, i) => {
-          const a = (deg * Math.PI) / 180;
-          const dir = { x: Math.cos(a), z: Math.sin(a) };
-          const w = workstations[i]!;
-          return (
-            <group key={deg}>
-              <ConsoleDesk
-                x={dir.x * DESK_RADIUS}
-                z={dir.z * DESK_RADIUS}
-                yaw={Math.atan2(dir.x, dir.z)}
-                seed={i}
-              />
-              <GlowDecal
-                x={dir.x * (DESK_RADIUS + 0.4)}
-                z={dir.z * (DESK_RADIUS + 0.4)}
-                radius={2.8}
-                color={PALETTE.amber}
-                intensity={0.24}
-              />
-              <GlowDecal
-                x={dir.x * (DESK_RADIUS - 0.1)}
-                z={dir.z * (DESK_RADIUS - 0.1)}
-                radius={1.7}
-                color={PALETTE.cyan}
-                intensity={0.24}
-              />
-              {w.staff && <SeatedNpc x={w.position.x} z={w.position.z} yaw={w.facing} seed={i} />}
-              {!w.staff && (
-                <GlowDecal
-                  x={w.position.x}
-                  z={w.position.z}
-                  radius={1.4}
-                  color={PALETTE.player}
-                  intensity={0.3}
-                />
-              )}
-            </group>
-          );
-        })}
-
-        {/* Back-wall screens */}
+        {/* Big screens on the back walls, under the first gallery */}
         <WallDisplay
-          width={9}
-          height={3.6}
+          width={12}
+          height={4.6}
           draw={drawCellMap}
-          position={[-15.7, 4.3, 8.6]}
+          position={[-W, 4.0, 13]}
           rotation={[0, Math.PI / 2, 0]}
         />
         <WallDisplay
-          width={8}
-          height={3.6}
+          width={11}
+          height={4.6}
           draw={drawRods}
-          position={[-15.7, 4.3, -9.2]}
+          position={[-W, 4.0, -15]}
           rotation={[0, Math.PI / 2, 0]}
         />
         <WallDisplay
-          width={9}
-          height={3.6}
+          width={12}
+          height={4.6}
           draw={outputDrawer}
-          position={[8.6, 4.3, -15.7]}
+          position={[14, 4.0, -W]}
           rotation={[0, 0, 0]}
         />
-        <RadiationSign position={[-13.4, 4.6, -15.76]} rotation={[0, 0, 0]} />
+        <RadiationSign position={[-27, 4.6, -HALL + 0.24]} rotation={[0, 0, 0]} />
 
         {/* Safety and amenities */}
         <AlarmPanel x={PROPS.alarmPanel.x} z={PROPS.alarmPanel.z} />
@@ -251,25 +230,25 @@ export default function ControlRoomContents(_: RoomContentsProps) {
         ))}
         <FirstAid x={PROPS.firstAid.x} z={PROPS.firstAid.z} />
 
-        {/* Service pipes along the back walls */}
-        <Pipe axis="z" from={-15.6} to={15.6} y={7.35} offset={-15.5} band={PALETTE.cyan} />
+        {/* Service pipes along the back walls, just under the first gallery */}
+        <Pipe axis="z" from={-HALL + 0.4} to={HALL - 0.4} y={6.9} offset={-HALL + 0.5} band={PALETTE.cyan} />
         <Pipe
           axis="z"
-          from={-15.6}
-          to={15.6}
-          y={7.85}
-          offset={-15.45}
+          from={-HALL + 0.4}
+          to={HALL - 0.4}
+          y={7.3}
+          offset={-HALL + 0.45}
           r={0.1}
           color="#b7bfc8"
           band={PALETTE.trim}
         />
-        <Pipe axis="x" from={-15.6} to={15.6} y={7.35} offset={-15.5} band={PALETTE.cyan} />
+        <Pipe axis="x" from={-HALL + 0.4} to={HALL - 0.4} y={6.9} offset={-HALL + 0.5} band={PALETTE.cyan} />
         <Pipe
           axis="x"
-          from={-15.6}
-          to={15.6}
-          y={7.85}
-          offset={-15.45}
+          from={-HALL + 0.4}
+          to={HALL - 0.4}
+          y={7.3}
+          offset={-HALL + 0.45}
           r={0.1}
           color="#b7bfc8"
           band={PALETTE.player}
@@ -278,34 +257,50 @@ export default function ControlRoomContents(_: RoomContentsProps) {
         {PROPS.plants.map(([x, z]) => (
           <Plant key={`${x},${z}`} x={x} z={z} />
         ))}
+        <FloorText
+          position={[RAIL_R + 1.2, 0.02, -3.4]}
+          yaw={Math.PI / 2}
+          fontSize={0.42}
+          color="#f2b81f"
+          fillOpacity={0.6}
+        >
+          REACTOR · RESTRICTED · DOSE CONTROLLED
+        </FloorText>
       </Baked>
 
       {/* Animated props stay out of the bake. */}
-      {/* Beacons mount flush on the wall, beside (not over) the panel and the door signs. */}
-      <AlarmBeacon x={PROPS.alarmPanel.x + 1.15} z={-16} y={2.35} />
-      <AlarmBeacon x={-16} z={-3.7} y={4.6} yaw={Math.PI / 2} />
+      <AlarmBeacon x={PROPS.alarmPanel.x + 1.15} z={-HALL} y={2.35} />
+      <AlarmBeacon x={-HALL} z={-6} y={4.6} yaw={Math.PI / 2} />
       <WallClock x={PROPS.clock.x} z={PROPS.clock.z + 0.02} y={5.7} />
-      <SecurityCamera x={-15.6} z={14.2} y={6.8} yaw={Math.PI / 2} />
-      <SecurityCamera x={14.2} z={-15.6} y={6.8} yaw={0} />
+      <SecurityCamera x={-HALL + 0.4} z={27} y={6.6} yaw={Math.PI / 2} />
+      <SecurityCamera x={27} z={-HALL + 0.4} y={6.6} yaw={0} />
 
-      {/* One real warm light for bounce (every extra light costs every lit pixel); decals do the rest. */}
-      <pointLight position={[-6, 6.5, -6]} color="#ffc48a" intensity={70} distance={30} decay={1.2} />
+      {/* Warm light from the stack's bands onto the floor and galleries; decals do the rest. */}
+      <pointLight position={[0, 15, 0]} color="#ffb070" intensity={150} distance={48} decay={1.15} />
       <Baked>
-        {[
-          [-10, -10],
-          [10, 10],
-          [-10, 10],
-          [10, -10],
-        ].map(([x, z]) => (
-          <GlowDecal key={`${x},${z}`} x={x!} z={z!} radius={7} color={PALETTE.amber} intensity={0.3} />
-        ))}
+        {[45, 135, 225, 315].map((deg) => {
+          const a = (deg * Math.PI) / 180;
+          const r = (INNER_R + OUTER_R) / 2;
+          return (
+            <GlowDecal
+              key={deg}
+              x={Math.cos(a) * r}
+              z={Math.sin(a) * r}
+              radius={9}
+              color={PALETTE.amber}
+              intensity={0.2}
+            />
+          );
+        })}
+        <GlowDecal x={0} z={0} radius={13} color="#ff9a4a" intensity={0.14} />
+        <GlowDecal x={-24} z={-24} radius={10} color="#cfe6ff" intensity={0.12} />
       </Baked>
-      {/* Walkway lines from each door toward the core */}
+      {/* Lane lines from each door in to the railing */}
       {[
-        [-12, 0, 8, 0.12],
-        [0, -12, 0.12, 8],
-        [12, 0, 8, 0.12],
-        [0, 12, 0.12, 8],
+        [-(HALL + RAIL_R) / 2, 0, HALL - RAIL_R, 0.12],
+        [0, -(HALL + RAIL_R) / 2, 0.12, HALL - RAIL_R],
+        [(HALL + RAIL_R) / 2, 0, HALL - RAIL_R, 0.12],
+        [0, (HALL + RAIL_R) / 2, 0.12, HALL - RAIL_R],
       ].map(([x, z, w, d]) => (
         <mesh key={`${x},${z}`} position={[x!, 0.015, z!]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[w!, d!]} />

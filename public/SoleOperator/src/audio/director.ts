@@ -58,7 +58,7 @@ export const BED_FACTORIES: Partial<Record<BedKey, () => Bed>> = {
 
 export const SPACE_MIX: Record<string, SpaceMix> = {
   'control-room': {
-    acoustics: 'hall',
+    acoustics: 'big-hall',
     surface: 'tile',
     beds: { hum: 0.05, air: 0.09, pump: 0.16 },
     texture: {

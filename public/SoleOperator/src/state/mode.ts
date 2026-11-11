@@ -26,6 +26,8 @@ interface ModeState {
   refuel: { phase: RefuelPhase; progress: number; busy: boolean; cell: number; armLoaded: boolean };
   /** Crane panel readout. */
   crane: { target: string; busy: boolean };
+  /** Hold-to-scram (X) progress 0–1 in rod control, mirrored at ~10 Hz. */
+  hold: number;
   /** Weld patch progress 0–1 in tank service, mirrored at ~10 Hz. */
   weld: number;
   /** Turbine hall hold-to-act progress 0–1 (analysis, service, weight fitting), ~10 Hz. */
@@ -41,6 +43,7 @@ export const useMode = create<ModeState>()(() => ({
   refuel: { phase: 'insert-rod', progress: 0, busy: false, cell: 6, armLoaded: false },
   crane: { target: '', busy: false },
   weld: 0,
+  hold: 0,
   job: { progress: 0, fitting: false },
   analysis: null,
   trials: [],

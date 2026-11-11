@@ -8,6 +8,7 @@ import { installModeKeys, modeInput, setRodDrive } from '../game/modes';
 import { publishRefuel, updateRefuel } from '../game/refuel';
 import { useApp } from '../state/app';
 import { useMode } from '../state/mode';
+import { simHost } from '../game/runtime';
 import { VALVE_RATE, updateWeld, weld } from '../game/tanks';
 import { adjustWeight, job, updateAnalyze, updateFit, updateService } from '../game/turbine';
 
@@ -19,7 +20,7 @@ import { adjustWeight, job, updateAnalyze, updateFit, updateService } from '../g
 export function ModeDriver() {
   const throttle = useMemo(() => createThrottle(10), []);
   const tuneThrottle = useMemo(() => createThrottle(10), []);
-  const tune = useMemo(() => ({ acc: 0, acc2: 0 }), []);
+  const tune = useMemo(() => ({ acc: 0, acc2: 0, hold: 0 }), []);
   useEffect(() => installModeKeys(), []);
 
   useFrame((_, rawDt) => {
@@ -34,6 +35,18 @@ export function ModeDriver() {
       const dir = up === down ? 0 : up ? -1 : 1;
       const rods = mode.bank ? Array.from({ length: 12 }, (_, i) => i) : [mode.selected];
       setRodDrive(dir, rods);
+      // Hold X for a second: scram (or, once scrammed, reset the scram).
+      if (!menu && isDown('KeyX')) {
+        tune.hold += dt;
+        if (tune.hold >= 1) {
+          tune.hold = -10; // one action per hold
+          bus.emit('cmd/sim', { type: simHost.state.scrammed ? 'resetScram' : 'scram' });
+        }
+      } else tune.hold = 0;
+      if (throttle(dt)) {
+        const h = Math.max(0, tune.hold);
+        if (Math.abs(useMode.getState().hold - h) > 0.01) useMode.setState({ hold: h });
+      }
     } else if (mode.kind === 'crane') {
       updateCrane(dt, menu ? null : keyboardDir());
     } else if (mode.kind === 'rf') {
