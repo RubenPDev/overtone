@@ -3,9 +3,9 @@ import { getRoom, isRoomBuilt, preloadRoom } from '../rooms/registry';
 import { useHud } from '../state/hud';
 import { useWorld, type Arrival } from '../state/world';
 import { getCorridor, getNode, otherEnd, routeTo } from '../world/facility';
-import { arrivalPoint } from '../world/geometry';
-import { corridorFrame, type Space } from '../world/spaces';
-import { cartEnteredRoom } from './cart';
+import { arrivalPoint, nearestFree } from '../world/geometry';
+import { buildRoomSpace, corridorFrame, type Space } from '../world/spaces';
+import { cartEnteredRoom, settleParkedCart } from './cart';
 import { player } from './runtime';
 
 const FADE_MS = 380;
@@ -30,7 +30,16 @@ async function transition(title: string, subtitle: string, swap: () => Promise<v
   busy = false;
 }
 
-function mount(space: Space, arrival: Arrival) {
+function mount(space: Space, requested: Arrival) {
+  let arrival = requested;
+  if (space.kind === 'room') {
+    // Saved positions can predate a room's current layout: never arrive inside furniture.
+    const room = getRoom(space.room);
+    const layout = buildRoomSpace(room, isRoomBuilt);
+    const pos = nearestFree(layout, requested.position) ?? room.spawn.position;
+    arrival = { ...requested, position: pos };
+    settleParkedCart(space.room, layout);
+  }
   player.pos = { ...arrival.position };
   player.yaw = arrival.facing;
   if (space.kind === 'room') cartEnteredRoom(space.room);

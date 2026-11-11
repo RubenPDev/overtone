@@ -151,12 +151,33 @@ function pointInUnionWithMargin(rects: Rect[], p: Vec2, radius: number): boolean
 /** Moves from `from` by `delta`, sliding along walls/obstacles instead of stopping dead. */
 export function slideMove(layout: SpaceLayout, from: Vec2, delta: Vec2, radius = PLAYER_RADIUS): Vec2 {
   const full = { x: from.x + delta.x, z: from.z + delta.z };
+  // Already overlapping something (a layout change, a teleport): let any move on the floor through,
+  // so the player can always walk out instead of freezing in place.
+  if (!isWalkable(layout, from, radius))
+    return pointInUnionWithMargin(layout.walkable, full, radius) ? full : from;
   if (isWalkable(layout, full, radius)) return full;
   const xOnly = { x: from.x + delta.x, z: from.z };
   if (Math.abs(delta.x) > 1e-6 && isWalkable(layout, xOnly, radius)) return xOnly;
   const zOnly = { x: from.x, z: from.z + delta.z };
   if (Math.abs(delta.z) > 1e-6 && isWalkable(layout, zOnly, radius)) return zOnly;
   return from;
+}
+
+/**
+ * The nearest point to p where a disc of `radius` fits (p itself if it already
+ * does), searching outward in rings up to `maxR` metres. Null if nothing fits.
+ */
+export function nearestFree(layout: SpaceLayout, p: Vec2, radius = PLAYER_RADIUS, maxR = 10): Vec2 | null {
+  if (isWalkable(layout, p, radius)) return { ...p };
+  for (let r = 0.25; r <= maxR; r += 0.25) {
+    const n = Math.max(12, Math.round(r * 16));
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const q = { x: p.x + Math.cos(a) * r, z: p.z + Math.sin(a) * r };
+      if (isWalkable(layout, q, radius)) return q;
+    }
+  }
+  return null;
 }
 
 // --- Navigation --------------------------------------------------------------

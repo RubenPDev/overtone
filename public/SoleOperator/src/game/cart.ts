@@ -1,4 +1,5 @@
 import { bus } from '../core/events';
+import { nearestFree, type SpaceLayout } from '../world/geometry';
 import { isFresh } from '../logistics';
 import { getRoom, isRoomBuilt } from '../rooms/registry';
 import { pushToast } from '../state/hud';
@@ -101,6 +102,18 @@ export function followPlayer() {
 }
 
 /** On entering a room while pushing, the cart comes along. */
+/** A cart parked (outside a bay) where the room's furniture now stands is nudged to free floor. */
+export function settleParkedCart(roomId: string, layout: SpaceLayout) {
+  const c = logistics.state.cart;
+  if (c.attached || c.bay || c.room !== roomId) return;
+  const free = nearestFree(layout, { x: c.x, z: c.z }, 0.85);
+  if (free && (free.x !== c.x || free.z !== c.z)) {
+    c.x = free.x;
+    c.z = free.z;
+    syncLogistics();
+  }
+}
+
 export function cartEnteredRoom(roomId: string) {
   const c = logistics.state.cart;
   if (!c.attached || !isRoomBuilt(roomId)) return;

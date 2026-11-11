@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CORRIDORS, NODES, TOTAL_CORRIDOR_M, routeTo, shortestPaths } from './facility';
-import { StraightLineNavigator, isWalkable, slideMove } from './geometry';
+import { StraightLineNavigator, isWalkable, nearestFree, slideMove } from './geometry';
 import { buildCorridorSpace, buildRoomSpace, corridorFrame, corridorT, doorState } from './spaces';
 import { ROOMS, getRoom, isRoomBuilt } from '../rooms/registry';
 import { EventBus, type GameEvents } from '../core/events';
@@ -49,6 +49,40 @@ describe('facility graph', () => {
 });
 
 describe('rooms and spaces', () => {
+  it('a position inside furniture (an old save after a layout change) never traps the player', () => {
+    const cr = getRoom('control-room');
+    const space = buildRoomSpace(cr, isRoomBuilt);
+    // Where the coffee machine used to be: now inside the inner console ring.
+    const stale = { x: -6.4, z: -14 };
+    expect(isWalkable(space, stale)).toBe(false);
+    const free = nearestFree(space, stale)!;
+    expect(free).not.toBeNull();
+    expect(isWalkable(space, free)).toBe(true);
+    expect(Math.hypot(free.x - stale.x, free.z - stale.z)).toBeLessThan(2.5);
+    // And if the player does end up overlapping, any step on the floor gets them out.
+    const moved = slideMove(space, stale, { x: 0.1, z: 0.1 });
+    expect(moved).toEqual({ x: stale.x + 0.1, z: stale.z + 0.1 });
+  });
+
+  it('the rings leave a walkable path from the spawn to the station and out through every lane', () => {
+    const cr = getRoom('control-room');
+    const space = buildRoomSpace(cr, isRoomBuilt);
+    const station = cr.interactables.find((i) => i.id === 'console-1')!;
+    expect(isWalkable(space, station.position)).toBe(true);
+    // Walk the walkway ring between the console rings all the way round.
+    const r = 17.75;
+    for (let a = 0; a < Math.PI * 2; a += 0.05)
+      expect(isWalkable(space, { x: Math.cos(a) * r, z: Math.sin(a) * r })).toBe(true);
+    // Each lane is open from the wall to the core floor.
+    for (const [dx, dz] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ])
+      for (let d = 6; d < 29; d += 0.5) expect(isWalkable(space, { x: dx! * d, z: dz! * d })).toBe(true);
+  });
+
   it('every doorway refers to a corridor touching its room', () => {
     for (const room of ROOMS.values())
       for (const d of room.doorways) {
